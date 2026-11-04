@@ -279,3 +279,121 @@ def test_only_indexed_and_spread(indexed):
     got = spread(many, 8)
     assert len(got) == 8 and sum(not g["answerable"] for g in got) == 2
     assert {g["expected"][0]["doc_id"] for g in got if g["answerable"]} == {"0", "1", "2"}
+
+
+def test_two_tier_indexing(con):
+    """BM25 for everything without Ollama, then dense for the dense tier; sparse-only points are upgraded."""
+    from modda.indexing import run_index
+    store, emb = MemoryStore(dim=64), FakeEmbedder(64)
+    n_sparse = run_index(con, store, None, "fake", mode="sparse")
+    total, mvp = stats(con)["chunks"], stats(con)["chunks_mvp"]
+    assert n_sparse == total - mvp and stats(con)["chunks_sparse_only"] == n_sparse
+    ctx = retrieve(con, store, emb, "fake", "Yer soligʻi qachon toʻlanadi?", k=2, mode="sparse")
+    assert ctx and ctx[0].meta["article_number"] == "7"              # found by BM25 alone
+    assert store.search_dense(emb.embed("fake", ["yer"])[0], 5) == []  # no dense vectors yet
+    n_dense = run_index(con, store, emb, "fake", types=["code", "constitution", "law"])
+    st = stats(con)
+    laws = con.execute("SELECT COUNT(*) FROM chunks c JOIN articles a ON a.id = c.article_id WHERE a.doc_type = 'law'").fetchone()[0]
+    assert laws > 0 and n_dense == mvp + laws and st["chunks_indexed"] == n_dense   # codes + laws get dense
+    assert st["chunks_sparse_only"] == total - n_dense                 # resolutions stay BM25-only
+    assert run_index(con, store, None, "fake", mode="sparse") == 0
+
+
+# ----------------------------------------------------------------------------- Lex.uz pages, labels, router
+
+LEXUZ = FIX / "lexuz"
+
+
+@pytest.mark.skipif(not (LEXUZ / "97664.html").exists(), reason="Lex.uz sahifalari saqlanmagan (fetch-fixtures)")
+def test_lexuz_parser_keeps_superscripts_and_skips_commentary():
+    from modda.lexparse import label_display, parse
+    d = parse((LEXUZ / "97664.html").read_text(encoding="utf-8"))
+    assert "Maʼmuriy javobgarlik" in d.title and len(d.articles) > 600
+    a = d.by_label()["195-1"]
+    assert label_display(a.label) == "195¹" and a.chapter.startswith("XVI bob")
+    assert a.amendment_notes and "tahririda" in a.amendment_notes[0]
+    assert all("LexUZ sharhi" not in p for art in d.articles for p in art.paragraphs)
+    k = parse((LEXUZ / "6445145.html").read_text(encoding="utf-8")).by_label()["27"]
+    assert "qirq sakkiz soatdan" in k.text and k.chapter.startswith("VII bob")
+
+
+@pytest.mark.skipif(not LEXUZ.exists() or not list(LEXUZ.glob("*.html")), reason="Lex.uz sahifalari yoʻq")
+def test_superscript_repair_matches_lexuz_on_every_saved_page():
+    from modda.lexparse import flat_number, parse, repair_labels
+    for f in LEXUZ.glob("*.html"):
+        labels = [a.label for a in parse(f.read_text(encoding="utf-8")).articles]
+        assert repair_labels([flat_number(x) for x in labels]) == labels, f.name
+
+
+def test_repair_labels_rules():
+    from modda.lexparse import repair_labels
+    assert repair_labels(["194", "195", "1951", "1952", "196"]) == ["194", "195", "195-1", "195-2", "196"]
+    assert repair_labels(["182", "183", "1842", "1843", "185"]) == ["182", "183", "184-2", "184-3", "185"]
+    assert repair_labels(["1006", "1007", "1008"]) == ["1006", "1007", "1008"]
+    assert repair_labels(["9", "10", "101", "11"]) == ["9", "10", "10-1", "11"]
+
+
+def test_fix_numbers_and_router(con):
+    from modda.corpus import fix_numbers
+    from modda.router import lookup, route
+    con.execute("UPDATE articles SET article_number = '31', id = id WHERE id = '9001:4'")   # 3, then 3¹ as "31"
+    con.commit()
+    res = fix_numbers(con)
+    assert res["superscript_restored"] >= 1
+    assert con.execute("SELECT article_label FROM articles WHERE id = '9001:4'").fetchone()[0] == "3-1"
+    r = route("Namuna mehnat kodeksining 3¹-moddasi nima deydi?")
+    assert r.kind == "exact" and r.document == "Mehnat kodeksi" and r.label == "3-1"
+    assert route("MK 195-1-modda").label == "195-1" and route("мк 131-модда").label == "131"
+    assert route("Taʼtil qancha?").kind == "hybrid"
+    # lookup needs a code whose title contains "Mehnat kodeksi": the fixture is "Namuna mehnat kodeksi"
+    assert lookup(con, r) == ["9001:4"]
+
+
+def test_exact_reference_comes_first(indexed):
+    from modda.corpus import fix_numbers
+    con, store, emb = indexed
+    fix_numbers(con)
+    ctx = retrieve(con, store, emb, "fake", "MK 4-modda", k=2, mode="sparse")
+    assert ctx[0].chunk_id == "9001:4"
+
+
+# ----------------------------------------------------------------------------- full pipeline with events
+
+def test_pipeline_emits_every_stage_and_api_shape(indexed):
+    from modda.corpus import fix_numbers
+    from modda.pipeline import ask
+    from modda.rerank import OverlapReranker
+    con, store, emb = indexed
+    fix_numbers(con)
+    events = []
+    llm = FakeLLM("Taʼtil haqi taʼtil boshlanishidan kamida 3 kun oldin toʻlanadi [1].")
+    out = ask(con, store, emb, llm, question="Taʼtil haqi qachon toʻlanadi?", embed_model="fake", llm_model="x",
+              emit=events.append, k=2, reranker=OverlapReranker(), checked_at="2026-11-01")
+    kinds = [e["type"] for e in events]
+    assert kinds == ["query.received", "query.analyzed", "embedding.completed", "retrieval.started", "retrieval.completed",
+                     "ranking.completed", "context.completed", "generation.started", "verification.completed", "answer.completed"]
+    assert len({e["request_id"] for e in events}) == 1
+    assert not out["unknown"] and out["checked_at"] == "2026-11-01"
+    s = out["answer"][0]
+    src = out["sources"][s["chunk_ids"][0]]
+    assert src["article_no"] == "4" and s["quote"] and s["quote"].lower() in src["text"].lower()
+    assert events[5]["data"]["reranker"] is True
+
+
+def test_pipeline_drops_unverified_numbers(indexed):
+    from modda.pipeline import ask
+    con, store, emb = indexed
+    llm = FakeLLM("Taʼtil haqi 10 kun oldin toʻlanadi [1].")          # 10 is not in the source
+    events = []
+    out = ask(con, store, emb, llm, question="Taʼtil haqi qachon toʻlanadi?", embed_model="fake", llm_model="x",
+              emit=events.append, k=2)
+    assert out["unknown"] is True
+    assert events[-2]["data"]["failed"][0]["why"].startswith("manbada yoʻq son")
+
+
+def test_rss_parse():
+    from modda.rss import parse_feed
+    xml = """<rss><channel><item><title>Yangi qonun</title><link>/docs/-7000001</link>
+      <pubDate>Mon, 02 Nov 2026 10:00:00 +0500</pubDate></item><item><title>x</title><link>https://lex.uz/uz</link></item></channel></rss>"""
+    items = parse_feed(xml)
+    assert items == [{"doc_id": "-7000001", "title": "Yangi qonun", "link": "https://lex.uz/docs/-7000001", "published": "2026-11-02"}]

@@ -73,14 +73,21 @@ def fetch_contexts(con, hits) -> list[Context]:
 
 
 def retrieve(con, store, embedder, embed_model: str, question: str, k: int = 5, mode: str = "dense",
-             flt: dict | None = None) -> list[Context]:
+             flt: dict | None = None, routing: bool = True) -> list[Context]:
+    """Explicit references ("MK 131-modda") are looked up directly and put first; the rest is search."""
+    from .router import lookup, route
+    from .store import Hit
     q = to_query_form(question)
+    exact = lookup(con, route(question)) if routing else []
     if mode == "sparse":
         hits = store.search_sparse(sparse.query_vector(q), k, flt)
     else:
         vec = embedder.embed(embed_model, [q])[0]
         hits = (store.search_hybrid(vec, sparse.query_vector(q), k, flt=flt) if mode == "hybrid"
                 else store.search_dense(vec, k, flt))
+    if exact:
+        hits = [Hit(cid, 1.0, {}) for cid in exact] + [h for h in hits if h.chunk_id not in exact]
+        hits = hits[:max(k, len(exact))]
     return fetch_contexts(con, hits)
 
 

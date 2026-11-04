@@ -88,5 +88,15 @@ class Database:
     def commit(self) -> None:
         self.con.commit()
 
+    def add_column(self, table: str, column: str, sqltype: str) -> None:
+        """Schema migration for databases created by an older version."""
+        if self.kind == "postgres":
+            self.con.execute(f"ALTER TABLE {table} ADD COLUMN IF NOT EXISTS {column} {sqltype}")
+        else:
+            cols = [r[1] for r in self.con.execute(f"PRAGMA table_info({table})")]
+            if column not in cols:
+                self.con.execute(f"ALTER TABLE {table} ADD COLUMN {column} {sqltype}")
+        self.con.commit()
+
     def close(self) -> None:
         self.con.close()

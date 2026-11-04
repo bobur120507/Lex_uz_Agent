@@ -61,6 +61,9 @@ def connect(db_path: Path | None = None, url: str | None = None) -> Database:
     """PostgreSQL when `url` (DATABASE_URL) is set, otherwise SQLite at `db_path` (used by the tests)."""
     db = Database(url=url, sqlite_path=db_path)
     db.script(SCHEMA)
+    db.add_column("articles", "seq", "INTEGER")             # position in the corpus (document order)
+    db.add_column("articles", "article_label", "TEXT")      # "195-1" for 195¹ (corpus stores "1951")
+    db.script("CREATE INDEX IF NOT EXISTS idx_articles_label ON articles(doc_id, article_label)")
     return db
 
 
@@ -168,7 +171,9 @@ def ingest(corpus_dir: Path, con: Database, limit: int | None = None, batch: int
         )
     cols = ", ".join(ARTICLE_FIELDS)
     marks = ", ".join("?" for _ in ARTICLE_FIELDS)
-    updates = ", ".join(f"{f} = excluded.{f}" for f in ARTICLE_FIELDS if f != "id")
+    cols += ", seq"
+    marks += ", ?"
+    updates = ", ".join(f"{f} = excluded.{f}" for f in ARTICLE_FIELDS + ["seq"] if f != "id")
     sql = f"INSERT INTO articles ({cols}) VALUES ({marks}) ON CONFLICT (id) DO UPDATE SET {updates}"
     n, buf, seen = 0, [], {}
     for row in iter_articles(files):
@@ -181,7 +186,7 @@ def ingest(corpus_dir: Path, con: Database, limit: int | None = None, batch: int
         seen[art["id"]] = k
         if k > 1:
             art["id"] = f"{art['id']}~{k}"
-        buf.append([art[f] for f in ARTICLE_FIELDS])
+        buf.append([art[f] for f in ARTICLE_FIELDS] + [n])
         n += 1
         if len(buf) >= batch:
             con.executemany(sql, buf)
@@ -195,6 +200,31 @@ def ingest(corpus_dir: Path, con: Database, limit: int | None = None, batch: int
     return n
 
 
+def fix_numbers(con: Database) -> dict:
+    """Restore superscript article numbers (corpus "1951" → label "195-1") from document order."""
+    from .lexparse import repair_labels
+    if con.execute("SELECT COUNT(*) FROM articles WHERE seq IS NULL").fetchone()[0]:
+        raise SystemExit("Avval korpusni qayta yuklang (tartib raqami kerak): python -m modda ingest")
+    rows = con.execute("SELECT id, doc_id, article_number FROM articles "
+                       "WHERE COALESCE(quality_flag, '') <> 'no-articles' ORDER BY doc_id, seq").fetchall()
+    updates, changed, docs = [], 0, 0
+    i = 0
+    while i < len(rows):
+        j = i
+        while j < len(rows) and rows[j]["doc_id"] == rows[i]["doc_id"]:
+            j += 1
+        group = rows[i:j]
+        labels = repair_labels([r["article_number"] for r in group])
+        for r, lab in zip(group, labels):
+            updates.append((lab, r["id"]))
+            changed += lab != (r["article_number"] or "")
+        docs += 1
+        i = j
+    con.executemany("UPDATE articles SET article_label = ? WHERE id = ?", updates)
+    con.commit()
+    return {"documents": docs, "articles": len(updates), "superscript_restored": changed}
+
+
 def stats(con: Database) -> dict:
     q = lambda sql: con.execute(sql).fetchall()
     return {
@@ -203,6 +233,7 @@ def stats(con: Database) -> dict:
         "chunks": q("SELECT COUNT(*) FROM chunks")[0][0],
         "chunks_mvp": q("SELECT COUNT(*) FROM chunks WHERE mvp=1")[0][0],
         "chunks_indexed": q("SELECT COUNT(*) FROM chunks WHERE indexed=1")[0][0],
+        "chunks_sparse_only": q("SELECT COUNT(*) FROM chunks WHERE indexed=2")[0][0],
         "doc_types": [r.values_tuple() for r in q("SELECT doc_type, COUNT(*) AS c FROM articles GROUP BY 1 ORDER BY 2 DESC LIMIT 15")],
         "status": [r.values_tuple() for r in q("SELECT status, COUNT(*) AS c FROM articles GROUP BY 1 ORDER BY 2 DESC LIMIT 10")],
         "language": [r.values_tuple() for r in q("SELECT language, script, COUNT(*) AS c FROM articles GROUP BY 1, 2 ORDER BY 3 DESC LIMIT 10")],

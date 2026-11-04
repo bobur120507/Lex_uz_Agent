@@ -88,9 +88,10 @@ class QdrantStore:
 
     def upsert(self, items: list[dict]) -> None:
         """items: {chunk_id, dense, sparse, payload}"""
+        # named vectors are optional in Qdrant: a sparse-only point simply has no "dense" vector
         points = [{
             "id": point_id(it["chunk_id"]),
-            "vector": {"dense": it["dense"], "bm25": it["sparse"]},
+            "vector": ({"dense": it["dense"]} if it.get("dense") is not None else {}) | {"bm25": it["sparse"]},
             "payload": {"chunk_id": it["chunk_id"], **it["payload"]},
         } for it in items]
         self._req("PUT", f"/collections/{self.collection}/points?wait=true", {"points": points})
@@ -145,8 +146,10 @@ class MemoryStore:
 
     def upsert(self, items: list[dict]) -> None:
         for it in items:
-            v = np.asarray(it["dense"], dtype=np.float32)
-            v /= (np.linalg.norm(v) or 1.0)
+            v = None
+            if it.get("dense") is not None:
+                v = np.asarray(it["dense"], dtype=np.float32)
+                v /= (np.linalg.norm(v) or 1.0)
             self.points[it["chunk_id"]] = (v, it["sparse"], {"chunk_id": it["chunk_id"], **it["payload"]})
 
     def count(self) -> int:
@@ -166,7 +169,7 @@ class MemoryStore:
     def search_dense(self, vector, limit=5, flt=None) -> list[Hit]:
         q = np.asarray(vector, dtype=np.float32)
         q /= (np.linalg.norm(q) or 1.0)
-        scored = [(float(v @ q), cid, p) for cid, (v, _, p) in self.points.items() if self._match(p, flt)]
+        scored = [(float(v @ q), cid, p) for cid, (v, _, p) in self.points.items() if v is not None and self._match(p, flt)]
         scored.sort(key=lambda x: -x[0])
         return [Hit(cid, s, p) for s, cid, p in scored[:limit]]
 

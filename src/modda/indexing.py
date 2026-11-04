@@ -1,4 +1,10 @@
-"""Embedding benchmark and the resumable indexing job (SQLite chunks → Qdrant)."""
+"""Embedding benchmark and the resumable indexing job (database chunks → Qdrant).
+
+Two tiers, because dense embedding on a CPU is slow (≈ 0.5 chunk/s for bge-m3):
+  * sparse (BM25) for every chunk — pure Python, minutes for the whole corpus;
+  * dense (bge-m3) for the acts people ask about most: codes, the Constitution, laws.
+`chunks.indexed`: 0 = not in Qdrant, 1 = dense + sparse, 2 = sparse only (upgraded to 1 later).
+"""
 
 from __future__ import annotations
 
@@ -11,18 +17,34 @@ from .chunking import embed_text
 from .corpus import set_meta
 from .textnorm import tokenize
 
+import re
+
 BATCH = 32
+SPARSE_BATCH = 256
+DENSE_TYPES = ("code", "constitution", "law")
+NONE, FULL, SPARSE_ONLY = 0, 1, 2
 
 
-def _where(mvp_only: bool) -> str:
-    return " WHERE c.indexed = 0" + (" AND c.mvp = 1" if mvp_only else "")
+def _where(mvp_only: bool, mode: str = "dense", types=None) -> str:
+    if mode == "sparse":
+        # mvp = 0 only: never races with an `index --mvp` job that may be running at the same time
+        w = f" WHERE c.indexed = {NONE} AND c.mvp = 0"
+    else:
+        w = f" WHERE c.indexed IN ({NONE}, {SPARSE_ONLY})"
+    if mvp_only:
+        w += " AND c.mvp = 1"
+    if types:
+        safe = [t for t in types if re.fullmatch(r"[a-z_]+", t)]
+        w += " AND a.doc_type IN (" + ", ".join(f"'{t}'" for t in safe) + ")"
+    return w
 
 
-def _next_batch(con, mvp_only: bool, n: int):
+def _next_batch(con, mvp_only: bool, n: int, mode: str = "dense", types=None):
     """Pending chunks are read batch by batch; a batch disappears from the query once it is marked indexed."""
     return con.execute(
         "SELECT c.*, a.doc_id, a.doc_type, a.status, a.article_number FROM chunks c "
-        f"JOIN articles a ON a.id = c.article_id{_where(mvp_only)} ORDER BY c.mvp DESC, c.chunk_id LIMIT ?", (n,)).fetchall()
+        f"JOIN articles a ON a.id = c.article_id{_where(mvp_only, mode, types)} "
+        "ORDER BY c.mvp DESC, c.chunk_id LIMIT ?", (n,)).fetchall()
 
 
 def average_length(con, sample: int = 3000) -> float:
@@ -65,9 +87,11 @@ def bench(con, embedder, model: str, n: int = 256, batch: int = BATCH) -> dict:
     }
 
 
-def run_index(con, store, embedder, model: str, *, mvp_only: bool = False,
-              limit: int | None = None, batch: int = BATCH, retries: int = 3) -> int:
-    """Index every chunk with indexed=0. Safe to stop with Ctrl+C and run again: it continues."""
+def run_index(con, store, embedder, model: str, *, mvp_only: bool = False, mode: str = "dense", types=None,
+              limit: int | None = None, batch: int | None = None, retries: int = 3) -> int:
+    """mode="dense": bge-m3 + BM25 for pending chunks (also upgrades sparse-only ones).
+    mode="sparse": BM25 only, no Ollama needed. Safe to stop with Ctrl+C and run again: it continues."""
+    batch = batch or (SPARSE_BATCH if mode == "sparse" else BATCH)
     store.ensure_collection()
     row = con.execute("SELECT value FROM meta WHERE key='bm25_avg_len'").fetchone()
     if row:
@@ -77,35 +101,42 @@ def run_index(con, store, embedder, model: str, *, mvp_only: bool = False,
         set_meta(con, "bm25_avg_len", str(avg_len))
         con.commit()
 
-    total = con.execute(f"SELECT COUNT(*) FROM chunks c{_where(mvp_only)}").fetchone()[0]
+    total = con.execute("SELECT COUNT(*) FROM chunks c JOIN articles a ON a.id = c.article_id"
+                        f"{_where(mvp_only, mode, types)}").fetchone()[0]
     if limit:
         total = min(total, limit)
     done, t0 = 0, time.perf_counter()
     if not total:
         print("Indekslanadigan boʻlak qolmadi.")
         return 0
-    print(f"Indekslanadi: {total} boʻlak ({'faqat MVP' if mvp_only else 'hammasi'}), BM25 oʻrtacha uzunlik {avg_len:.0f}")
+    scope = "faqat MVP" if mvp_only else (", ".join(types) if types else "hammasi")
+    kind = "faqat BM25" if mode == "sparse" else "dense + BM25"
+    print(f"Indekslanadi: {total} boʻlak ({scope}; {kind}), BM25 oʻrtacha uzunlik {avg_len:.0f}")
     while done < total:
-        part = _next_batch(con, mvp_only, min(batch, total - done))
+        part = _next_batch(con, mvp_only, min(batch, total - done), mode, types)
         if not part:
             break
         texts = [embed_text(dict(r)) for r in part]
-        for attempt in range(1, retries + 1):
-            try:
-                dense = embedder.embed(model, texts)
-                break
-            except Exception as exc:                         # network hiccup, model reload…
-                if attempt == retries:
-                    raise
-                print(f"  qayta urinish {attempt}: {exc}", file=sys.stderr)
-                time.sleep(3 * attempt)
+        if mode == "sparse":
+            dense = [None] * len(part)
+        else:
+            for attempt in range(1, retries + 1):
+                try:
+                    dense = embedder.embed(model, texts)
+                    break
+                except Exception as exc:                     # network hiccup, model reload…
+                    if attempt == retries:
+                        raise
+                    print(f"  qayta urinish {attempt}: {exc}", file=sys.stderr)
+                    time.sleep(3 * attempt)
         items = [{
             "chunk_id": r["chunk_id"], "dense": v, "sparse": sparse.doc_vector(t, avg_len),
             "payload": {"article_id": r["article_id"], "doc_id": r["doc_id"], "doc_type": r["doc_type"],
                         "status": r["status"], "article_number": r["article_number"], "mvp": r["mvp"]},
         } for r, v, t in zip(part, dense, texts)]
         store.upsert(items)
-        con.executemany("UPDATE chunks SET indexed=1 WHERE chunk_id=?", [(r["chunk_id"],) for r in part])
+        flag = SPARSE_ONLY if mode == "sparse" else FULL
+        con.executemany(f"UPDATE chunks SET indexed={flag} WHERE chunk_id=?", [(r["chunk_id"],) for r in part])
         con.commit()
         done += len(part)
         el = time.perf_counter() - t0

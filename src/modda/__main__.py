@@ -11,6 +11,9 @@
   bakeoff      LLM modellarini bir xil kontekstda solishtirish
   sample       Oltin toʻplam yozish uchun tasodifiy moddalar
   find         Hujjat nomi va modda raqami boʻyicha topish
+  fix-numbers  Yuqori indeksli modda raqamlarini tiklash (1951 → 195¹)
+  rss          Lex.uz RSS’dagi yangi hujjatlarni saqlash
+  serve        Sayt uchun API: /health, /ask, /ask/stream
   export-golden   Oltin toʻplam yozish uchun asosiy hujjatlardan haqiqiy moddalar
   fetch-fixtures  Parser testlari uchun Lex.uz sahifalarini saqlash (Crawl-delay 20 s)
 """
@@ -182,8 +185,18 @@ def cmd_index(s, a):
         st.ensure_collection(recreate=True)
         con.execute("UPDATE chunks SET indexed=0")
         con.commit()
+    from .indexing import DENSE_TYPES
+    types = a.types.split(",") if a.types else None
     try:
-        n = run_index(con, st, _llm(s), s.embed_model, mvp_only=a.mvp, limit=a.limit, batch=a.batch)
+        if a.mvp:                                       # dense for the Constitution and codes
+            n = run_index(con, st, _llm(s), s.embed_model, mvp_only=True, limit=a.limit, batch=a.batch)
+        elif a.sparse_only:                             # BM25 only, no Ollama
+            n = run_index(con, st, None, s.embed_model, mode="sparse", types=types, limit=a.limit)
+        elif a.all_dense:
+            n = run_index(con, st, _llm(s), s.embed_model, types=types, limit=a.limit, batch=a.batch)
+        else:                                           # default: BM25 for everything first, then dense tier
+            n = run_index(con, st, None, s.embed_model, mode="sparse", limit=a.limit)
+            n += run_index(con, st, _llm(s), s.embed_model, types=types or list(DENSE_TYPES), limit=a.limit, batch=a.batch)
     except KeyboardInterrupt:
         print("\nToʻxtatildi. Qayta ishga tushirsangiz, qolgan joydan davom etadi.")
         return
@@ -259,6 +272,28 @@ def cmd_find(s, a):
         print(dict(r))
 
 
+def cmd_fix_numbers(s, a):
+    from .corpus import fix_numbers
+    print(json.dumps(fix_numbers(_con(s)), ensure_ascii=False, indent=2))
+
+
+def cmd_rss(s, a):
+    from .rss import fetch, store
+    items = fetch()
+    n = store(_con(s), items)
+    print(f"RSS: {n} ta yozuv saqlandi. Oxirgilari:")
+    for i in items[:5]:
+        print(f"  {i['published']}  {i['title'][:90]}  {i['link']}")
+
+
+def cmd_serve(s, a):
+    try:
+        import uvicorn
+    except ImportError as exc:
+        raise SystemExit('API uchun: uv pip install -e ".[api]"') from exc
+    uvicorn.run("modda.api:app", host=a.host, port=a.port, reload=False)
+
+
 def cmd_export_golden(s, a):
     from .tools import export_golden
     export_golden(_con(s), s.reports_dir, per_doc=a.per_doc)
@@ -282,9 +317,12 @@ def main(argv=None):
     x.add_argument("--batch", type=int, default=32); x.set_defaults(fn=cmd_bench)
     x = sub.add_parser("index"); x.add_argument("--mvp", action="store_true", help="faqat Konstitutsiya va kodekslar")
     x.add_argument("--limit", type=int); x.add_argument("--batch", type=int, default=32)
-    x.add_argument("--recreate", action="store_true", help="kolleksiyani oʻchirib, boshidan"); x.set_defaults(fn=cmd_index)
+    x.add_argument("--recreate", action="store_true", help="kolleksiyani oʻchirib, boshidan")
+    x.add_argument("--sparse-only", action="store_true", help="faqat BM25 (Ollama kerak emas, tez)")
+    x.add_argument("--all-dense", action="store_true", help="hamma boʻlakka bge-m3 (CPU’da juda sekin)")
+    x.add_argument("--types", help="doc_type roʻyxati, masalan: law,decree"); x.set_defaults(fn=cmd_index)
     x = sub.add_parser("ask"); x.add_argument("question"); x.add_argument("--model")
-    x.add_argument("--k", type=int, default=5); x.add_argument("--mode", choices=["dense", "sparse", "hybrid"], default="dense")
+    x.add_argument("--k", type=int, default=5); x.add_argument("--mode", choices=["dense", "sparse", "hybrid"], default="hybrid")
     x.add_argument("--show-context", action="store_true"); x.set_defaults(fn=cmd_ask)
     x = sub.add_parser("eval"); x.add_argument("--k", type=int, default=5)
     x.add_argument("--modes", default="dense,sparse,hybrid"); x.set_defaults(fn=cmd_eval)
@@ -293,6 +331,10 @@ def main(argv=None):
     x = sub.add_parser("sample"); x.add_argument("--n", type=int, default=60); x.add_argument("--mvp", action="store_true")
     x.set_defaults(fn=cmd_sample)
     x = sub.add_parser("find"); x.add_argument("--title"); x.add_argument("--article"); x.set_defaults(fn=cmd_find)
+    sub.add_parser("fix-numbers", help="yuqori indeksli modda raqamlarini tiklash (1951 → 195¹)").set_defaults(fn=cmd_fix_numbers)
+    sub.add_parser("rss", help="Lex.uz RSS’dagi yangi hujjatlarni saqlash").set_defaults(fn=cmd_rss)
+    x = sub.add_parser("serve", help="FastAPI server: /health, /ask, /ask/stream")
+    x.add_argument("--host", default="0.0.0.0"); x.add_argument("--port", type=int, default=8080); x.set_defaults(fn=cmd_serve)
     x = sub.add_parser("export-golden", help="oltin toʻplam uchun asosiy hujjatlardan haqiqiy moddalar")
     x.add_argument("--per-doc", type=int, default=6); x.set_defaults(fn=cmd_export_golden)
     x = sub.add_parser("fetch-fixtures", help="parser testlari uchun 10 ta Lex.uz sahifasi (20 s oraliq bilan)")

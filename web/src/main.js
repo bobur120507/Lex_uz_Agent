@@ -2,15 +2,18 @@
 import './styles.css';
 import { Stage, hasWebGL } from './scene/stage.js';
 import { Book } from './scene/book.js';
+import { gsap } from 'gsap';
 import { fontsReady } from './scene/textures.js';
 import { ask, health, usingMock } from './api.js';
-import { EXAMPLES } from './mock.js';
 import { renderAnswer, renderError, renderUnknown, uzDate } from './ui/answer.js';
 
 const $ = (s) => document.querySelector(s);
 const params = new URLSearchParams(location.search);
 const REDUCED = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const MIN_SEARCH_MS = REDUCED ? 0 : 1200;
+
+// animations follow the wall clock even when frames drop (slow laptops), so the answer never waits on them
+gsap.ticker.lagSmoothing(0);
 
 const body = document.body;
 const form = $('#ask'), input = $('#q'), btn = $('#ask-btn');
@@ -35,16 +38,7 @@ if (hasWebGL() && !params.has('flat')) {
   body.classList.add('flat');                       // 2D mode: same panel, no canvas
 }
 
-// ------------------------------------------------------------------ examples, input
-for (const ex of EXAMPLES) {
-  const b = document.createElement('button');
-  b.type = 'button'; b.className = 'example';
-  b.innerHTML = '<span class="ex-q"></span><span class="ex-h"></span>';
-  b.querySelector('.ex-q').textContent = ex.text;
-  b.querySelector('.ex-h').textContent = ex.hint;
-  b.addEventListener('click', () => { input.value = ex.text; submit(ex.text); });
-  $('#examples').append(b);
-}
+// ------------------------------------------------------------------ input
 input.addEventListener('keydown', (e) => {
   if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); form.requestSubmit(); }
 });

@@ -23,7 +23,27 @@ function parseSSE(buffer, onEvent) {
   return rest;
 }
 
+// The server sends the roadmap §12.4 events ({type, request_id, ts, data}); the book needs four kinds.
+export function adapt(onEvent) {
+  return (ev, payload) => {
+    const d = payload && payload.data !== undefined && payload.type ? payload.data : payload;
+    switch (ev) {
+      case 'query.received': return onEvent('stage', { name: 'retrieving' });
+      case 'retrieval.completed':
+        return onEvent('candidates', (d.candidates || []).map((c) => ({
+          chunk_id: c.chunk_id, title: c.doc_title, article_no: c.article_no, article_title: c.article_title, score: c.rank })));
+      case 'ranking.completed': onEvent('reranked', { order: d.selected || [] }); return onEvent('stage', { name: 'generating' });
+      case 'verification.completed': return onEvent('stage', { name: 'verifying' });
+      case 'answer.completed': return onEvent('answer', d);
+      case 'stage.failed': throw new Error(d.message || 'server xatosi');
+      case 'stage': case 'candidates': case 'reranked': case 'answer': return onEvent(ev, d);
+      default: return undefined;                    // other stages are for the graph interface
+    }
+  };
+}
+
 async function streamAsk(question, onEvent, signal) {
+  onEvent = adapt(onEvent);
   const r = await fetch(`${API}/ask/stream`, {
     method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'text/event-stream' },
     body: JSON.stringify({ question }), signal,

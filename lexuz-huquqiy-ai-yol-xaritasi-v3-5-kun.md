@@ -12,7 +12,7 @@ Tushunchalar va vositalar jamoa uchun [I_EXPLAIN.md](I_EXPLAIN.md) da tushuntiri
 
 > Har bir qadam tugaganda shu roʻyxat yangilanadi. Belgilar: ✅ bajarildi · 🔄 jarayonda · ❌ toʻsiq · ⬜ hali boshlanmagan. Batafsil buyruqlar — [KUN-1.md](KUN-1.md).
 >
-> **Oxirgi yangilanish:** 2026-11-04 13:50, 1-kun. Qolgan toʻsiq — Ollama oʻrnatilishi (oxirigacha).
+> **Oxirgi yangilanish:** 2026-11-04 17:07. 1-kun: MVP indeksi ishlayapti. 2-kun kodi tayyor (35 test).
 
 ### 1-kun — uzoq ishlar va asos
 
@@ -28,40 +28,48 @@ Tushunchalar va vositalar jamoa uchun [I_EXPLAIN.md](I_EXPLAIN.md) da tushuntiri
 | ✅ | **Oltin toʻplam: 60 savol** (45 ta javobi bor, 15 ta yoʻq) | `data/golden/golden.jsonl`; 14 hujjat, 6 toifa; har bir kutilgan modda korpusda tekshirildi |
 | ✅ | 10 ta Lex.uz sahifasi | `tests/fixtures/lexuz/` (Crawl-delay 20 s) |
 | ✅ | 3D kitob (`web/`): ochilish, varaqlash, sahifaga ochilish, javob paneli, gerbli muqova | brauzerda barcha holatlar tekshirildi |
-| ❌ | **Ollama ishlamayapti**: v0.40.14, `llama-server binary not found`; qayta oʻrnatish 55 % da toʻxtatildi (eski kutubxonalar oʻchirilgan) | oʻrnatishni oxirigacha bajarish — KUN-1.md, 1-boʻlim |
+| ✅ | Sayt: namuna savollar olib tashlandi, sarlavha qisqartirildi | «Qonunchilikdan aniq javob» |
+| ✅ | Ollama qayta oʻrnatildi (v0.40.14), embedding ishlaydi | |
 | ✅ | Qolgan qadamlar bitta skriptda: `bash scripts/finish_day1.sh --full` | qisman indeksda `eval`/`bakeoff` faqat indekslangan savollarni hisoblaydi (26 test) |
-| ⬜ | `bench-embed` — indekslash vaqti | Ollama tuzatilgach |
-| ⬜ | MVP qismini indekslash (`index --mvp`, 12 269 boʻlak) | Ollama tuzatilgach |
+| ✅ | `bench-embed`: **0,22 boʻlak/s** (CPU) → MVP ≈ 15 soat (bench), amalda 0,5 boʻlak/s ≈ 4,5 soat; butun korpus ≈ 233 soat | rejani oʻzgartirdi (2-kun) |
+| 🔄 | MVP qismini indekslash (`index --mvp`, 12 269 boʻlak) | 14:14 da boshlandi |
 | ⬜ | Birinchi savol (`ask`) | MVP indeksidan keyin |
 | ⬜ | Modellarni solishtirish (`bakeoff`, 20 savol) → LLM tanlash | MVP indeksidan keyin |
 | ⬜ | 3D kitob kadr/s — oʻz kompyuterda ≥ 45 | `cd web && npm run dev` → `?debug` |
-| ⬜ | Toʻliq korpusni tunga indekslash (183 170 boʻlak) | kechqurun |
+| 🔄 | Tungi indekslash — ikki qatlamli (2-kun boʻlimiga qarang) | `finish_day1.sh --full` |
 
 ### 2-kun — toʻliq qidiruv
 
-| Holat | Qadam |
-|---|---|
-| ⬜ | Tungi indekslash tekshiruvi (boʻlaklar soni = 180 846) |
-| ✅ | BM25 sparse vektorlar (1-kunda indeks bilan birga yoziladi — qayta indekslash shart emas) |
-| ⬜ | Gibrid qidiruv + RRF ni oltin toʻplamda solishtirish |
-| ⬜ | **Modda raqamlaridagi yuqori indekslar**: korpusda `195¹` → `1951`, `96²` → `962` boʻlib qolgan (masalan, MJtK «1951-modda», FK «9621-modda»). Lex.uz HTML’dagi `<sup>` dan toʻgʻri raqamni tiklash; marshrutizator «195-1», «195¹» ni tanishi |
-| ⬜ | Reranker (CrossEncoder, top-20 → top-5) |
-| ⬜ | Savol marshrutizatori (aniq havola, kirill → lotin) |
-| ⬜ | RSS oʻquvchi, yangi ID navbati |
-| ⬜ | Lex.uz HTML parseri + testlar |
-| ✅ | Oltin toʻplam → 60 savol (1-kunda bajarildi) |
-| ⬜ | FastAPI skeleti: `/ask`, `/health` |
-| ⬜ | 3D: xatchoʻplar sahifa chetida (hozir HTML yorliqlar) |
+> **Rejadagi oʻzgarish (1-kun, 14:14):** `bench-embed` — 0,22 boʻlak/s (GPU yoʻq, bge-m3 CPU’da). Butun korpus dense uchun ≈ 233 soat. Yechim — **ikki qatlamli indeks**: BM25 hamma 183 170 boʻlakka (daqiqalar), bge-m3 faqat kodeks, Konstitutsiya va qonunlarga (≈ 39 ming boʻlak). Batafsil: [KUN-2.md](KUN-2.md).
+
+| Holat | Qadam | Izoh |
+|---|---|---|
+| 🔄 | MVP dense indeks (12 269 boʻlak) | 1-kun 14:14 dan, ≈ 4,5 soat |
+| ✅ | Ikki qatlamli indeks: `index --sparse-only`, standart `index` = BM25 hammaga + dense qonunlarga | kod tayyor, test qilingan |
+| ⬜ | BM25 — butun korpus | `python -m modda index --sparse-only` |
+| ⬜ | Qonunlar dense (≈ 27 ming boʻlak) — tunda | `finish_day1.sh --full` ning oxirgi qadami |
+| ✅ | Gibrid qidiruv + RRF — `ask` da standart | |
+| ⬜ | Gibrid / dense / BM25 ni oltin toʻplamda solishtirish (`eval`) | MVP indeksidan keyin |
+| ✅ | Reranker moduli (CrossEncoder, ixtiyoriy) | CPU’da sekin — `eval` natijasiga qarab yoqiladi |
+| ✅ | Savol marshrutizatori: «MK 131-modda», «195¹-modda», kirill | |
+| ✅ | **Yuqori indeksli raqamlar** (1951 → 195¹): tiklash qoidasi | 10 sahifada 4 028/4 028 toʻgʻri; `ingest` + `fix-numbers` ni ishga tushirish kerak |
+| ✅ | Lex.uz HTML parseri + testlar | bob/boʻlim, tahrir izohlari; «LexUZ sharhi» tashlanadi |
+| ✅ | RSS oʻquvchi | `python -m modda rss` |
+| ✅ | Oltin toʻplam → 60 savol | 1-kunda |
+| ✅ | FastAPI: `/health`, `/ask`, `/ask/stream` (§12.4 hodisalari) | 3-kundan oldinga surildi |
+| ✅ | 3D kitob yangi hodisalarni oʻqiydi (`api.js`) | |
+| ✅ | Raqam tekshiruvchi (javobdagi har bir son manbada boʻlishi shart) | 3-kundagi toʻliq tekshiruvchining birinchi qismi |
+| ⬜ | 3D: xatchoʻplar sahifa chetida (hozir HTML yorliqlar) | |
 
 ### 3-kun — «Bilmayman» va integratsiya
 
 | Holat | Qadam |
 |---|---|
 | ⬜ | JSON strukturali chiqish |
-| ⬜ | Iqtibos tekshiruvchi |
+| 🔄 | Iqtibos tekshiruvchi (raqamlar qismi tayyor) |
 | ⬜ | τ kalibrlash |
-| ⬜ | `POST /ask/stream` (SSE) — 12.4 dagi hodisalar shartnomasi |
-| ⬜ | Saytni haqiqiy API’ga ulash |
+| ✅ | `POST /ask/stream` (SSE) — 12.4 dagi hodisalar shartnomasi (2-kunda) |
+| 🔄 | Saytni haqiqiy API’ga ulash (`python -m modda serve` + `npm run dev`) |
 | ⬜ | RSS delta + «oʻzgargan boʻlishi mumkin» belgisi |
 
 ### 4-kun — sozlash va sifat
@@ -548,7 +556,7 @@ Vaqt yetmasa, **P2 → xatchoʻplar → sahifa matni → varaqlash** tartibida k
 | Xavf | Belgisi | Chora |
 |---|---|---|
 | Internet sekin — modellar 1-kun tushgacha yuklanmaydi | 0-soatdan keyin 2 soatda yuklash < 50 % | Eng kichik modellar bilan boshlash (`qwen3:4b`, faqat `bge-m3`); qolganini tunda |
-| Server kompyuterda GPU yoʻq — toʻliq indekslash 8 soatdan oshadi | 1 000 boʻlak tezligi oʻlchovida | MVP qismi bilan qolish (7-boʻlim, 4-band); toʻliq korpusni 2-tunga qoldirish |
+| ⚠️ **Roʻy berdi:** GPU yoʻq — bge-m3 0,2–0,5 boʻlak/s, butun korpus ≈ 233 soat | 1-kun `bench-embed` | Ikki qatlamli indeks: BM25 hammaga, dense — kodeks, Konstitutsiya, qonunlarga (2-kun boʻlimi) |
 | Oʻzbek tilida LLM javoblari sifatsiz | Modellar solishtirishida | Ekstraktiv uslubni kuchaytirish (iqtiboslardan javob); oʻzbekchaga moslangan modelni tanlash |
 | Oltin toʻplam kechikadi | 2-kun tushda < 40 savol | Savollarni HF moddalaridan teskari yozish; ikki kishiga boʻlish |
 | Lex.uz parseri murakkab chiqadi | 2-kun oxirida testlar oʻtmayapti | Kesish rejasi, 1-band |
