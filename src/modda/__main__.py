@@ -191,7 +191,8 @@ def cmd_index(s, a):
         if a.mvp:                                       # dense for the Constitution and codes
             n = run_index(con, st, _llm(s), s.embed_model, mvp_only=True, limit=a.limit, batch=a.batch)
         elif a.sparse_only:                             # BM25 only, no Ollama
-            n = run_index(con, st, None, s.embed_model, mode="sparse", types=types, limit=a.limit)
+            n = run_index(con, st, None, s.embed_model, mode="sparse", types=types, limit=a.limit,
+                          include_mvp=a.include_mvp)
         elif a.all_dense:
             n = run_index(con, st, _llm(s), s.embed_model, types=types, limit=a.limit, batch=a.batch)
         else:                                           # default: BM25 for everything first, then dense tier
@@ -335,6 +336,8 @@ def main(argv=None):
     x.add_argument("--limit", type=int); x.add_argument("--batch", type=int, default=32)
     x.add_argument("--recreate", action="store_true", help="kolleksiyani oʻchirib, boshidan")
     x.add_argument("--sparse-only", action="store_true", help="faqat BM25 (Ollama kerak emas, tez)")
+    x.add_argument("--include-mvp", action="store_true",
+                   help="--sparse-only bilan: dense boʻlmagan kodeks boʻlaklariga ham BM25 (index --mvp ishlamayotganda)")
     x.add_argument("--all-dense", action="store_true", help="hamma boʻlakka bge-m3 (CPU’da juda sekin)")
     x.add_argument("--types", help="doc_type roʻyxati, masalan: law,decree"); x.set_defaults(fn=cmd_index)
     x = sub.add_parser("ask"); x.add_argument("question"); x.add_argument("--model")

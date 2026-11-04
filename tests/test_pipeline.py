@@ -423,3 +423,13 @@ def test_snapshot_multipart_streams_whole_file(tmp_path):
         out += chunk
     assert len(out) == body.len and out.count(b"x") == 100_000
     assert out.endswith(f"--{body.boundary}--\r\n".encode()) and b'filename="a.snapshot"' in out
+
+
+def test_sparse_only_include_mvp(con):
+    store = MemoryStore()
+    n_plain = run_index(con, store, None, "fake", mode="sparse")
+    mvp_left = con.execute("SELECT COUNT(*) FROM chunks WHERE indexed = 0 AND mvp = 1").fetchone()[0]
+    assert mvp_left > 0
+    n_mvp = run_index(con, store, None, "fake", mode="sparse", include_mvp=True)
+    assert n_mvp == mvp_left
+    assert con.execute("SELECT COUNT(*) FROM chunks WHERE indexed = 0").fetchone()[0] == 0

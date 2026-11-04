@@ -25,10 +25,10 @@ DENSE_TYPES = ("code", "constitution", "law")
 NONE, FULL, SPARSE_ONLY = 0, 1, 2
 
 
-def _where(mvp_only: bool, mode: str = "dense", types=None) -> str:
+def _where(mvp_only: bool, mode: str = "dense", types=None, include_mvp: bool = False) -> str:
     if mode == "sparse":
         # mvp = 0 only: never races with an `index --mvp` job that may be running at the same time
-        w = f" WHERE c.indexed = {NONE} AND c.mvp = 0"
+        w = f" WHERE c.indexed = {NONE}" + ("" if include_mvp else " AND c.mvp = 0")
     else:
         w = f" WHERE c.indexed IN ({NONE}, {SPARSE_ONLY})"
     if mvp_only:
@@ -39,11 +39,11 @@ def _where(mvp_only: bool, mode: str = "dense", types=None) -> str:
     return w
 
 
-def _next_batch(con, mvp_only: bool, n: int, mode: str = "dense", types=None):
+def _next_batch(con, mvp_only: bool, n: int, mode: str = "dense", types=None, include_mvp: bool = False):
     """Pending chunks are read batch by batch; a batch disappears from the query once it is marked indexed."""
     return con.execute(
         "SELECT c.*, a.doc_id, a.doc_type, a.status, a.article_number FROM chunks c "
-        f"JOIN articles a ON a.id = c.article_id{_where(mvp_only, mode, types)} "
+        f"JOIN articles a ON a.id = c.article_id{_where(mvp_only, mode, types, include_mvp)} "
         "ORDER BY c.mvp DESC, c.chunk_id LIMIT ?", (n,)).fetchall()
 
 
@@ -88,7 +88,8 @@ def bench(con, embedder, model: str, n: int = 256, batch: int = BATCH) -> dict:
 
 
 def run_index(con, store, embedder, model: str, *, mvp_only: bool = False, mode: str = "dense", types=None,
-              limit: int | None = None, batch: int | None = None, retries: int = 3) -> int:
+              limit: int | None = None, batch: int | None = None, retries: int = 3,
+              include_mvp: bool = False) -> int:
     """mode="dense": bge-m3 + BM25 for pending chunks (also upgrades sparse-only ones).
     mode="sparse": BM25 only, no Ollama needed. Safe to stop with Ctrl+C and run again: it continues."""
     batch = batch or (SPARSE_BATCH if mode == "sparse" else BATCH)
@@ -102,7 +103,7 @@ def run_index(con, store, embedder, model: str, *, mvp_only: bool = False, mode:
         con.commit()
 
     total = con.execute("SELECT COUNT(*) FROM chunks c JOIN articles a ON a.id = c.article_id"
-                        f"{_where(mvp_only, mode, types)}").fetchone()[0]
+                        f"{_where(mvp_only, mode, types, include_mvp)}").fetchone()[0]
     if limit:
         total = min(total, limit)
     done, t0 = 0, time.perf_counter()
@@ -113,7 +114,7 @@ def run_index(con, store, embedder, model: str, *, mvp_only: bool = False, mode:
     kind = "faqat BM25" if mode == "sparse" else "dense + BM25"
     print(f"Indekslanadi: {total} boʻlak ({scope}; {kind}), BM25 oʻrtacha uzunlik {avg_len:.0f}")
     while done < total:
-        part = _next_batch(con, mvp_only, min(batch, total - done), mode, types)
+        part = _next_batch(con, mvp_only, min(batch, total - done), mode, types, include_mvp)
         if not part:
             break
         texts = [embed_text(dict(r)) for r in part]

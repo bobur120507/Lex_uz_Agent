@@ -10,7 +10,7 @@ Hamma buyruqlar: `cd ~/Lex_Uz_AI_Agent && source .venv/bin/activate`
 ## 1. BM25 — butun korpus (MVP indeksi ishlayotgan paytda ham boʻladi)
 
 ```bash
-python -m modda index --sparse-only
+python -m modda index --sparse-only --include-mvp     # MVP indeksi toʻxtatilgan boʻlsa: qolgan kodeks boʻlaklari ham
 ```
 
 ## 2. Modda raqamlari: 1951 → 195¹

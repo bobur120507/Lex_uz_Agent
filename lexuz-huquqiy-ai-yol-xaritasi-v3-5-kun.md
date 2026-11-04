@@ -10,9 +10,9 @@ Tushunchalar va vositalar jamoa uchun [I_EXPLAIN.md](I_EXPLAIN.md) da tushuntiri
 
 ## 0. Holat: tekshiruv roʻyxati
 
-> Har bir qadam tugaganda shu roʻyxat yangilanadi. Belgilar: ✅ bajarildi · 🔄 jarayonda · ❌ toʻsiq · ⬜ hali boshlanmagan. Batafsil buyruqlar — [KUN-1.md](KUN-1.md).
+> Har bir qadam tugaganda shu roʻyxat yangilanadi. Belgilar: ✅ bajarildi · 🔄 jarayonda · ⏸️ toʻxtatilgan · ↪️ boshqa yoʻl bilan · ❌ toʻsiq · ⬜ hali boshlanmagan. Batafsil buyruqlar — [KUN-1.md](KUN-1.md).
 >
-> **Oxirgi yangilanish:** 2026-11-04 17:50. 1-kun: MVP indeksi ishlayapti. 2-kun kodi tayyor (37 test). Toʻliq dense indeks — jamoadoshning GPU kompyuterida ([SETUP-WINDOWS.md](SETUP-WINDOWS.md)).
+> **Oxirgi yangilanish:** 2026-11-04 18:35. 1-kun: MVP indeksi ishlayapti. 2-kun kodi tayyor (37 test). Toʻliq dense indeks — jamoadoshning GPU kompyuterida ([SETUP-WINDOWS.md](SETUP-WINDOWS.md)).
 
 ### 1-kun — uzoq ishlar va asos
 
@@ -32,11 +32,11 @@ Tushunchalar va vositalar jamoa uchun [I_EXPLAIN.md](I_EXPLAIN.md) da tushuntiri
 | ✅ | Ollama qayta oʻrnatildi (v0.40.14), embedding ishlaydi | |
 | ✅ | Qolgan qadamlar bitta skriptda: `bash scripts/finish_day1.sh --full` | qisman indeksda `eval`/`bakeoff` faqat indekslangan savollarni hisoblaydi (26 test) |
 | ✅ | `bench-embed`: **0,22 boʻlak/s** (CPU) → MVP ≈ 15 soat (bench), amalda 0,5 boʻlak/s ≈ 4,5 soat; butun korpus ≈ 233 soat | rejani oʻzgartirdi (2-kun) |
-| 🔄 | MVP qismini indekslash (`index --mvp`, 12 269 boʻlak) | 14:14 da boshlandi |
+| ⏸️ | MVP qismini indekslash (`index --mvp`, 12 269 boʻlak) | 14:14–17:10: **4 896 / 12 269** dense; toʻxtatildi — qolgani jamoadoshning GPU’sida (`setup_windows.bat`) |
 | ⬜ | Birinchi savol (`ask`) | MVP indeksidan keyin |
 | ⬜ | Modellarni solishtirish (`bakeoff`, 20 savol) → LLM tanlash | MVP indeksidan keyin |
 | ⬜ | 3D kitob kadr/s — oʻz kompyuterda ≥ 45 | `cd web && npm run dev` → `?debug` |
-| 🔄 | Tungi indekslash — ikki qatlamli (2-kun boʻlimiga qarang) | `finish_day1.sh --full` |
+| ↪️ | Tungi indekslash | oʻrniga: GPU kompyuterda toʻliq dense → `snapshot-import` |
 
 ### 2-kun — toʻliq qidiruv
 
@@ -44,9 +44,9 @@ Tushunchalar va vositalar jamoa uchun [I_EXPLAIN.md](I_EXPLAIN.md) da tushuntiri
 
 | Holat | Qadam | Izoh |
 |---|---|---|
-| 🔄 | MVP dense indeks (12 269 boʻlak) | 1-kun 14:14 dan, ≈ 4,5 soat |
+| ⏸️ | MVP dense indeks (12 269 boʻlak) | 4 896 tasi tayyor; qolgani GPU snapshot’da keladi |
 | ✅ | Ikki qatlamli indeks: `index --sparse-only`, standart `index` = BM25 hammaga + dense qonunlarga | kod tayyor, test qilingan |
-| ⬜ | BM25 — butun korpus | `python -m modda index --sparse-only` |
+| ⬜ | BM25 — butun korpus (qolgan MVP boʻlaklari bilan) | `python -m modda index --sparse-only --include-mvp` |
 | ⬜ | Qonunlar dense (≈ 27 ming boʻlak) — tunda | `finish_day1.sh --full` ning oxirgi qadami; GPU snapshot kelsa — shart emas |
 | ✅ | **GPU kompyuter uchun bitta skript**: `scripts\setup_windows.bat` / `setup_windows.py` | Python, Ollama, HF CLI, Qdrant ni oʻzi oʻrnatadi; har bosqichda zaxira usul; vaqtlar va log; qolgan joydan davom etadi. Soxta Ollama + haqiqiy Qdrant 1.20 bilan boshidan oxirigacha sinaldi |
 | ✅ | `snapshot-export` / `snapshot-import`: indeksni kompyuterdan kompyuterga koʻchirish | boʻlaklar roʻyxati tekshiriladi; 2 GB fayl xotiraga yuklanmaydi |
