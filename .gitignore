@@ -1,0 +1,10 @@
+.env
+.idea/
+data/raw/
+data/*.sqlite
+data/reports/
+__pycache__/
+*.egg-info/
+.venv/
+node_modules/
+web/dist/

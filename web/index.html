@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="uz">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Modda — qonunchilikdan manbali javob</title>
+  <meta name="description" content="Oʻzbekiston qonunchiligi boʻyicha savollarga Lex.uz maʼlumotlari asosida manbali javob. Rasmiy manba emas.">
+  <meta name="theme-color" content="#0b0f0d">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Literata:ital,opsz,wght@0,7..72,400..700;1,7..72,400&family=Onest:wght@400..700&display=swap" rel="stylesheet">
+</head>
+<body data-state="idle">
+  <canvas id="scene" aria-hidden="true"></canvas>
+
+  <header class="topbar">
+    <a class="brand" href="./" aria-label="Modda — bosh sahifa"><span class="brand-mark" aria-hidden="true"></span>Modda</a>
+    <span class="topbar-note">Lex.uz maʼlumotlari asosida, rasmiy manba emas</span>
+    <span class="status" role="status"><span class="dot" aria-hidden="true"></span><span id="status-text">Ulanmoqda</span></span>
+  </header>
+
+  <section class="hero" aria-labelledby="hero-title">
+    <h1 id="hero-title">Qonunchilikdan aniq javob — har bir gapning manbasi bilan</h1>
+    <p>Savolingizni yozing: kitob kerakli moddani topib ochadi, javobdagi har bir gap oʻsha moddaga bogʻlanadi.</p>
+  </section>
+
+  <section class="progress" aria-live="polite">
+    <ol class="steps" id="steps">
+      <li data-step="retrieving">Moddalar qidirilmoqda</li>
+      <li data-step="generating">Javob yozilmoqda</li>
+      <li data-step="verifying">Iqtiboslar tekshirilmoqda</li>
+    </ol>
+    <ul class="cands" id="cands" aria-label="Topilgan moddalar"></ul>
+  </section>
+
+  <aside class="panel" id="panel" aria-live="polite" hidden></aside>
+
+  <div class="dock">
+    <div class="examples" id="examples" aria-label="Namuna savollar"></div>
+    <form class="ask" id="ask" autocomplete="off">
+      <label class="visually-hidden" for="q">Savolingiz</label>
+      <textarea id="q" rows="1" maxlength="1000" placeholder="Masalan: oʻquv taʼtili necha kun beriladi?"></textarea>
+      <button class="btn" id="ask-btn" type="submit">Soʻrash</button>
+    </form>
+    <p class="fine dock-note">Modda rasmiy yuridik maslahat bermaydi. Rasmiy matn — Lex.uz’dagi hujjat.</p>
+  </div>
+
+  <button class="skip" id="skip" type="button">Oʻtkazib yuborish</button>
+  <output class="fps" id="fps" hidden></output>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>

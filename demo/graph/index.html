@@ -1,0 +1,689 @@
+<title>Modda Legal Graph</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Literata:ital,opsz,wght@0,7..72,400..700;1,7..72,400&family=Onest:wght@400..700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* Layout: one research instrument. Idle = full-bleed graph behind a quiet hero; research = timeline | graph | documents;
+   answer = answer (65%) | sources + compact graph (35%). Single dark look by design. */
+:root {
+  --bg: #0e1011;
+  --surface: #15181a;
+  --surface-2: #1b1f22;
+  --line: #2a2f33;
+  --ink: #e8e4da;
+  --ink-2: #9a9b95;
+  --gold: #c9a45c;
+  --gold-soft: rgba(201, 164, 92, .16);
+  --emerald: #3fbf8a;
+  --emerald-soft: rgba(63, 191, 138, .14);
+  --grey: #5b6166;
+  --amber: #e0a440;
+  --display: "Literata", "Lora", Georgia, serif;
+  --ui: "Onest", "Inter", system-ui, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  --ease: cubic-bezier(.2, .8, .2, 1);
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body { background: var(--bg); color: var(--ink); font: 400 14px/1.55 var(--ui); overflow: hidden; }
+button, input { font: inherit; color: inherit; }
+a { color: var(--gold); }
+:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; border-radius: 6px; }
+.visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+.app {
+  height: 100%; display: grid; gap: 14px;
+  padding-block: 14px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  grid-template-columns: 290px minmax(0, 1fr) 350px;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  grid-template-areas: "top top top" "main main main" "dock dock dock";
+}
+.top { grid-area: top; display: flex; align-items: center; gap: 14px; position: relative; z-index: 6; }
+.brand { display: flex; align-items: baseline; gap: 10px; }
+.brand b { font: 700 20px/1 var(--display); letter-spacing: .16em; }
+.brand span { color: var(--ink-2); font-size: 12px; letter-spacing: .08em; text-transform: uppercase; }
+.pill { display: inline-flex; align-items: center; gap: 8px; padding: 5px 11px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); color: var(--ink-2); font-size: 12px; white-space: nowrap; }
+.pill i { width: 7px; height: 7px; border-radius: 50%; background: var(--grey); }
+.app[data-state="research"] #status i { background: var(--gold); box-shadow: 0 0 10px var(--gold); animation: pulse 1.4s ease-in-out infinite; }
+.app[data-state="answer"] #status i { background: var(--emerald); box-shadow: 0 0 10px var(--emerald); }
+@keyframes pulse { 50% { opacity: .35; } }
+.top .spacer { flex: 1; }
+.demo-pill { border-color: rgba(224, 164, 64, .35); color: var(--amber); }
+
+/* graph stage: full-bleed in idle, middle column in research, compact card in answer */
+.stage { grid-area: main; position: relative; border-radius: 18px; overflow: hidden; min-height: 0; }
+.app[data-state="idle"] .stage { position: fixed; inset: 0; border-radius: 0; z-index: 0; }
+#gl { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+#labels { position: absolute; inset: 0; pointer-events: none; }
+.lbl { position: absolute; transform: translate(-50%, -50%); white-space: nowrap; font-size: 11px; color: var(--ink-2); transition: opacity .4s, color .4s; }
+.lbl.query { font: 600 13px/1.3 var(--display); color: var(--ink); white-space: normal; width: 220px; text-align: center; transform: translate(-50%, 34px); }
+.lbl.concept { color: var(--gold); }
+.lbl.stagenode { font: 500 10px/1 var(--mono); letter-spacing: .04em; color: var(--ink-2); }
+.lbl.doc { pointer-events: auto; cursor: pointer; padding: 6px 9px; border-radius: 8px; background: rgba(21, 24, 26, .86); border: 1px solid var(--line); color: var(--ink); font-size: 11px; line-height: 1.3; text-align: left; }
+.lbl.doc small { display: block; color: var(--ink-2); font-size: 10px; }
+.lbl.doc.selected { border-color: var(--emerald); box-shadow: 0 0 0 1px var(--emerald-soft), 0 0 18px var(--emerald-soft); }
+.lbl.doc.rejected { opacity: .38; }
+.lbl.doc.focus { border-color: var(--gold); }
+.lbl.hidden { opacity: 0 !important; }
+.graph-tools { position: absolute; right: 12px; top: 12px; display: flex; gap: 8px; z-index: 3; }
+.app[data-state="idle"] .graph-tools { display: none; }
+.tool { padding: 6px 11px; border-radius: 9px; border: 1px solid var(--line); background: rgba(21, 24, 26, .85); color: var(--ink-2); font-size: 12px; cursor: pointer; }
+.tool:hover { color: var(--ink); border-color: var(--gold); }
+
+/* idle hero */
+.hero { grid-area: main; align-self: center; justify-self: center; position: relative; z-index: 2; text-align: center; max-width: 720px; display: grid; gap: 16px; }
+.hero h1 { font: 500 clamp(32px, 5vw, 54px)/1.08 var(--display); letter-spacing: -.02em; margin: 0; text-wrap: balance; }
+.hero p { margin: 0 auto; max-width: 54ch; color: var(--ink-2); font-size: 16px; text-wrap: pretty; }
+.app:not([data-state="idle"]) .hero { display: none; }
+
+/* persistent question field */
+.dock { grid-area: dock; position: relative; z-index: 5; display: grid; gap: 10px; justify-items: center; }
+.ask { width: min(760px, 100%); display: flex; gap: 8px; padding: 7px; border-radius: 16px; background: rgba(21, 24, 26, .92); border: 1px solid var(--line); backdrop-filter: blur(10px); }
+.ask:focus-within { border-color: var(--gold); }
+.ask input { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; padding: 10px 12px; font-size: 15px; }
+.ask input::placeholder { color: var(--ink-2); }
+.btn { border: 0; border-radius: 11px; padding: 10px 18px; font-weight: 600; cursor: pointer; background: var(--gold); color: #1a1408; }
+.btn:hover { filter: brightness(1.08); }
+.chips { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
+.chip { padding: 6px 12px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); color: var(--ink-2); cursor: pointer; font-size: 13px; }
+.chip:hover { color: var(--ink); border-color: var(--gold); }
+.app:not([data-state="idle"]) .chips { display: none; }
+.fine { color: var(--ink-2); font-size: 12px; margin: 0; text-align: center; }
+
+/* research panels */
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 18px; min-height: 0; overflow: auto; padding: 18px; }
+.timeline, .docs { display: none; }
+.app[data-state="research"] { grid-template-areas: "top top top" "timeline main docs" "dock dock dock"; }
+.app[data-state="research"] .timeline { grid-area: timeline; display: block; }
+.app[data-state="research"] .docs { grid-area: docs; display: block; }
+.kicker { margin: 0 0 6px; font: 500 11px/1 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--ink-2); }
+.cur-q { font: 500 17px/1.35 var(--display); margin: 0 0 18px; }
+.stages { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.st { display: grid; grid-template-columns: 22px 1fr auto; gap: 10px; align-items: start; padding: 9px 8px; border-radius: 10px; }
+.st .dot { width: 12px; height: 12px; margin-top: 4px; border-radius: 50%; border: 2px solid var(--grey); }
+.st b { display: block; font-weight: 600; font-size: 13px; }
+.st span { color: var(--ink-2); font-size: 12px; }
+.st time { font: 400 11px/1.9 var(--mono); color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.st[data-s="running"] { background: var(--gold-soft); }
+.st[data-s="running"] .dot { border-color: var(--gold); border-top-color: transparent; animation: spin .8s linear infinite; }
+.st[data-s="completed"] .dot { background: var(--emerald); border-color: var(--emerald); }
+.st[data-s="skipped"] { opacity: .5; }
+.st[data-s="skipped"] .dot { border-style: dashed; }
+.st[data-s="failed"] .dot { background: var(--amber); border-color: var(--amber); }
+@keyframes spin { to { transform: rotate(360deg); } }
+.log { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--line); font: 400 11px/1.6 var(--mono); color: var(--ink-2); max-height: 190px; overflow: auto; }
+.log div { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.log em { font-style: normal; color: var(--gold); }
+
+.docs h2, .answer h2 { font: 600 15px/1.3 var(--ui); margin: 0 0 4px; }
+.count { color: var(--ink-2); font-size: 12px; margin: 0 0 14px; }
+.dlist { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.dcard { padding: 12px 14px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface-2); cursor: pointer; transition: border-color .3s, opacity .4s; animation: rise .45s var(--ease) both; }
+.dcard:hover { border-color: var(--gold); }
+.dcard .t { font-weight: 600; font-size: 13px; }
+.dcard .m { color: var(--ink-2); font-size: 12px; margin: 2px 0 6px; }
+.dcard p { margin: 0; font: 400 13px/1.5 var(--display); color: #cfcbc1; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.badge { display: inline-block; margin-top: 8px; font: 500 10px/1 var(--mono); letter-spacing: .06em; text-transform: uppercase; padding: 4px 7px; border-radius: 6px; background: var(--surface); color: var(--ink-2); }
+.dcard.selected { border-color: rgba(63, 191, 138, .6); }
+.dcard.selected .badge { background: var(--emerald-soft); color: var(--emerald); }
+.dcard.rejected { opacity: .45; }
+.dcard.focus { border-color: var(--gold); }
+@keyframes rise { from { opacity: 0; transform: translateY(8px); } }
+
+/* answer */
+.answer, .sources { display: none; }
+.app[data-state="answer"] { grid-template-columns: minmax(0, 65fr) minmax(0, 35fr); grid-template-areas: "top top" "answer side" "dock dock"; }
+.app[data-state="answer"] .answer { grid-area: answer; display: block; }
+.app[data-state="answer"] .side { grid-area: side; display: grid; grid-template-rows: 250px minmax(0, 1fr); gap: 14px; min-height: 0; }
+.side { display: contents; }
+.side .stage { grid-area: auto; border: 1px solid var(--line); }
+.app[data-state="answer"] .sources { display: block; grid-row: 2; }
+.side .stage:not(.expanded) .lbl { opacity: 0 !important; }
+.answer { padding: 26px 30px; }
+.answer .q { font: 500 clamp(22px, 2.4vw, 30px)/1.2 var(--display); margin: 4px 0 20px; text-wrap: balance; }
+.short { font: 500 19px/1.55 var(--display); padding: 14px 18px; border-left: 3px solid var(--emerald); background: var(--emerald-soft); border-radius: 0 12px 12px 0; margin: 0 0 22px; }
+.answer h3 { font: 600 12px/1 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--ink-2); margin: 22px 0 8px; }
+.answer p.body { font: 400 16px/1.7 var(--display); margin: 0 0 10px; max-width: 68ch; }
+.cite { display: inline-grid; place-items: center; min-width: 19px; height: 19px; padding: 0 5px; margin-left: 4px; border-radius: 999px; border: 1px solid var(--emerald); color: var(--emerald); font: 700 10px/1 var(--ui); vertical-align: 2px; cursor: pointer; background: transparent; }
+.cite:hover { background: var(--emerald); color: #08130e; }
+.warn { margin-top: 18px; padding: 10px 14px; border-radius: 10px; background: rgba(224, 164, 64, .1); color: var(--amber); font-size: 13px; }
+.scard { padding: 14px 16px; border-radius: 14px; border: 1px solid var(--line); background: var(--surface-2); display: grid; gap: 6px; margin-bottom: 10px; }
+.scard .eyebrow { font: 500 10px/1 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--emerald); }
+.scard .t { font-weight: 600; }
+.scard .m { color: var(--ink-2); font-size: 12px; }
+.scard blockquote { margin: 4px 0; padding: 8px 10px; border-radius: 8px; background: var(--surface); font: 400 13px/1.55 var(--display); color: #d8d4ca; }
+.scard .row { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; }
+.scard .row button { border: 0; background: none; padding: 0; color: var(--gold); font-weight: 600; cursor: pointer; }
+.scard.focus { border-color: var(--gold); }
+
+/* detail drawer (source exploration) */
+.drawer { position: fixed; z-index: 60; right: max(16px, env(safe-area-inset-right, 0px)); bottom: 90px; width: min(420px, calc(100vw - 32px)); max-height: 60vh; overflow: auto; padding: 18px 20px; border-radius: 16px; background: var(--surface); border: 1px solid var(--gold); box-shadow: 0 30px 80px -20px #000; animation: rise .35s var(--ease); }
+.drawer h4 { margin: 0 0 4px; font: 600 15px/1.35 var(--ui); }
+.drawer .m { color: var(--ink-2); font-size: 12px; margin-bottom: 10px; }
+.drawer p { font: 400 14px/1.7 var(--display); margin: 0 0 10px; }
+.drawer .close { position: absolute; top: 10px; right: 12px; }
+
+/* expanded graph */
+.stage.expanded { position: fixed !important; inset: 12px; z-index: 50; border: 1px solid var(--gold); }
+.stage.expanded .lbl:not(.doc):not(.query) { opacity: 1 !important; }
+
+@media (max-width: 920px) {
+  body { overflow: auto; }
+  .app { height: auto; min-height: 100%; grid-template-columns: minmax(0, 1fr); }
+  .app[data-state="idle"] { height: 100%; }
+  .app[data-state="research"] { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto 46vh auto auto auto; grid-template-areas: "top" "main" "timeline" "docs" "dock"; }
+  .app[data-state="answer"] { grid-template-columns: minmax(0, 1fr); grid-template-areas: "top" "answer" "side" "dock"; }
+  .app[data-state="answer"] .side { grid-template-rows: 220px auto; }
+  .brand span, .demo-pill { display: none; }
+  .answer { padding: 18px; }
+  .dock { position: sticky; bottom: 0; padding-bottom: 6px; }
+}
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; } }
+</style>
+
+<div class="app" id="app" data-state="idle">
+  <header class="top">
+    <div class="brand"><b>MODDA</b><span>Legal Intelligence</span></div>
+    <div class="spacer"></div>
+    <span class="pill demo-pill">Namuna: hodisalar oqimi demo uchun yozilgan</span>
+    <span class="pill" id="status" role="status"><i></i><span id="status-text">Tayyor</span></span>
+  </header>
+
+  <section class="hero" aria-labelledby="hero-title">
+    <h1 id="hero-title">Qonunchilikni anglashning yangi usuli.</h1>
+    <p>Oʻzbekiston qonunchiligi boʻyicha savollaringizga Lex.uz hujjatlari va tegishli moddalar asosida javob oling.</p>
+  </section>
+
+  <aside class="panel timeline" aria-label="Tadqiqot bosqichlari">
+    <p class="kicker">Joriy savol</p>
+    <p class="cur-q" id="cur-q"></p>
+    <p class="kicker">Tadqiqot bosqichlari</p>
+    <ol class="stages" id="stages"></ol>
+    <div class="log" id="log" aria-label="Backend hodisalari"></div>
+  </aside>
+
+  <div class="stage" id="stage">
+    <canvas id="gl" aria-label="3D huquqiy bilimlar grafi"></canvas>
+    <div id="labels"></div>
+    <div class="graph-tools">
+      <button class="tool" id="reset" type="button">Kamerani tiklash</button>
+      <button class="tool" id="expand" type="button">Tadqiqot grafi ↗</button>
+    </div>
+  </div>
+
+  <aside class="panel docs" aria-label="Topilgan hujjatlar">
+    <h2>Manbalar topilmoqda</h2>
+    <p class="count" id="dcount">Qidiruv boshlanmagan</p>
+    <ul class="dlist" id="dlist"></ul>
+  </aside>
+
+  <article class="panel answer" id="answer" aria-live="polite"></article>
+  <div class="side">
+    <aside class="panel sources" id="sources" aria-label="Javob manbalari"></aside>
+  </div>
+
+  <div class="dock">
+    <div class="chips" id="chips"></div>
+    <form class="ask" id="ask" autocomplete="off">
+      <label class="visually-hidden" for="q">Savolingiz</label>
+      <input id="q" placeholder="Savolingizni yozing…" maxlength="300">
+      <button class="btn" type="submit">Soʻrash</button>
+    </form>
+    <p class="fine">Namuna rejimi: har qanday savolga bitta tayyor tadqiqot ssenariysi koʻrsatiladi. Modda matnlari — haqiqiy korpusdan. Rasmiy yuridik maslahat emas.</p>
+  </div>
+</div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+} }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+const REDUCED = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const C = { gold: 0xc9a45c, emerald: 0x3fbf8a, grey: 0x5b6166, ink: 0xe8e4da, amber: 0xe0a440, bg: 0x0e1011 };
+const $ = (s) => document.querySelector(s);
+const app = $('#app');
+
+// ------------------------------------------------------------------ data (article texts are real corpus rows)
+const MK = { doc: 'Oʻzbekiston Respublikasining Mehnat kodeksi', type: 'Kodeks', date: '28.10.2022', url: 'https://lex.uz/uz/docs/-6257288' };
+const DOCS = [
+  { id: 'mk417', ...MK, art: '417', title: 'Oʻn sakkiz yoshgacha boʻlgan xodimlarni xizmat safariga yuborishni, tungi ishlarga… jalb qilishni taqiqlash', chapter: '25-bob',
+    text: 'Oʻn sakkiz yoshgacha boʻlgan xodimlarni xizmat safariga yuborish, ish vaqtidan tashqari ishlarga, tungi ishlarga, dam olish kunlaridagi va ishlanmaydigan bayram kunlaridagi ishlarga jalb qilish taqiqlanadi. Madaniy-tomosha tashkilotlarining, televideniye, radioeshittirish tashkilotlarining va boshqa ommaviy axborot vositalarining ijodiy xodimlari, professional sportchilar, shuningdek asarlar yaratishda va (yoki) ijro etishda (namoyish etishda) ishtirok etuvchi boshqa shaxslar Ijtimoiy-mehnat masalalari boʻyicha respublika uch tomonlama komissiyasi bilan kelishgan holda Oʻzbekiston Respublikasi Vazirlar Mahkamasi tomonidan tasdiqlanadigan ishlar, kasblar, lavozimlar roʻyxatlariga muvofiq ushbu moddaning birinchi qismida nazarda tutilgan qoidadan mustasnodir.' },
+  { id: 'mk388', ...MK, art: '388', title: 'Ayrim toifadagi xodimlar mehnatini tartibga solishning oʻziga xos xususiyatlari tushunchasi', chapter: '24-bob',
+    text: 'Ayrim toifadagi xodimlar mehnatini huquqiy jihatdan tartibga solishning oʻziga xos xususiyatlari deganda ayrim toifadagi xodimlar uchun mehnat toʻgʻrisidagi qonunchilikning umumiy qoidalari qoʻllanilishini qisman cheklovchi yoxud qoʻshimcha qoidalarni nazarda tutuvchi qoidalarni belgilash tushuniladi.' },
+  { id: 'mk341', ...MK, art: '341', title: 'Xodimning toʻliq moddiy javobgarligi', chapter: '19-bob',
+    text: 'Xodimning toʻliq moddiy javobgarligi uning ish beruvchiga bevosita yetkazilgan haqiqiy zararning oʻrnini toʻliq miqdorda qoplash majburiyatidan iboratdir. … Oʻn sakkiz yoshgacha boʻlgan xodimlar faqat qasddan yetkazilgan zarar uchun … toʻliq moddiy javobgar boʻladi.' },
+  { id: 'mk202', ...MK, art: '202', title: 'Xodimni mehnat majburiyatlarini bajarishdan ozod etishning dam olish vaqti boʻlmagan davrlari', chapter: '14-bob',
+    text: 'Xodimga dam olish uchun emas, balki boshqa maqsadlarda beriladigan, xodimni mehnat majburiyatlarini bajarishdan ozod etish davrlari dam olish vaqtiga kirmaydi. …' },
+  { id: 'mk365', ...MK, art: '365', title: 'Xodimlarga birinchi tibbiy yordam koʻrsatish', chapter: '20-bob',
+    text: 'Ish beruvchi ish joyida kasal boʻlib qolgan xodimlarga birinchi tibbiy yordam koʻrsatishga qaratilgan choralar koʻrishi shart. …' },
+  { id: 'k54', doc: 'Oʻzbekiston Respublikasi Konstitutsiyasi', type: 'Konstitutsiya', date: '30.04.2023', url: 'https://lex.uz/uz/docs/-6445145', art: '54', title: 'Inson huquq va erkinliklarini taʼminlash', chapter: '',
+    text: 'Insonning huquq va erkinliklarini taʼminlash davlatning oliy maqsadidir. Davlat inson hamda fuqaroning Konstitutsiya va qonunlarda mustahkamlangan huquqlari va erkinliklarini taʼminlaydi.' },
+  { id: 'ok148', doc: 'Oʻzbekiston Respublikasining Oila kodeksi', type: 'Kodeks', date: '30.04.1998', url: 'https://lex.uz/uz/docs/-104720', art: '148', title: 'Ota-ona qaramogʻidan mahrum boʻlgan bolalarning huquqlarini himoya qilish', chapter: '19-bob',
+    text: '… bolalarning huquq va manfaatlarini himoya qilish vasiylik va homiylik organlari zimmasiga yuklatiladi.' },
+];
+const SCENARIO = {
+  question: '17 yoshli xodimni tungi smenaga yoki xizmat safariga yuborish mumkinmi?',
+  concepts: ['Voyaga yetmagan xodim', 'Tungi ish', 'Xizmat safari', 'Mehnat huquqi'],
+  selected: ['mk417', 'mk388'],
+  // [ms from start, event type, data]
+  events: [
+    [0, 'query.received', {}],
+    [420, 'query.analyzed', { concepts: 4 }],
+    [900, 'embedding.completed', { model: 'bge-m3', dim: 1024 }],
+    [1000, 'retrieval.started', { index: 'modda_chunks', mode: 'hybrid' }],
+    [2300, 'retrieval.completed', { documents_found: 3, chunks_retrieved: 7, source_ids: DOCS.map((d) => d.id) }],
+    [3300, 'ranking.completed', { reranker: true, selected_chunks: 2, source_ids: ['mk417', 'mk388'] }],
+    [3900, 'context.completed', { chunks: 2 }],
+    [4000, 'generation.started', { model: 'qwen3:8b' }],
+    [6600, 'answer.completed', { sentences: 4, verified: true }],
+  ],
+};
+const STAGES = [
+  ['understand', 'Savol tahlili', 'Savolni tushunish va qidiruvga tayyorlash'],
+  ['embed', 'Embedding', 'Savolning semantik vektori'],
+  ['retrieve', 'Lex.uz qidiruvi', 'Indekslangan moddalarni qidirish'],
+  ['rank', 'Saralash', 'Mos moddalarni tanlash (reranker)'],
+  ['context', 'Kontekst', 'Tanlangan matnlarni LLM uchun tayyorlash'],
+  ['answer', 'Javob', 'LLM javob yozadi va manbalarni bogʻlaydi'],
+];
+
+// ------------------------------------------------------------------ renderer, camera, controls
+const canvas = $('#gl'), stageEl = $('#stage'), labelsEl = $('#labels');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
+renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 1.75));
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(C.bg);
+scene.fog = new THREE.FogExp2(C.bg, 0.045);
+const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 100);
+camera.position.set(0, 1.2, 11);
+const controls = new OrbitControls(camera, canvas);
+Object.assign(controls, { enableDamping: true, dampingFactor: 0.06, enablePan: false, minDistance: 6, maxDistance: 15,
+  minPolarAngle: Math.PI * 0.32, maxPolarAngle: Math.PI * 0.66, minAzimuthAngle: -0.7, maxAzimuthAngle: 0.7, rotateSpeed: 0.5 });
+const HOME = { pos: new THREE.Vector3(0.4, 0.9, 13), target: new THREE.Vector3(0.6, -0.2, 0) };
+controls.target.copy(HOME.target);
+scene.add(new THREE.AmbientLight(0xffffff, 0.5));
+const key = new THREE.PointLight(0xffe2b0, 30, 30, 1.6); key.position.set(-3, 4, 6); scene.add(key);
+
+// pull the camera back when the graph area is narrower than it is tall
+const fit = () => { const r = stageEl.getBoundingClientRect(); return Math.max(1, 1.05 / Math.max(0.3, r.width / Math.max(1, r.height))); };
+function resize() {
+  const r = stageEl.getBoundingClientRect();
+  renderer.setSize(r.width, r.height, false);
+  camera.aspect = r.width / Math.max(1, r.height);
+  camera.updateProjectionMatrix();
+}
+new ResizeObserver(resize).observe(stageEl);
+
+// ------------------------------------------------------------------ helpers
+const glowTex = (() => {
+  const c = document.createElement('canvas'); c.width = c.height = 128;
+  const g = c.getContext('2d'), gr = g.createRadialGradient(64, 64, 0, 64, 64, 64);
+  gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.25, 'rgba(255,255,255,.35)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
+  g.fillStyle = gr; g.fillRect(0, 0, 128, 128);
+  return new THREE.CanvasTexture(c);
+})();
+const tweens = [];
+function tween(obj, to, ms, ease = (t) => 1 - Math.pow(1 - t, 3)) {
+  const from = {}; for (const k in to) from[k] = obj[k];
+  return new Promise((done) => tweens.push({ obj, from, to, ms: REDUCED ? 1 : ms, t0: performance.now(), ease, done }));
+}
+function runTweens(now) {
+  for (let i = tweens.length - 1; i >= 0; i--) {
+    const tw = tweens[i], p = Math.min(1, (now - tw.t0) / tw.ms), e = tw.ease(p);
+    for (const k in tw.to) tw.obj[k] = tw.from[k] + (tw.to[k] - tw.from[k]) * e;
+    if (p >= 1) { tweens.splice(i, 1); tw.done(); }
+  }
+}
+
+// a node = core sphere + glow; `vis` 0..1 drives scale and opacity
+class Node {
+  constructor({ pos, r = 0.12, color = C.gold, glow = 5, label = '', cls = '' }) {
+    this.group = new THREE.Group(); this.group.position.copy(pos);
+    this.mat = new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 0.6, roughness: 0.4, transparent: true });
+    this.core = new THREE.Mesh(new THREE.SphereGeometry(r, 32, 16), this.mat);
+    this.glowMat = new THREE.SpriteMaterial({ map: glowTex, color, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false });
+    this.glow = new THREE.Sprite(this.glowMat); this.glow.scale.setScalar(r * glow);
+    this.group.add(this.core, this.glow);
+    this.vis = 0; this.r = r; this.glowSize = glow; this.apply();
+    graph.add(this.group);
+    if (label) this.label = makeLabel(label, cls, this.group);
+  }
+  setColor(hex) { this.mat.color.setHex(hex); this.mat.emissive.setHex(hex); this.glowMat.color.setHex(hex); }
+  apply() {
+    const s = Math.max(0.001, this.vis);
+    this.core.scale.setScalar(s); this.mat.opacity = this.vis; this.glowMat.opacity = this.vis * 0.9;
+    if (this.label) this.label.el.style.opacity = this.vis;
+  }
+}
+// an edge = curved line drawn progressively + particles travelling along it
+class Edge {
+  constructor(a, b, color = C.gold, lift = 0.6) {
+    const pa = a.group.position, pb = b.group.position;
+    const mid = pa.clone().add(pb).multiplyScalar(0.5); mid.y += lift; mid.z += lift * 0.5;
+    this.curve = new THREE.QuadraticBezierCurve3(pa.clone(), mid, pb.clone());
+    const pts = this.curve.getPoints(60);
+    this.geo = new THREE.BufferGeometry().setFromPoints(pts);
+    this.mat = new THREE.LineBasicMaterial({ color, transparent: true, opacity: 0.75 });
+    this.line = new THREE.Line(this.geo, this.mat); this.geo.setDrawRange(0, 0);
+    graph.add(this.line);
+    this.draw = 0; this.particles = []; this.flow = false; this.color = color;
+  }
+  setColor(hex) { this.color = hex; this.mat.color.setHex(hex); this.particles.forEach((p) => p.material.color.setHex(hex)); }
+  startFlow(n = 3) {
+    if (this.flow) return; this.flow = true;
+    for (let i = 0; i < n; i++) {
+      const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: this.color, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }));
+      s.scale.setScalar(0.18); s.userData.t = i / n; graph.add(s); this.particles.push(s);
+    }
+  }
+  stopFlow() { this.flow = false; this.particles.forEach((p) => graph.remove(p)); this.particles = []; }
+  update(dt) {
+    this.geo.setDrawRange(0, Math.floor(this.draw * 61));
+    for (const p of this.particles) { p.userData.t = (p.userData.t + dt * 0.45) % 1; p.position.copy(this.curve.getPoint(p.userData.t)); }
+  }
+}
+const labels = [];
+function makeLabel(html, cls, obj) {
+  const el = document.createElement('div'); el.className = `lbl ${cls}`; el.innerHTML = html; labelsEl.append(el);
+  const l = { el, obj }; labels.push(l); return l;
+}
+const v3 = new THREE.Vector3();
+function placeLabels() {
+  const w = labelsEl.clientWidth, h = labelsEl.clientHeight;
+  for (const l of labels) {
+    l.obj.getWorldPosition(v3); v3.project(camera);
+    const behind = v3.z > 1;
+    l.el.style.left = `${(v3.x * 0.5 + 0.5) * w}px`; l.el.style.top = `${(-v3.y * 0.5 + 0.5) * h}px`;
+    l.el.classList.toggle('hidden', behind);
+  }
+}
+
+// ------------------------------------------------------------------ background: the quiet legal universe
+const graph = new THREE.Group(); scene.add(graph);
+const universe = new THREE.Group(); scene.add(universe);
+(function buildUniverse() {
+  const n = 420, pts = [], pos = new Float32Array(n * 3);
+  for (let i = 0; i < n; i++) {
+    const r = 3.5 + Math.random() * 9, th = Math.random() * Math.PI * 2, ph = Math.acos(2 * Math.random() - 1);
+    const p = new THREE.Vector3(r * Math.sin(ph) * Math.cos(th), r * Math.cos(ph) * 0.55, r * Math.sin(ph) * Math.sin(th) - 2);
+    pts.push(p); pos.set([p.x, p.y, p.z], i * 3);
+  }
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  universe.add(new THREE.Points(g, new THREE.PointsMaterial({ color: 0xb9a57c, size: 0.09, map: glowTex, transparent: true, opacity: 0.55, depthWrite: false, blending: THREE.AdditiveBlending })));
+  const seg = [];
+  for (let i = 0; i < n; i++) {                                // link each point to its nearest neighbour or two
+    let best = [], bd = [];
+    for (let j = 0; j < n; j++) if (j !== i) {
+      const d = pts[i].distanceToSquared(pts[j]);
+      if (best.length < 2 || d < bd[1]) { best.push(j); bd.push(d); const o = bd.map((x, k) => [x, best[k]]).sort((a, b) => a[0] - b[0]).slice(0, 2); bd = o.map((x) => x[0]); best = o.map((x) => x[1]); }
+    }
+    for (const j of best) if (pts[i].distanceTo(pts[j]) < 2.2) seg.push(pts[i], pts[j]);
+  }
+  const lg = new THREE.BufferGeometry().setFromPoints(seg);
+  universe.add(new THREE.LineSegments(lg, new THREE.LineBasicMaterial({ color: 0x8a7a58, transparent: true, opacity: 0.16 })));
+})();
+
+// ------------------------------------------------------------------ research graph (built per question)
+let N = {}, E = [], docNodes = {}, focusId = null;
+function clearGraph() {
+  for (const e of E) { e.stopFlow(); graph.remove(e.line); }
+  graph.clear(); E = []; N = {}; docNodes = {};
+  labels.splice(0).forEach((l) => l.el.remove());
+}
+function show(node, ms = 600) { return tween(node, { vis: 1 }, ms); }
+function edge(a, b, color, lift) { const e = new Edge(a, b, color, lift); E.push(e); return e; }
+
+function buildQuery(question) {
+  N.query = new Node({ pos: new THREE.Vector3(0, 0.2, 0), r: 0.34, color: C.ink, glow: 6, label: question.replace(/</g, '&lt;'), cls: 'query' });
+  show(N.query, 800);
+}
+async function buildConcepts(list) {
+  N.concepts = list.map((c, i) => {
+    const a = (i / list.length) * Math.PI * 2 + 0.4;
+    return new Node({ pos: new THREE.Vector3(Math.cos(a) * 1.6, 0.2 + Math.sin(a) * 1.1, Math.sin(a) * 0.5), r: 0.07, color: C.gold, glow: 6, label: c, cls: 'concept' });
+  });
+  for (const [i, n] of N.concepts.entries()) {
+    const e = edge(N.query, n, C.gold, 0.15); show(n, 500); tween(e, { draw: 1 }, 500);
+    await wait(90);
+  }
+}
+async function buildEmbedding() {
+  N.vector = new Node({ pos: new THREE.Vector3(-1.9, -1.5, 0.6), r: 0.1, color: C.gold, glow: 7, label: 'vektor · 1024', cls: 'stagenode' });
+  const e = edge(N.query, N.vector, C.gold, -0.2); show(N.vector); await tween(e, { draw: 1 }, 500); e.startFlow(4);
+}
+async function buildDatabase() {
+  const g = new THREE.Group(); g.position.set(-3.5, -0.4, -0.8);
+  const ico = new THREE.Mesh(new THREE.IcosahedronGeometry(0.75, 1), new THREE.MeshBasicMaterial({ color: C.gold, wireframe: true, transparent: true, opacity: 0 }));
+  g.add(ico); graph.add(g);
+  N.db = { group: g, ico, vis: 0 }; makeLabel('Lex.uz indeksi', 'stagenode', g).el.style.transform = 'translate(-50%, 58px)';
+  await tween(ico.material, { opacity: 0.55 }, 600);
+  const e = edge(N.vector, N.db, C.gold, 0.4); await tween(e, { draw: 1 }, 600); e.startFlow(5); N.dbEdge = e;
+}
+async function buildDocs(ids) {
+  const byDoc = {};
+  ids.map((id) => DOCS.find((d) => d.id === id)).forEach((d) => (byDoc[d.doc] ||= []).push(d));
+  const groups = Object.values(byDoc);
+  let gi = 0;
+  for (const g of groups) {
+    const gy = 1.9 - gi * 2.0;                                    // one row per source document
+    const hub = new Node({ pos: new THREE.Vector3(2.0, gy, -0.4), r: 0.16, color: C.gold, glow: 6 });
+    show(hub); const he = edge(N.db, hub, C.gold, 1.2); tween(he, { draw: 1 }, 700);
+    for (const [k, d] of g.entries()) {
+      const pos = new THREE.Vector3(3.0 + (k % 3) * 1.05, gy + (k > 2 ? -0.8 : 0.3) - (k % 2) * 0.35, 0.3);
+      const n = new Node({ pos, r: 0.075, color: C.gold, glow: 6 });
+      n.label = makeLabel(`${d.art}-modda<small>${d.type}</small>`, 'doc', n.group);
+      n.label.el.addEventListener('click', () => focus(d.id));
+      n.edge = edge(hub, n, C.gold, 0.2);
+      n.hub = hub; n.doc = d; docNodes[d.id] = n;
+      show(n, 500); tween(n.edge, { draw: 1 }, 500);
+      addDocCard(d);
+      await wait(140);
+    }
+    gi++;
+  }
+}
+async function rankDocs(selected) {
+  for (const [id, n] of Object.entries(docNodes)) {
+    const keep = selected.includes(id);
+    n.setColor(keep ? C.emerald : C.grey); n.edge.setColor(keep ? C.emerald : C.grey);
+    n.label.el.classList.add(keep ? 'selected' : 'rejected');
+    tween(n, { vis: keep ? 1.35 : 0.45 }, 700);
+    if (keep) n.edge.startFlow(2);
+    markCard(id, keep ? 'selected' : 'rejected');
+  }
+  N.dbEdge?.stopFlow();
+}
+async function buildContext(selected) {
+  N.context = new Node({ pos: new THREE.Vector3(2.2, -2.3, 0.8), r: 0.16, color: C.emerald, glow: 7, label: 'Kontekst', cls: 'stagenode' });
+  show(N.context);
+  for (const id of selected) { const e = edge(docNodes[id], N.context, C.emerald, -0.3); tween(e, { draw: 1 }, 600); e.startFlow(2); }
+}
+async function buildAnswer(selected) {
+  N.answer = new Node({ pos: new THREE.Vector3(0, -2.6, 1.2), r: 0.28, color: C.emerald, glow: 7, label: 'Javob', cls: 'stagenode' });
+  const e = edge(N.context, N.answer, C.emerald, -0.2); show(N.answer, 900); await tween(e, { draw: 1 }, 700); e.startFlow(3);
+}
+function closeLoop(selected) {
+  // the final connection travels from the answer back to its supporting sources
+  for (const id of selected) { const e = edge(N.answer, docNodes[id], C.emerald, 1.4); tween(e, { draw: 1 }, 1200); e.startFlow(2); }
+  E.forEach((e) => { if (e.color === C.gold) e.stopFlow(); });
+}
+
+// ------------------------------------------------------------------ panels
+const stagesEl = $('#stages'), logEl = $('#log'), dlist = $('#dlist');
+let t0 = 0, stageT = {};
+function renderStages() {
+  stagesEl.replaceChildren(...STAGES.map(([id, name, desc]) => {
+    const li = document.createElement('li'); li.className = 'st'; li.dataset.id = id; li.dataset.s = 'waiting';
+    li.innerHTML = `<i class="dot" aria-hidden="true"></i><div><b>${name}</b><span>${desc}</span></div><time></time>`;
+    return li;
+  }));
+}
+function setStage(id, s) {
+  const li = stagesEl.querySelector(`[data-id="${id}"]`); if (!li) return;
+  li.dataset.s = s;
+  const now = performance.now();
+  if (s === 'running') stageT[id] = now;
+  if (s === 'completed' && stageT[id] != null) li.querySelector('time').textContent = `${((now - stageT[id]) / 1000).toFixed(2)} s`;
+  li.setAttribute('aria-label', `${li.querySelector('b').textContent}: ${({ waiting: 'kutilmoqda', running: 'bajarilmoqda', completed: 'bajarildi', skipped: 'oʻtkazildi', failed: 'xato' })[s]}`);
+}
+function log(type, data) {
+  const d = document.createElement('div');
+  d.innerHTML = `+${((performance.now() - t0) / 1000).toFixed(2)}s <em>${type}</em> ${JSON.stringify(data).replace(/</g, '&lt;')}`;
+  logEl.append(d); logEl.scrollTop = logEl.scrollHeight;
+}
+function addDocCard(d) {
+  const li = document.createElement('li'); li.className = 'dcard'; li.dataset.id = d.id; li.tabIndex = 0;
+  li.innerHTML = `<div class="t">${d.art}-modda · ${d.doc.replace('Oʻzbekiston Respublikasining ', '')}</div><div class="m">${d.type}, ${d.date}</div><p>${d.title}</p><span class="badge">nomzod</span>`;
+  li.addEventListener('click', () => focus(d.id));
+  li.addEventListener('keydown', (e) => { if (e.key === 'Enter') focus(d.id); });
+  dlist.append(li);
+  const n = dlist.children.length;
+  $('#dcount').textContent = `${n} ta modda topildi`;
+}
+function markCard(id, cls) {
+  const li = dlist.querySelector(`[data-id="${id}"]`); if (!li) return;
+  li.classList.add(cls); li.querySelector('.badge').textContent = cls === 'selected' ? 'kontekstga tanlandi' : 'chiqarildi';
+}
+function renderAnswer() {
+  const [a, b] = SCENARIO.selected.map((id) => DOCS.find((d) => d.id === id));
+  $('#answer').innerHTML = `
+    <p class="kicker">Savol</p>
+    <h2 class="q">${SCENARIO.question}</h2>
+    <p class="short">Yoʻq. Oʻn sakkiz yoshgacha boʻlgan xodimni tungi ishga ham, xizmat safariga ham jalb qilish taqiqlanadi.<button class="cite" data-id="mk417" aria-label="Manba 1">1</button></p>
+    <h3>Batafsil</h3>
+    <p class="body">Mehnat kodeksining 417-moddasi oʻn sakkiz yoshgacha boʻlgan xodimlarni xizmat safariga yuborishni, ish vaqtidan tashqari ishlarga, tungi ishlarga, dam olish kunlaridagi va ishlanmaydigan bayram kunlaridagi ishlarga jalb qilishni taqiqlaydi.<button class="cite" data-id="mk417">1</button></p>
+    <h3>Istisnolar</h3>
+    <p class="body">Ijodiy xodimlar (madaniy-tomosha tashkilotlari, televideniye, radio va boshqa ommaviy axborot vositalari), professional sportchilar hamda asar yaratish yoki ijro etishda ishtirok etuvchi shaxslar bu taqiqdan mustasno — Vazirlar Mahkamasi tasdiqlagan ishlar, kasblar va lavozimlar roʻyxatlariga muvofiq.<button class="cite" data-id="mk417">1</button></p>
+    <h3>Huquqiy asos</h3>
+    <p class="body">Bu qoida ayrim toifadagi xodimlar mehnatini tartibga solishning oʻziga xos xususiyatlaridan biri: bunday qoidalar umumiy qoidalarni qisman cheklaydi yoki qoʻshimcha qoidalar belgilaydi.<button class="cite" data-id="mk388">2</button></p>
+    <p class="warn">Bu yuridik maslahat emas. Rasmiy matn — Lex.uz’dagi hujjat; qaror qabul qilishdan oldin oʻsha yerda tekshiring.</p>`;
+  $('#sources').innerHTML = `<h2>Javob manbalari</h2><p class="count">2 ta modda, 1 ta hujjat · 7 ta nomzoddan tanlangan</p>` +
+    [a, b].map((d, i) => `<div class="scard" data-id="${d.id}">
+      <span class="eyebrow">Manba ${i + 1} · Lex.uz</span>
+      <span class="t">${d.art}-modda. ${d.title}</span>
+      <span class="m">${d.doc}, ${d.type}, ${d.date}${d.chapter ? ', ' + d.chapter : ''}</span>
+      <blockquote>${d.text.slice(0, 210)}…</blockquote>
+      <div class="row"><button type="button" data-graph="${d.id}">Grafda koʻrish ↗</button><a href="${d.url}" target="_blank" rel="noopener">Lex.uz’da ochish</a></div>
+    </div>`).join('');
+  document.querySelectorAll('.cite').forEach((b) => b.addEventListener('click', () => highlightSource(b.dataset.id)));
+  document.querySelectorAll('[data-graph]').forEach((b) => b.addEventListener('click', () => { setExpanded(true); focus(b.dataset.graph); }));
+}
+function highlightSource(id) {
+  document.querySelectorAll('.scard').forEach((c) => c.classList.toggle('focus', c.dataset.id === id));
+  document.querySelector(`.scard[data-id="${id}"]`)?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+}
+
+// ------------------------------------------------------------------ source exploration
+let drawer = null;
+function focus(id) {
+  const n = docNodes[id]; const d = DOCS.find((x) => x.id === id); if (!n || !d) return;
+  focusId = id;
+  Object.entries(docNodes).forEach(([k, m]) => m.label.el.classList.toggle('focus', k === id));
+  dlist.querySelectorAll('.dcard').forEach((c) => c.classList.toggle('focus', c.dataset.id === id));
+  const p = n.group.position;
+  tween(controls.target, { x: p.x * 0.6, y: p.y * 0.6, z: p.z }, 900);
+  drawer?.remove();
+  drawer = document.createElement('aside'); drawer.className = 'drawer'; drawer.setAttribute('role', 'dialog'); drawer.setAttribute('aria-label', `${d.art}-modda`);
+  const state = SCENARIO.selected.includes(id) ? 'Javob manbasi' : (dlist.querySelector(`[data-id="${id}"]`)?.classList.contains('rejected') ? 'Saralashda chiqarildi' : 'Nomzod');
+  drawer.innerHTML = `<button class="tool close" type="button">Yopish</button><p class="kicker">${state}</p><h4>${d.art}-modda. ${d.title}</h4>
+    <div class="m">${d.doc}, ${d.type}, ${d.date}${d.chapter ? ', ' + d.chapter : ''}</div><p>${d.text}</p><a href="${d.url}" target="_blank" rel="noopener">Lex.uz’da ochish</a>`;
+  document.body.append(drawer);
+  drawer.querySelector('.close').addEventListener('click', closeDrawer);
+  drawer.querySelector('.close').focus();
+}
+function closeDrawer() { drawer?.remove(); drawer = null; focusId = null; Object.values(docNodes).forEach((m) => m.label.el.classList.remove('focus')); }
+function setExpanded(on) { stageEl.classList.toggle('expanded', on); $('#expand').textContent = on ? 'Yopish ✕' : 'Tadqiqot grafi ↗'; }
+$('#expand').addEventListener('click', () => setExpanded(!stageEl.classList.contains('expanded')));
+$('#reset').addEventListener('click', () => { tween(controls.target, { x: HOME.target.x, y: HOME.target.y, z: HOME.target.z }, 800); tween(camera.position, { x: HOME.pos.x, y: HOME.pos.y, z: HOME.pos.z }, 800); closeDrawer(); });
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { if (drawer) closeDrawer(); else setExpanded(false); } });
+const ray = new THREE.Raycaster(), mouse = new THREE.Vector2();
+canvas.addEventListener('click', (e) => {
+  const r = canvas.getBoundingClientRect();
+  mouse.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+  ray.setFromCamera(mouse, camera);
+  const hit = ray.intersectObjects(Object.values(docNodes).map((n) => n.core))[0];
+  if (hit) focus(Object.keys(docNodes).find((k) => docNodes[k].core === hit.object));
+});
+
+// ------------------------------------------------------------------ event handling (a real backend sends the same events over SSE)
+const wait = (ms) => new Promise((r) => setTimeout(r, REDUCED ? 0 : ms));
+async function onEvent(type, data) {
+  log(type, data);
+  switch (type) {
+    case 'query.received': setStage('understand', 'running'); buildQuery(SCENARIO.question); break;
+    case 'query.analyzed': setStage('understand', 'completed'); setStage('embed', 'running'); buildConcepts(SCENARIO.concepts); break;
+    case 'embedding.completed': setStage('embed', 'completed'); buildEmbedding(); break;
+    case 'retrieval.started': setStage('retrieve', 'running'); $('#dcount').textContent = 'Lex.uz bazasida qidirilmoqda…'; buildDatabase(); break;
+    case 'retrieval.completed': setStage('retrieve', 'completed'); setStage('rank', 'running'); await buildDocs(data.source_ids);
+      $('#dcount').textContent = `${data.chunks_retrieved} ta mos nomzod, ${data.documents_found} ta hujjat`; break;
+    case 'ranking.completed':
+      if (!data.reranker) setStage('rank', 'skipped'); else setStage('rank', 'completed');
+      setStage('context', 'running'); rankDocs(data.source_ids); break;
+    case 'context.completed': setStage('context', 'completed'); buildContext(SCENARIO.selected); break;
+    case 'generation.started': setStage('answer', 'running'); $('#status-text').textContent = 'Javob tayyorlanmoqda…'; buildAnswer(SCENARIO.selected); break;
+    case 'answer.completed': setStage('answer', 'completed'); closeLoop(SCENARIO.selected); await wait(1300); toAnswer(); break;
+  }
+}
+let runId = 0;
+async function run(question) {
+  const my = ++runId;
+  closeDrawer(); setExpanded(false); clearGraph(); renderStages(); logEl.replaceChildren(); dlist.replaceChildren();
+  $('#cur-q').textContent = SCENARIO.question;
+  $('#q').value = '';
+  app.dataset.state = 'research'; $('#status-text').textContent = 'Tadqiqot ketmoqda';
+  if (stageEl.parentElement !== app) app.insertBefore(stageEl, $('.docs'));
+  tween(universeMat, { o: 0.25 }, 900);
+  tween(camera.position, { x: HOME.pos.x, y: HOME.pos.y, z: HOME.pos.z * fit() }, 900);
+  tween(controls.target, { x: HOME.target.x, y: HOME.target.y, z: HOME.target.z }, 900);
+  t0 = performance.now();
+  for (const [at, type, data] of SCENARIO.events) {
+    const delay = at - (performance.now() - t0);
+    if (delay > 0) await wait(delay);
+    if (my !== runId) return;
+    await onEvent(type, data);
+  }
+}
+function toAnswer() {
+  app.dataset.state = 'answer'; $('#status-text').textContent = 'Javob tayyor';
+  $('.side').prepend(stageEl);                       // the graph becomes the compact card above the sources
+  renderAnswer();
+  tween(camera.position, { x: HOME.pos.x, y: HOME.pos.y, z: HOME.pos.z * fit() * 1.05 }, 900);
+}
+const universeMat = { o: 1 };
+
+// ------------------------------------------------------------------ input
+const chips = ['17 yoshli xodim tungi ishga chiqishi mumkinmi?', 'Mehnat taʼtili', 'Soliq majburiyatlari', 'Taʼlim huquqlari'];
+$('#chips').replaceChildren(...chips.map((c) => {
+  const b = document.createElement('button'); b.type = 'button'; b.className = 'chip'; b.textContent = c;
+  b.addEventListener('click', () => run(c)); return b;
+}));
+$('#ask').addEventListener('submit', (e) => { e.preventDefault(); run($('#q').value || SCENARIO.question); });
+
+// ------------------------------------------------------------------ loop
+const clock = new THREE.Clock();
+function frame(now) {
+  requestAnimationFrame(frame);
+  if (document.hidden) return;
+  const dt = Math.min(clock.getDelta(), 0.05);
+  runTweens(now);
+  for (const n of Object.values(docNodes)) n.apply();
+  for (const k of ['query', 'vector', 'context', 'answer']) N[k]?.apply();
+  N.concepts?.forEach((n) => n.apply());
+  E.forEach((e) => e.update(dt));
+  if (N.db) N.db.ico.rotation.y += dt * 0.15;
+  if (!REDUCED) universe.rotation.y += dt * 0.012;
+  universe.children.forEach((o) => { o.material.opacity = (o.isPoints ? 0.55 : 0.16) * universeMat.o; });
+  controls.update();
+  renderer.render(scene, camera);
+  placeLabels();
+}
+resize(); renderStages(); requestAnimationFrame(frame);
+if (location.hash === '#research') run(SCENARIO.question);
+</script>
