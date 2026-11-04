@@ -138,15 +138,15 @@ def cmd_doctor(s, a):
          "huggingface-cli download BAAI/bge-reranker-v2-m3", required=False)
 
     print("Sayt va vositalar")
-    for tool, fix in (("docker", "Docker’ni oʻrnating"), ("node", "Node.js 20+"), ("npm", "Node.js bilan keladi")):
+    for tool, fix in (("docker", "Docker (Linux server uchun; Windows’da shart emas)"), ("node", "Node.js 20+"), ("npm", "Node.js bilan keladi")):
         path = shutil.which(tool)
         ver = ""
         if path:
-            try:
-                ver = subprocess.run([tool, "--version"], capture_output=True, text=True, timeout=10).stdout.strip().splitlines()[0]
+            try:                                       # the full path: on Windows npm is npm.cmd
+                ver = subprocess.run([path, "--version"], capture_output=True, text=True, timeout=10).stdout.strip().splitlines()[0]
             except Exception:
                 pass
-        line(bool(path), tool, ver, fix, required=tool == "docker")
+        line(bool(path), tool, ver, fix, required=False)
     from .config import ROOT
     nm = ROOT / "web" / "node_modules" / "three"
     line(nm.exists(), "web/node_modules (three, gsap, vite)", "", "cd web && npm install", required=False)
@@ -272,6 +272,17 @@ def cmd_find(s, a):
         print(dict(r))
 
 
+def cmd_snapshot_export(s, a):
+    from .snapshot import export
+    export(_con(s), _store(s), s.reports_dir.parent / "exports")
+
+
+def cmd_snapshot_import(s, a):
+    from pathlib import Path
+    from .snapshot import import_
+    import_(_con(s), _store(s), Path(a.file), Path(a.manifest) if a.manifest else None, force=a.force)
+
+
 def cmd_fix_numbers(s, a):
     from .corpus import fix_numbers
     print(json.dumps(fix_numbers(_con(s)), ensure_ascii=False, indent=2))
@@ -307,6 +318,11 @@ def cmd_fetch_fixtures(s, a):
 
 
 def main(argv=None):
+    for stream in (sys.stdout, sys.stderr):           # Windows consoles and pipes: print Uzbek letters, never crash
+        try:
+            stream.reconfigure(encoding="utf-8", errors="replace")
+        except (AttributeError, ValueError):
+            pass
     p = argparse.ArgumentParser(prog="modda", description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = p.add_subparsers(dest="cmd", required=True)
     sub.add_parser("doctor").set_defaults(fn=cmd_doctor)
@@ -332,6 +348,10 @@ def main(argv=None):
     x.set_defaults(fn=cmd_sample)
     x = sub.add_parser("find"); x.add_argument("--title"); x.add_argument("--article"); x.set_defaults(fn=cmd_find)
     sub.add_parser("fix-numbers", help="yuqori indeksli modda raqamlarini tiklash (1951 → 195¹)").set_defaults(fn=cmd_fix_numbers)
+    sub.add_parser("snapshot-export", help="tayyor indeksni boshqa kompyuterga koʻchirish uchun saqlash").set_defaults(fn=cmd_snapshot_export)
+    x = sub.add_parser("snapshot-import", help="boshqa kompyuterda yasalgan indeksni yuklash")
+    x.add_argument("file"); x.add_argument("--manifest"); x.add_argument("--force", action="store_true")
+    x.set_defaults(fn=cmd_snapshot_import)
     sub.add_parser("rss", help="Lex.uz RSS’dagi yangi hujjatlarni saqlash").set_defaults(fn=cmd_rss)
     x = sub.add_parser("serve", help="FastAPI server: /health, /ask, /ask/stream")
     x.add_argument("--host", default="0.0.0.0"); x.add_argument("--port", type=int, default=8080); x.set_defaults(fn=cmd_serve)

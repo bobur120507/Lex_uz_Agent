@@ -12,7 +12,7 @@ Tushunchalar va vositalar jamoa uchun [I_EXPLAIN.md](I_EXPLAIN.md) da tushuntiri
 
 > Har bir qadam tugaganda shu roʻyxat yangilanadi. Belgilar: ✅ bajarildi · 🔄 jarayonda · ❌ toʻsiq · ⬜ hali boshlanmagan. Batafsil buyruqlar — [KUN-1.md](KUN-1.md).
 >
-> **Oxirgi yangilanish:** 2026-11-04 17:07. 1-kun: MVP indeksi ishlayapti. 2-kun kodi tayyor (35 test).
+> **Oxirgi yangilanish:** 2026-11-04 17:50. 1-kun: MVP indeksi ishlayapti. 2-kun kodi tayyor (37 test). Toʻliq dense indeks — jamoadoshning GPU kompyuterida ([SETUP-WINDOWS.md](SETUP-WINDOWS.md)).
 
 ### 1-kun — uzoq ishlar va asos
 
@@ -47,7 +47,10 @@ Tushunchalar va vositalar jamoa uchun [I_EXPLAIN.md](I_EXPLAIN.md) da tushuntiri
 | 🔄 | MVP dense indeks (12 269 boʻlak) | 1-kun 14:14 dan, ≈ 4,5 soat |
 | ✅ | Ikki qatlamli indeks: `index --sparse-only`, standart `index` = BM25 hammaga + dense qonunlarga | kod tayyor, test qilingan |
 | ⬜ | BM25 — butun korpus | `python -m modda index --sparse-only` |
-| ⬜ | Qonunlar dense (≈ 27 ming boʻlak) — tunda | `finish_day1.sh --full` ning oxirgi qadami |
+| ⬜ | Qonunlar dense (≈ 27 ming boʻlak) — tunda | `finish_day1.sh --full` ning oxirgi qadami; GPU snapshot kelsa — shart emas |
+| ✅ | **GPU kompyuter uchun bitta skript**: `scripts\setup_windows.bat` / `setup_windows.py` | Python, Ollama, HF CLI, Qdrant ni oʻzi oʻrnatadi; har bosqichda zaxira usul; vaqtlar va log; qolgan joydan davom etadi. Soxta Ollama + haqiqiy Qdrant 1.20 bilan boshidan oxirigacha sinaldi |
+| ✅ | `snapshot-export` / `snapshot-import`: indeksni kompyuterdan kompyuterga koʻchirish | boʻlaklar roʻyxati tekshiriladi; 2 GB fayl xotiraga yuklanmaydi |
+| ⬜ | **Toʻliq dense indeks (183 170 boʻlak) — jamoadoshning GPU’sida** → Bobur’da `snapshot-import` | jamoadosh: `git clone` + `setup_windows.bat` |
 | ✅ | Gibrid qidiruv + RRF — `ask` da standart | |
 | ⬜ | Gibrid / dense / BM25 ni oltin toʻplamda solishtirish (`eval`) | MVP indeksidan keyin |
 | ✅ | Reranker moduli (CrossEncoder, ixtiyoriy) | CPU’da sekin — `eval` natijasiga qarab yoqiladi |
@@ -220,7 +223,7 @@ flowchart LR
 ```
 
 * `.env` da `OLLAMA_URL=http://<server-IP>:11434`, `QDRANT_URL=http://<server-IP>:6333`.
-* Kerak boʻlsa, tayyor indeks **Qdrant snapshot** sifatida boshqa kompyuterga koʻchiriladi — qayta embedding qilish shart emas.
+* Kerak boʻlsa, tayyor indeks **Qdrant snapshot** sifatida boshqa kompyuterga koʻchiriladi — qayta embedding qilish shart emas: `python -m modda snapshot-export` → `snapshot-import`. GPU’li Windows kompyuter uchun hammasini bitta skript qiladi: [SETUP-WINDOWS.md](SETUP-WINDOWS.md).
 
 ---
 
@@ -556,7 +559,7 @@ Vaqt yetmasa, **P2 → xatchoʻplar → sahifa matni → varaqlash** tartibida k
 | Xavf | Belgisi | Chora |
 |---|---|---|
 | Internet sekin — modellar 1-kun tushgacha yuklanmaydi | 0-soatdan keyin 2 soatda yuklash < 50 % | Eng kichik modellar bilan boshlash (`qwen3:4b`, faqat `bge-m3`); qolganini tunda |
-| ⚠️ **Roʻy berdi:** GPU yoʻq — bge-m3 0,2–0,5 boʻlak/s, butun korpus ≈ 233 soat | 1-kun `bench-embed` | Ikki qatlamli indeks: BM25 hammaga, dense — kodeks, Konstitutsiya, qonunlarga (2-kun boʻlimi) |
+| ⚠️ **Roʻy berdi:** GPU yoʻq — bge-m3 0,2–0,5 boʻlak/s, butun korpus ≈ 233 soat | 1-kun `bench-embed` | Ikki qatlamli indeks: BM25 hammaga, dense — kodeks, Konstitutsiya, qonunlarga (2-kun boʻlimi). Toʻliq dense — jamoadoshning GPU kompyuterida, snapshot bilan koʻchiriladi ([SETUP-WINDOWS.md](SETUP-WINDOWS.md)) |
 | Oʻzbek tilida LLM javoblari sifatsiz | Modellar solishtirishida | Ekstraktiv uslubni kuchaytirish (iqtiboslardan javob); oʻzbekchaga moslangan modelni tanlash |
 | Oltin toʻplam kechikadi | 2-kun tushda < 40 savol | Savollarni HF moddalaridan teskari yozish; ikki kishiga boʻlish |
 | Lex.uz parseri murakkab chiqadi | 2-kun oxirida testlar oʻtmayapti | Kesish rejasi, 1-band |

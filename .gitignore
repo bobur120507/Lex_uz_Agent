@@ -1,7 +1,12 @@
 .env
 .idea/
 data/raw/
-data/*.sqlite
+data/*.sqlite*
+data/exports/
+data/qdrant_storage/
+data/*.log
+tools/
+.pytest_cache/
 data/reports/
 __pycache__/
 *.egg-info/

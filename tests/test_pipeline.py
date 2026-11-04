@@ -397,3 +397,29 @@ def test_rss_parse():
       <pubDate>Mon, 02 Nov 2026 10:00:00 +0500</pubDate></item><item><title>x</title><link>https://lex.uz/uz</link></item></channel></rss>"""
     items = parse_feed(xml)
     assert items == [{"doc_id": "-7000001", "title": "Yangi qonun", "link": "https://lex.uz/docs/-7000001", "published": "2026-11-02"}]
+
+
+# --------------------------------------------------------------------------- snapshot move (GPU computer → server)
+
+def test_snapshot_fingerprint_and_mismatch(con, tmp_path):
+    import gzip, json
+    from modda import snapshot
+    assert snapshot._fingerprint(["b", "a"]) == snapshot._fingerprint(["a", "b"])
+    man = tmp_path / "x.manifest.json.gz"
+    with gzip.open(man, "wt") as fh:
+        json.dump({"chunks_fingerprint": "different", "chunks_total": 1, "dense": [], "sparse_only": []}, fh)
+    (tmp_path / "x.snapshot").write_bytes(b"0")
+    with pytest.raises(SystemExit, match="mos emas"):
+        snapshot.import_(con, None, tmp_path / "x.snapshot", man)
+
+
+def test_snapshot_multipart_streams_whole_file(tmp_path):
+    from modda.snapshot import _Multipart
+    f = tmp_path / "a.snapshot"
+    f.write_bytes(b"x" * 100_000)
+    body = _Multipart(f)
+    out = b""
+    while chunk := body.read(4096):
+        out += chunk
+    assert len(out) == body.len and out.count(b"x") == 100_000
+    assert out.endswith(f"--{body.boundary}--\r\n".encode()) and b'filename="a.snapshot"' in out

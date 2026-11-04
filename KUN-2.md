@@ -67,3 +67,14 @@ python -m modda eval                         # dense / sparse / hybrid: Recall@5
 | `src/modda/pipeline.py` | Butun yoʻl + har bosqich hodisasi (roadmap §12.4), raqamlarni tekshiruvchi |
 | `src/modda/api.py` | FastAPI: `/health`, `/ask`, `/ask/stream` (SSE) |
 | `src/modda/rss.py` | Lex.uz RSS → `rss_items`, eskirgan manbalar |
+
+## 7. Toʻliq dense indeks — jamoadoshning GPU kompyuterida
+
+Jamoadosh (Windows + NVIDIA): `git clone https://github.com/bobur120507/lex_uz_agent` → `scripts\setup_windows.bat` ni ikki marta bosadi. Skript hammasini oʻrnatadi, 183 170 boʻlakning hammasiga bge-m3 yozadi va `data\exports\` ga ikki fayl qoʻyadi ([SETUP-WINDOWS.md](SETUP-WINDOWS.md)).
+
+Fayllar kelgach, shu kompyuterda:
+
+```bash
+python -m modda snapshot-import ~/Downloads/modda-<sana>.snapshot    # .manifest.json.gz yonida boʻlsin
+python -m modda eval
+```
