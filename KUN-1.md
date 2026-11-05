@@ -3,35 +3,6 @@
 Hamma buyruqlar loyiha papkasida: `cd ~/Lex_Uz_AI_Agent`
 
 ## 0. Muhit (bir marta)
-
-Loyihadagi `.venv` uv bilan yaratilgan (Python 3.14):
-
-```bash
-source .venv/bin/activate
-uv pip install -e ".[dev]"     # psycopg ham oʻrnatiladi; uv yoʻq boʻlsa: pip install -e ".[dev]"
-cp -n .env.example .env        # .env allaqachon boʻlsa, unga DATABASE_URL qatorini qoʻshing
-python -m pytest -q            # 24 ta test, internet va server kerak emas
-```
-
-### PostgreSQL: yangi port, alohida baza
-
-Mavjud PostgreSQL’ga tegmaslik uchun loyiha bazasi alohida konteynerda, **5433** portda ishlaydi:
-
-```bash
-docker run -d --name modda-pg --restart unless-stopped \
-  -e POSTGRES_USER=modda -e POSTGRES_PASSWORD=modda -e POSTGRES_DB=modda \
-  -p 5433:5432 -v ~/modda_pg:/var/lib/postgresql/data postgres:17
-```
-
-`.env` da:
-
-```
-DATABASE_URL=postgresql://modda:modda@localhost:5433/modda
-```
-
-Mavjud serverdan foydalanmoqchi boʻlsangiz (port oʻzgarmaydi), faqat yangi baza yarating:
-
-```bash
 sudo -u postgres createuser -P modda          # parol soʻraydi
 sudo -u postgres createdb -O modda modda
 # .env: DATABASE_URL=postgresql://modda:<parol>@localhost:5432/modda
