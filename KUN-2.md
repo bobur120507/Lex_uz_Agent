@@ -72,9 +72,43 @@ python -m modda eval                         # dense / sparse / hybrid: Recall@5
 
 Jamoadosh (Windows + NVIDIA): `git clone https://github.com/bobur120507/lex_uz_agent` → `scripts\setup_windows.bat` ni ikki marta bosadi. Skript hammasini oʻrnatadi, 183 170 boʻlakning hammasiga bge-m3 yozadi va `data\exports\` ga ikki fayl qoʻyadi ([SETUP-WINDOWS.md](SETUP-WINDOWS.md)).
 
-Fayllar kelgach, shu kompyuterda:
+✅ **Bajarildi (5-noyabr 06:37):** 183 170 / 183 170 boʻlak, snapshot 1,98 GB — `~/Downloads` da, manifest tekshirildi.
+
+## 8. 2-kunni yopish — shu tartibda (≈ 30 daqiqa)
 
 ```bash
-python -m modda snapshot-import ~/Downloads/modda-<sana>.snapshot    # .manifest.json.gz yonida boʻlsin
+cd ~/Lex_Uz_AI_Agent && source .venv/bin/activate
+git pull
+
+# 0. Xizmatlar ishlayaptimi (PostgreSQL 5434, Qdrant 6333, Ollama 11434)
+docker ps --format '{{.Names}}  {{.Status}}  {{.Ports}}'
+curl -s localhost:6333/healthz; echo; curl -s localhost:11434/api/version; echo
+df -h ~                                            # Qdrant uchun kamida ≈ 5 GB boʻsh joy
+
+# 1. Modda raqamlari 195¹ (indeksga tegmaydi, ≈ 5 daqiqa)
+python -m modda ingest
+python -m modda fix-numbers
+
+# 2. Toʻliq indeksni yuklash (eski kolleksiya almashtiriladi, ≈ 5–15 daqiqa)
+python -m modda snapshot-import ~/Downloads/modda-20261105-0637.snapshot
+python -m modda stats                              # chunks_indexed: 183170, chunks_sparse_only: 0
+
+# 3. Sifat (45 savol, dense / sparse / hybrid)
 python -m modda eval
+
+# 4. Birinchi savol (CPU’da javob ≈ 1–2 daqiqa)
+python -m modda ask "MK 131-modda nima deydi?"
+
+# 5. RSS
+python -m modda rss
+
+# 6. Sayt — ikki terminalda
+python -m modda serve                              # http://localhost:8080/health
+cd web && npm run dev                              # http://localhost:5173
 ```
+
+`index --sparse-only --include-mvp` endi **kerak emas** — snapshot’da BM25 hamma boʻlakda bor.
+
+Agar `snapshot-import` «Boʻlaklar mos emas» desa: `python -m modda chunk --rebuild`, keyin 2-qadamni takrorlang.
+
+Natijalarni (`stats`, `eval`, birinchi javob) yuboring — yoʻl xaritasiga yoziladi va 2-kun yopiladi.

@@ -12,7 +12,7 @@ Tushunchalar va vositalar jamoa uchun [I_EXPLAIN.md](I_EXPLAIN.md) da tushuntiri
 
 > Har bir qadam tugaganda shu roʻyxat yangilanadi. Belgilar: ✅ bajarildi · 🔄 jarayonda · ⏸️ toʻxtatilgan · ↪️ boshqa yoʻl bilan · ❌ toʻsiq · ⬜ hali boshlanmagan. Batafsil buyruqlar — [KUN-1.md](KUN-1.md).
 >
-> **Oxirgi yangilanish:** 2026-11-04 18:35. 1-kun: MVP indeksi ishlayapti. 2-kun kodi tayyor (37 test). Toʻliq dense indeks — jamoadoshning GPU kompyuterida ([SETUP-WINDOWS.md](SETUP-WINDOWS.md)).
+> **Oxirgi yangilanish:** 2026-11-06 18:20 (3-kun). **Toʻliq indeks tayyor:** jamoadoshning GPU’sida 183 170 boʻlakning hammasiga bge-m3 + BM25 yozildi (5-noyabr 06:37), snapshot Bobur’ning kompyuteriga keldi va manifest tekshirildi. **2-kun hali yopilmagan:** snapshot’ni yuklash, `eval` va saytni haqiqiy javob bilan sinash qoldi (≈ 30 daqiqa, buyruqlar — [KUN-2.md](KUN-2.md), 7-boʻlim). Yangi frontend uchun ikki hujjat qabul qilindi: `frontend_idea.md` va «Master prompt» — reja va tekshiruv roʻyxati [13-boʻlimda](#13-yangi-frontend-frontend_idea--legal-intelligence-graph).
 
 ### 1-kun — uzoq ishlar va asos
 
@@ -32,11 +32,11 @@ Tushunchalar va vositalar jamoa uchun [I_EXPLAIN.md](I_EXPLAIN.md) da tushuntiri
 | ✅ | Ollama qayta oʻrnatildi (v0.40.14), embedding ishlaydi | |
 | ✅ | Qolgan qadamlar bitta skriptda: `bash scripts/finish_day1.sh --full` | qisman indeksda `eval`/`bakeoff` faqat indekslangan savollarni hisoblaydi (26 test) |
 | ✅ | `bench-embed`: **0,22 boʻlak/s** (CPU) → MVP ≈ 15 soat (bench), amalda 0,5 boʻlak/s ≈ 4,5 soat; butun korpus ≈ 233 soat | rejani oʻzgartirdi (2-kun) |
-| ⏸️ | MVP qismini indekslash (`index --mvp`, 12 269 boʻlak) | 14:14–17:10: **4 896 / 12 269** dense; toʻxtatildi — qolgani jamoadoshning GPU’sida (`setup_windows.bat`) |
-| ⬜ | Birinchi savol (`ask`) | MVP indeksidan keyin |
-| ⬜ | Modellarni solishtirish (`bakeoff`, 20 savol) → LLM tanlash | MVP indeksidan keyin |
+| ↪️ | MVP qismini indekslash (`index --mvp`, 12 269 boʻlak) | 4 896 tasi CPU’da qilindi, keyin toʻxtatildi; **hammasi GPU snapshot’ida bor** |
+| ⬜ | Birinchi savol (`ask`) | `snapshot-import` dan keyin (2-kun yakuni) |
+| ⬜ | Modellarni solishtirish (`bakeoff`, 20 savol) → LLM tanlash | CPU’da juda sekin → **GPU kompyuterda** qilish taklif etiladi (3-kun boʻlimi) |
 | ⬜ | 3D kitob kadr/s — oʻz kompyuterda ≥ 45 | `cd web && npm run dev` → `?debug` |
-| ↪️ | Tungi indekslash | oʻrniga: GPU kompyuterda toʻliq dense → `snapshot-import` |
+| ✅ | Tungi indekslash | oʻrniga GPU kompyuterda toʻliq indeks yasaldi (2-kun boʻlimi) |
 
 ### 2-kun — toʻliq qidiruv
 
@@ -44,25 +44,34 @@ Tushunchalar va vositalar jamoa uchun [I_EXPLAIN.md](I_EXPLAIN.md) da tushuntiri
 
 | Holat | Qadam | Izoh |
 |---|---|---|
-| ⏸️ | MVP dense indeks (12 269 boʻlak) | 4 896 tasi tayyor; qolgani GPU snapshot’da keladi |
+| ↪️ | MVP dense indeks (12 269 boʻlak) | GPU snapshot’ida — 12 269 tasining hammasi |
 | ✅ | Ikki qatlamli indeks: `index --sparse-only`, standart `index` = BM25 hammaga + dense qonunlarga | kod tayyor, test qilingan |
-| ⬜ | BM25 — butun korpus (qolgan MVP boʻlaklari bilan) | `python -m modda index --sparse-only --include-mvp` |
-| ⬜ | Qonunlar dense (≈ 27 ming boʻlak) — tunda | `finish_day1.sh --full` ning oxirgi qadami; GPU snapshot kelsa — shart emas |
+| ↪️ | BM25 — butun korpus | snapshot’da hamma 183 170 boʻlakda BM25 bor — alohida ishga tushirish **shart emas** |
+| ↪️ | Qonunlar dense (≈ 27 ming boʻlak) | snapshot’da — kodeks, qonun, qaror, farmon: hammasi dense |
 | ✅ | **GPU kompyuter uchun bitta skript**: `scripts\setup_windows.bat` / `setup_windows.py` | Python, Ollama, HF CLI, Qdrant ni oʻzi oʻrnatadi; har bosqichda zaxira usul; vaqtlar va log; qolgan joydan davom etadi. Soxta Ollama + haqiqiy Qdrant 1.20 bilan boshidan oxirigacha sinaldi |
 | ✅ | `snapshot-export` / `snapshot-import`: indeksni kompyuterdan kompyuterga koʻchirish | boʻlaklar roʻyxati tekshiriladi; 2 GB fayl xotiraga yuklanmaydi |
-| ⬜ | **Toʻliq dense indeks (183 170 boʻlak) — jamoadoshning GPU’sida** → Bobur’da `snapshot-import` | jamoadosh: `git clone` + `setup_windows.bat` |
+| ✅ | **Toʻliq dense indeks — jamoadoshning GPU’sida** (`setup_windows.bat`, 2026-11-05 06:37) | **183 170 / 183 170** boʻlak bge-m3 + BM25 (`sparse_only` = 0), Qdrant’da 183 170 nuqta; kod `8248011`, korpus `c69bbd5`, BM25 oʻrtacha uzunlik 303,0 |
+| ✅ | Snapshot Bobur’ga keldi va tekshirildi | `~/Downloads/modda-20261105-0637.snapshot` (1,98 GB) + `.manifest.json.gz` (0,4 MB): takror va ziddiyatli ID yoʻq |
+| ⬜ | `ingest` + `fix-numbers` PostgreSQL’da (195¹ raqamlari) | snapshot’dan **oldin**; indeksga tegmaydi |
+| ⬜ | **`snapshot-import`** → `stats`: `chunks_indexed` = 183 170 | boʻlaklar barmoq izi mos kelmasa — import hech narsani oʻzgartirmaydi (pastda: zaxira yoʻl) |
 | ✅ | Gibrid qidiruv + RRF — `ask` da standart | |
-| ⬜ | Gibrid / dense / BM25 ni oltin toʻplamda solishtirish (`eval`) | MVP indeksidan keyin |
+| ⬜ | Gibrid / dense / BM25 ni oltin toʻplamda solishtirish (`eval`) — **toʻliq indeksda, 45 savolning hammasi** | natijani shu jadvalga yozamiz: Recall@5, MRR, kechikish |
 | ✅ | Reranker moduli (CrossEncoder, ixtiyoriy) | CPU’da sekin — `eval` natijasiga qarab yoqiladi |
 | ✅ | Savol marshrutizatori: «MK 131-modda», «195¹-modda», kirill | |
 | ✅ | **Yuqori indeksli raqamlar** (1951 → 195¹): tiklash qoidasi | 10 sahifada 4 028/4 028 toʻgʻri; `ingest` + `fix-numbers` ni ishga tushirish kerak |
 | ✅ | Lex.uz HTML parseri + testlar | bob/boʻlim, tahrir izohlari; «LexUZ sharhi» tashlanadi |
-| ✅ | RSS oʻquvchi | `python -m modda rss` |
+| ✅ | RSS oʻquvchi (kod) | |
+| ⬜ | RSS’ni ishga tushirish | `python -m modda rss` |
 | ✅ | Oltin toʻplam → 60 savol | 1-kunda |
 | ✅ | FastAPI: `/health`, `/ask`, `/ask/stream` (§12.4 hodisalari) | 3-kundan oldinga surildi |
 | ✅ | 3D kitob yangi hodisalarni oʻqiydi (`api.js`) | |
+| ⬜ | Saytda birinchi haqiqiy javob (`serve` + `npm run dev`) | 2-kun yakunlash mezoni |
 | ✅ | Raqam tekshiruvchi (javobdagi har bir son manbada boʻlishi shart) | 3-kundagi toʻliq tekshiruvchining birinchi qismi |
-| ⬜ | 3D: xatchoʻplar sahifa chetida (hozir HTML yorliqlar) | |
+| ⬜ | 3D: xatchoʻplar sahifa chetida (hozir HTML yorliqlar) | eski `web/` uchun; yangi frontend’da kerak emas → kesildi |
+
+> **2-kun qachon yopiladi:** `snapshot-import` muvaffaqiyatli, `eval` natijasi yozilgan, saytda kamida bitta haqiqiy manbali javob chiqqan. Kodning hammasi tayyor — qolgani faqat buyruqlarni ishga tushirish.
+>
+> **Zaxira yoʻl (barmoq izi mos kelmasa):** `python -m modda chunk --rebuild`, keyin yana `snapshot-import`. Jamoadoshning korpusi va kodi bilan bir xil boʻlaklar hosil boʻladi.
 
 ### 3-kun — «Bilmayman» va integratsiya
 
@@ -74,6 +83,9 @@ Tushunchalar va vositalar jamoa uchun [I_EXPLAIN.md](I_EXPLAIN.md) da tushuntiri
 | ✅ | `POST /ask/stream` (SSE) — 12.4 dagi hodisalar shartnomasi (2-kunda) |
 | 🔄 | Saytni haqiqiy API’ga ulash (`python -m modda serve` + `npm run dev`) |
 | ⬜ | RSS delta + «oʻzgargan boʻlishi mumkin» belgisi |
+| ⬜ | **LLM tanlash — GPU kompyuterda** `bakeoff` (`qwen3:8b`, `gemma4:e4b`, Llama-3.1-8B-Uz; 20 savol) — jamoadosh snapshot’dagi indeks bilan ishga tushiradi |
+| ⬜ | Javob vaqti: CPU’da `qwen3:8b` ≈ 1–2 daqiqa → demo uchun LLM’ni GPU kompyuterda ishlatish (`OLLAMA_URL=http://<GPU-IP>:11434`, bir xil Wi-Fi) yoki kichikroq model |
+| ⬜ | Backend: yangi frontend uchun yetishmayotgan maʼlumotlar (13.4) — **Bobur tasdiqlasa** |
 
 ### 4-kun — sozlash va sifat
 
@@ -92,16 +104,25 @@ Tushunchalar va vositalar jamoa uchun [I_EXPLAIN.md](I_EXPLAIN.md) da tushuntiri
 | ⬜ | README, I_EXPLAIN yangilanishi |
 | ⬜ | Demo ssenariysi va mashq, zaxira video |
 
-### Yakuniy bosqich — «Legal Intelligence Graph» interfeysi (12-boʻlim)
+### Yakuniy bosqich — yangi frontend `frontend_idea/` (12- va 13-boʻlimlar)
+
+Batafsil tekshiruv roʻyxati — [13.5](#135-tekshiruv-roʻyxati-bosqichlar-boʻyicha). Bu yerda — umumiy holat.
 
 | Holat | Qadam |
 |---|---|
 | ✅ | Konsepsiya tahlili va interaktiv demo (`demo/graph/index.html`) |
-| ⬜ | Backend: 12.4 dagi hodisalar (`query.received` … `answer.completed`) SSE orqali |
-| ⬜ | Yangi dizayn tizimi va bosh sahifa |
-| ⬜ | Graf: haqiqiy hodisalarga ulangan tugunlar va yoʻllar |
-| ⬜ | Topilgan hujjatlar paneli, javob sahifasi (65/35), «Grafda koʻrish» |
-| ⬜ | Telefon, unumdorlik, qisqartirilgan harakat |
+| ✅ | Backend: 12.4 dagi hodisalar (`query.received` … `answer.completed`) SSE orqali — `POST /ask/stream` |
+| ✅ | Dizayn topshirigʻi `frontend_idea.md` (23 boʻlim) va ish tartibi «Master prompt» oʻqildi, ziddiyatlar hal qilindi (13.2) |
+| ⬜ | Vizual namuna rasmi loyihaga qoʻshilishi kerak (`frontend_idea/reference/`) — hozir repoda yoʻq |
+| ⬜ | F0 — Razvedka va qarorlar hujjati (`frontend_idea/README.md`) |
+| ⬜ | F1 — Asos: Vite, dizayn tokenlari, shriftlar, sarlavha, bosh sahifa, 3D kitob |
+| ⬜ | F2 — Graf: markaziy yadro, 7 bosqich tuguni, chap panel, kamera boshqaruvi |
+| ⬜ | F3 — Hodisalarga ulash: `/ask/stream`, holat mashinasi, `/ask` zaxirasi, xato va «Bilmayman» |
+| ⬜ | F4 — Javob va manbalar: javob paneli, manba kartalari, hujjat inspektori |
+| ⬜ | F5 — Embedding inspektori (backend 13.4 tasdiqlansa — haqiqiy vektor, aks holda «mavjud emas») |
+| ⬜ | F6 — Sifat: telefon, WebGL’siz rejim, qisqartirilgan harakat, klaviatura, kadr/s |
+| ⬜ | F7 — Brauzer sinovlari va vizual tanqid (Playwright, 5 oʻlcham) |
+| ⬜ | F8 — Yakuniy tekshiruv: build, testlar, hujjat, cheklovlar roʻyxati |
 
 ---
 
@@ -120,6 +141,7 @@ Tushunchalar va vositalar jamoa uchun [I_EXPLAIN.md](I_EXPLAIN.md) da tushuntiri
 10. [Har kungi tartib va tayyorlik mezonlari](#10-har-kungi-tartib-va-tayyorlik-mezonlari)
 11. [Xavflar (5 kun uchun)](#11-xavflar-5-kun-uchun)
 12. [Yakuniy interfeys: Legal Intelligence Graph](#12-yakuniy-interfeys-legal-intelligence-graph)
+13. [Yangi frontend: `frontend_idea/` — Legal Intelligence Graph](#13-yangi-frontend-frontend_idea--legal-intelligence-graph)
 
 ---
 
@@ -559,6 +581,7 @@ Vaqt yetmasa, **P2 → xatchoʻplar → sahifa matni → varaqlash** tartibida k
 | Xavf | Belgisi | Chora |
 |---|---|---|
 | Internet sekin — modellar 1-kun tushgacha yuklanmaydi | 0-soatdan keyin 2 soatda yuklash < 50 % | Eng kichik modellar bilan boshlash (`qwen3:4b`, faqat `bge-m3`); qolganini tunda |
+| ⚠️ CPU’da javob ≈ 1–2 daqiqa (`qwen3:8b`) — demo uchun sekin | 3-kun | Demo paytida LLM GPU kompyuterda (`OLLAMA_URL`), yoki kichikroq model; `bakeoff` tezlikni ham oʻlchaydi |
 | ⚠️ **Roʻy berdi:** GPU yoʻq — bge-m3 0,2–0,5 boʻlak/s, butun korpus ≈ 233 soat | 1-kun `bench-embed` | Ikki qatlamli indeks: BM25 hammaga, dense — kodeks, Konstitutsiya, qonunlarga (2-kun boʻlimi). Toʻliq dense — jamoadoshning GPU kompyuterida, snapshot bilan koʻchiriladi ([SETUP-WINDOWS.md](SETUP-WINDOWS.md)) |
 | Oʻzbek tilida LLM javoblari sifatsiz | Modellar solishtirishida | Ekstraktiv uslubni kuchaytirish (iqtiboslardan javob); oʻzbekchaga moslangan modelni tanlash |
 | Oltin toʻplam kechikadi | 2-kun tushda < 40 savol | Savollarni HF moddalaridan teskari yozish; ikki kishiga boʻlish |
@@ -573,6 +596,8 @@ Vaqt yetmasa, **P2 → xatchoʻplar → sahifa matni → varaqlash** tartibida k
 
 ## 12. Yakuniy interfeys: Legal Intelligence Graph
 
+> **Yangilandi (6-noyabr):** bu boʻlim — gʻoya va hodisalar shartnomasi. Toʻliq dizayn topshirigʻi endi `frontend_idea.md` da, uni bajarish rejasi — **13-boʻlimda**. Ranglar va matnlar boʻyicha 13-boʻlim ustun turadi.
+>
 > **Holat:** konsepsiya qabul qilindi, **interaktiv demo tayyor** — `demo/graph/index.html` (brauzerda toʻgʻridan-toʻgʻri ochiladi). Asosiy ish yoʻl xaritasining **oxirida** qilinadi: 1–5-kunlarda 3D kitob ishlatiladi, chunki u yetarli. Bitta narsa hozirdan qilinadi: 3-kunda backend hodisalari 12.4 dagi shartnoma boʻyicha yoziladi, keyin yangi interfeysga oʻtish faqat frontend ishi boʻladi.
 
 ### 12.1. Gʻoya
@@ -642,7 +667,7 @@ Har bir hodisada: `type`, `request_id`, `ts` (ISO vaqt), `data`. Frontend bosqic
 | Kulrang | soʻngan | chiqarilgan nomzodlar |
 | Amber | | ogohlantirish, tasdiqlanmagan manba |
 
-Ranglar: koʻmir-qora fon `#0E1011`, oltin `#C9A45C` (faol), zumrad `#3FBF8A` (tanlangan, bajarilgan), kulrang `#5B6166`, amber `#E0A440`. Shriftlar: Literata (sarlavha, huquqiy matn), Onest (interfeys), JetBrains Mono (hodisalar jurnali).
+Ranglar *(eski taklif — yangi tokenlar `frontend_idea.md` §2.2 da, 13.2 ga qarang)*: koʻmir-qora fon `#0E1011`, oltin `#C9A45C` (faol), zumrad `#3FBF8A` (tanlangan, bajarilgan), kulrang `#5B6166`, amber `#E0A440`. Shriftlar: Literata (sarlavha, huquqiy matn), Onest (interfeys), JetBrains Mono (hodisalar jurnali).
 
 Harakat: zarralar yoʻl boʻylab, yumshoq yorugʻlik, sekin kamera, aloqalar ketma-ket paydo boʻladi. **Yoʻq:** portlashlar, doimiy aylanish, neon. Graf jiddiy tadqiqot asbobidek koʻrinishi kerak.
 
@@ -675,7 +700,148 @@ Ikki ish oqimi aralashtirilmaydi:
 
 Jami ≈ 2,5 kun — shuning uchun asosiy 5 kundan **keyin** (yoki 5-kun tushdan keyin, vaqt qolsa — faqat 2–3-qadamlar).
 
+---
+
+## 13. Yangi frontend: `frontend_idea/` — Legal Intelligence Graph
+
+> **Manbalar:** [`frontend_idea.md`](frontend_idea.md) — **nima qurilishi** (dizayn va muhandislik topshirigʻi, 23 boʻlim, ≈ 2 000 qator). «Master prompt» — **qanday qurilishi** (ish tartibi: razvedka → dizayn → arxitektura → qurish → sifat → telefon → brauzer sinovi → yakuniy tekshiruv). 12-boʻlim — shu ishning asosi boʻlgan gʻoya va hodisalar shartnomasi.
+
+### 13.1. Maqsad bir jumlada
+
+Foydalanuvchi savol yozadi → gerbli Modda kitobi ochiladi → yetti tadqiqot bosqichi **haqiqiy backend hodisalari** bilan yonadi → grafda **haqiqatan topilgan** Lex.uz moddalari koʻrinadi → javob har bir manbasi bilan chiqadi → har bir iqtibosdan grafdagi tugunga va Lex.uz’dagi asl moddaga qaytish mumkin. Hech qanday soxta raqam, vektor, foiz yoki manba yoʻq (`frontend_idea.md` §19, 15 ta qoida).
+
+### 13.2. Ikki hujjat orasidagi ziddiyatlar va qarorlar
+
+| # | Masala | `frontend_idea.md` | Master prompt | **Qaror** |
+|---|---|---|---|---|
+| 1 | Texnologiya | Vite + **oddiy JavaScript** + Three.js + GSAP; «React’ga oʻtmang» (§14, §23) | React + TypeScript + Tailwind — «boshlangʻich nuqta sifatida»; dizayn topshirigʻi — asosiy manba | **Vite + oddiy JS + Three.js + GSAP.** Topshiriq aniq va keyinroq yozilgan; Master prompt’ning oʻzi «eng sodda arxitekturani tanlang» deydi. Turlar — JSDoc; tekshiruv — ESLint, Vitest, Playwright |
+| 2 | Qayerda | §15 da `web/` | **faqat `frontend_idea/`**; `web/`, backend, maʼlumotlar bazasi, `.env` — faqat oʻqish uchun | **`frontend_idea/`** — alohida `package.json` bilan. Hozirgi `web/` (3D kitob) qabul qilinguncha ishlaydigan zaxira boʻlib qoladi |
+| 3 | Backend | yangi `GET /ask/{request_id}/embedding`, qoʻshimcha maydonlar (§6.4, §13) | backend’ni oʻzgartirmang; yoʻq API uchun **aniq belgilangan** mock | Frontend faqat **mavjud** maʼlumotni koʻrsatadi, yoʻgʻini «Mavjud emas» deydi. Backend qoʻshimchalari (13.4) — **alohida ish**, frontend ishidan tashqarida, **Bobur tasdiqlasa** |
+| 4 | Ranglar | §2.2: `#070D0C` fon, oltin `#D6B66D`, zumrad `#39D6A0`, moviy `#65D8EE`, amber `#E5AD5C`, qizil `#E36F72` … | — | `frontend_idea.md` §2.2 tokenlari **12.5 dagi eskilarining oʻrnini bosadi** |
+| 5 | Sarlavha | «Qonunchilikdan aniq javob — har bir gapning manbasi bilan» | — | shu matn (oldingi «Qonunchilikni anglashning yangi usuli» oʻrniga) |
+| 6 | Shriftlar | Onest, Literata, JetBrains Mono | — | `frontend_idea/public/fonts/` ga joylanadi (tashqi CDN’siz ishlashi uchun) |
+| 7 | Gerb | `web/public/gerb.png` | `web/` ni oʻzgartirmaslik | fayl **nusxalanadi** (`frontend_idea/public/gerb.png`), asl joyida qoladi |
+| 8 | Vizual namuna | «biriktirilgan yakuniy rasm» | — | ❗ repoda yoʻq → `frontend_idea/reference/` ga qoʻyish kerak |
+| 9 | Hajm | 6 bosqich (§20) | 8 faza (0–8) | ikkalasi birlashtirildi: **F0–F8** (13.5) |
+
+### 13.3. Backend hozir nimani beradi (kodda tekshirildi, 6-noyabr)
+
+| Topshiriq talab qiladi | Hozir bor | Frontend’da |
+|---|---|---|
+| `POST /ask/stream`, 11 hodisa, `{type, request_id, ts, data}` | ✅ hammasi (`pipeline.py`) | toʻgʻridan-toʻgʻri |
+| `POST /ask` zaxirasi | ✅ | toʻgʻridan-toʻgʻri |
+| `query.analyzed`: `concepts`, `route` | ✅ + aniq havola (`reference`) | toʻgʻridan-toʻgʻri |
+| Asl va normallashtirilgan savol | ⚠️ faqat normallashtirilgan (`query.received`) | aslini frontend oʻzi saqlaydi |
+| `embedding.completed`: `model`, `dim`, `ms` | ✅ | toʻgʻridan-toʻgʻri |
+| `retrieval.completed`: `documents_found`, `chunks_retrieved`, nomzodlar (`chunk_id, doc_title, doc_type, article_no, article_title, rank`), `ms` | ✅ | toʻgʻridan-toʻgʻri |
+| Nomzodlar balli; dense va BM25 nomzodlari alohida | ❌ faqat birlashtirilgan tartib | «Ball mavjud emas», faqat oʻrin |
+| `ranking.completed`: `reranker`, `selected`, `rejected`, `tau`, `top_score` | ✅ (reranker oʻchiq boʻlsa — «Faol emas») | toʻgʻridan-toʻgʻri |
+| `context.completed`, `generation.started` | ✅ | toʻgʻridan-toʻgʻri |
+| `verification.completed`: `verified`, `failed`, `llm_ms` | ✅ (`failed` — gap matni va sababi, chunk_id emas) | toʻgʻridan-toʻgʻri |
+| `answer.completed`: `unknown, checked_at, answer[], sources{}` | ✅ | toʻgʻridan-toʻgʻri |
+| `/health`: maqola/boʻlak soni, modellar | ✅ — lekin Ollama va Qdrant holati yoʻq | «Onlayn» faqat `/health` javob bersa; Ollama/Qdrant — «nomaʼlum» |
+| Toʻliq vektor `GET /ask/{id}/embedding` | ❌ | «Exact vector payload is not available.» |
+| PCA/UMAP proeksiyasi (versiyali) | ❌ | «Mavjud emas» |
+| Model konfiguratsiyasi (qatlamlar soni), tokenlar | ❌ | arxitektura sxemasi «tushuntirish» deb belgilanadi, raqamsiz |
+| Faollashuvlar, attention | ❌ (Ollama bermaydi) | koʻrsatilmaydi — §6.2 talabi shu |
+| Modda toʻliq matni (hujjat inspektori), «Hujjatlar» boʻlimi uchun qidiruv | ❌ alohida endpoint yoʻq (`sources` ichida parcha bor) | parcha + Lex.uz havolasi; toʻliq matn — «mavjud emas» |
+| Bekor qilish (yangi savol) | ✅ frontend oqimni uzadi | `AbortController` |
+
+### 13.4. Backend qoʻshimchalari (taklif — Bobur tasdiqlaydi, frontend ishidan alohida)
+
+Har biri kichik, mavjud javoblarni buzmaydi (faqat yangi maydon yoki yangi endpoint):
+
+| # | Ish | Nima ochiladi | Taxminiy vaqt |
+|---|---|---|---|
+| B1 | `retrieval.completed` ga `score`, `dense_rank`, `sparse_rank` | «Qidiruv» inspektorida haqiqiy ballar | 1 soat |
+| B2 | `GET /ask/{request_id}/embedding` — xotirada 30 daqiqa saqlanadigan vektor | 1024 qiymatning hammasi, JSON nusxalash | 1 soat |
+| B3 | Versiyali PCA (`pca_v1`, 2 000 ta boʻlakdan oldindan hisoblangan) + nomzodlar vektori | haqiqiy 3D proeksiya | 2 soat |
+| B4 | `GET /model/embedding` — HF `config.json` dan qatlamlar, oʻlcham; tokenizer orqali tokenlar | model inspektori (haqiqiy arxitektura) | 2 soat |
+| B5 | `GET /chunks/{id}` va `GET /documents?q=` — modda toʻliq matni va hujjatlar roʻyxati | hujjat inspektori, «Hujjatlar» sahifasi | 1,5 soat |
+| B6 | `/health` ga `ollama`, `qdrant` holati | «Onlayn» belgisining rostgoʻyligi | 0,5 soat |
+
+Tasdiqlanmasa ham frontend toʻliq ishlaydi — faqat tegishli joylar «Mavjud emas» deb koʻrsatiladi (bu topshiriqning oʻzi talab qilgan xatti-harakat).
+
+### 13.5. Tekshiruv roʻyxati (bosqichlar boʻyicha)
+
+**F0 — Razvedka** *(Master prompt 4-boʻlim)*
+- [ ] `git status`: begona oʻzgarishlar yoʻqligini tekshirish, hech narsa ustidan yozilmaydi
+- [ ] `frontend_idea.md`, 12-boʻlim, `web/` va backend API’ni oʻqish (faqat oʻqish)
+- [ ] Vizual namuna rasmi → `frontend_idea/reference/`
+- [ ] `frontend_idea/README.md`: maqsad, foydalanuvchilar, asosiy yoʻl, mavjud / mock / bloklangan imkoniyatlar (13.3 asosida)
+- [ ] Ixtiyoriy: `frontend_idea/CLAUDE.md` — shu frontend uchun qisqa qoidalar
+
+**F1 — Asos va bosh sahifa** *(topshiriq §20 Phase 1, §2–4)*
+- [ ] Vite loyihasi `frontend_idea/` da, versiyalar qulflangan (`package-lock.json`)
+- [ ] `tokens.css`: §2.2 ranglari, shriftlar, oraliqlar, chegaralar
+- [ ] Shriftlar mahalliy: Onest, Literata, JetBrains Mono; `oʻ`, `gʻ`, `ʻ`, `ʼ` va kirill toʻgʻri chiqadi
+- [ ] Sarlavha: logotip, Bosh sahifa / Graf / Hujjatlar / Yordam, haqiqiy «● Onlayn» belgisi
+- [ ] Bosh sahifa: sarlavha, tavsif, qidiruv maydoni (Enter / Shift+Enter, boʻsh savol yoʻq, takror yuborish yoʻq), 3 mavzu, ishonch belgilari, «Qanday ishlaydi?»
+- [ ] 3D kitob: toʻq-koʻk muqova, oltin naqsh, haqiqiy gerb, sahifa qirralari; aylanmaydi, sekin «nafas oladi»
+- [ ] Muhit: qorongʻi kutubxona fonini yengil rasm/CSS bilan (murakkab 3D modelsiz)
+
+**F2 — Graf** *(§5, §7, §8)*
+- [ ] Markaziy «intellekt yadrosi» + 7 bosqich tuguni, pipeline tartibida bogʻlangan (tasodifiy chiziqlarsiz)
+- [ ] Chap panel: 7 bosqich, holatlar (kutish / bajarilmoqda / bajarildi / oʻtkazildi / xato / ogohlantirish), haqiqiy vaqt
+- [ ] Hujjat → modda tugunlari, ikki marta bosish — ochish/yopish
+- [ ] Hover, bosish (kamera yaqinlashadi, panel ochiladi), boshqaruv: zoom, reset, markazlash, chiqarilganlarni yashirish, yorliqlar, zarralar
+- [ ] ≤ 40 koʻrinadigan tugun, geometriya/materiallar qayta ishlatiladi
+
+**F3 — Backend hodisalariga ulash** *(§13)*
+- [ ] Hodisa menejeri va holat mashinasi — **animatsiyadan mustaqil**
+- [ ] `request_id` boʻyicha moslash, takror hodisalar, uzilish, yangi savolda bekor qilish
+- [ ] `/ask` zaxirasi (SSE ishlamasa)
+- [ ] `unknown = true` → «Lex.uz maʼlumotlari asosida ishonchli javob topilmadi.» (yashil holatsiz)
+- [ ] `stage.failed` → bosqich toʻxtaydi, savol saqlanadi, «Qayta urinish»
+- [ ] Demo rejimi (`?demo`) — **aniq belgilangan**, haqiqiy rejimga hech qachon aralashmaydi
+
+**F4 — Javob va manbalar** *(§9, §10)*
+- [ ] «Javob tayyor!» faqat `answer.completed` dan keyin; tablar: Javob / Manbalar (N) / Grafda koʻrish
+- [ ] Manba kartasi: hujjat nomi, turi, modda raqami, parcha, holat, sana, Lex.uz havolasi
+- [ ] Hujjat inspektori (oʻng panel): asl matn tahrirsiz; «Grafda koʻrish» → tugunga qaytish
+- [ ] Iqtibosni nusxalash (haqiqiy matn), «Toʻliq moddani ochish» → Lex.uz
+- [ ] «Modda rasmiy yuridik maslahat oʻrnini bosmaydi.» — doim
+
+**F5 — Embedding va model inspektori** *(§6)*
+- [ ] Inspektor oynasi: sarlavha, model maʼlumoti, request ID, barcha tugmalar ishlaydi
+- [ ] B2 bor boʻlsa: 1024 qiymat (sahifalab, qidiruv, issiqlik xaritasi, JSON nusxa); yoʻq boʻlsa — aniq xabar
+- [ ] B3 bor boʻlsa: haqiqiy PCA 3D (versiya va XYZ koʻrsatiladi, «hosila proeksiya» deb yoziladi)
+- [ ] B4 bor boʻlsa: haqiqiy qatlamlar; yoʻq boʻlsa — «tushuntiruvchi sxema» belgisi bilan
+- [ ] Vaznlar ≠ faollashuvlar ≠ attention — aralashtirilmaydi, tasodifiy «yonish» yoʻq
+
+**F6 — Sifat, telefon, foydalanish qulayligi** *(§16–18; Master prompt 8–9)*
+- [ ] Oʻlchamlar: 1440×900, 1280×800, 768×1024, 390×844, 360×780 — gorizontal aylantirishsiz
+- [ ] Planshet: ixcham bosqichlar, manbalar — tortma panel; telefon: ustma-ust tartib, pastda savol maydoni
+- [ ] WebGL’siz rejim: statik kitob, oddiy graf, 7 bosqich, kartalar, toʻliq javob
+- [ ] `prefers-reduced-motion`: zarralar va kamera harakati oʻchadi, funksiya qoladi
+- [ ] Klaviatura, koʻrinadigan fokus, ekran oʻquvchi uchun holat xabarlari, rang yagona belgi emas (WCAG 2.2 AA)
+- [ ] Unumdorlik: ≥ 45 kadr/s (Bobur’ning noutbuki, Iris Xe), DPR ≤ 1,75, yashirin tabda render yoʻq, yangi savolda tozalash
+
+**F7 — Brauzer sinovi va vizual tanqid** *(Master prompt 10-boʻlim)*
+- [ ] Playwright: yoʻnalishlar, tugmalar (§12 jadvalidagi 25 ta boshqaruv), xato va «Bilmayman» holatlari
+- [ ] Konsol xatolari va muvaffaqiyatsiz soʻrovlar yoʻq
+- [ ] 5 oʻlchamda skrinshot → dizayner koʻzi bilan tanqid → tuzatish (kamida 2 aylana)
+- [ ] §22 dagi 6 demo savol haqiqiy backend bilan: aniq modda, mehnat mavzusi, kirill, yangilangan hujjat, javobsiz savol, prompt-injection
+
+**F8 — Yakuniy tekshiruv** *(Master prompt 12, 14)*
+- [ ] `npm ci`, ESLint, Vitest (holat mashinasi, hodisalar, maʼlumot rostgoʻyligi), Playwright, `npm run build` — hammasi haqiqatan ishga tushirilgan
+- [ ] `web/` va backend oʻzgarmaganini `git diff` bilan tasdiqlash
+- [ ] `frontend_idea/README.md`: oʻrnatish, ishga tushirish, `.env.example` (faqat namunalar), mock va cheklovlar roʻyxati
+- [ ] `frontend_idea.md` §21 dagi qabul mezonlari (vizual 9, funksional 13, texnik 10) — har biri belgilangan
+
+### 13.6. Vaqt va tartib
+
+| Ish | Taxminiy vaqt | Qachon |
+|---|---|---|
+| F0 + F1 | 0,5–1 kun | 2-kun yopilgach (3-kun kechqurun / 4-kun) |
+| F2 + F3 | 1 kun | 4-kun |
+| F4 | 0,5 kun | 5-kun |
+| F5 (B2–B4 bilan) | 0,5–1 kun | 5-kundan keyin |
+| F6–F8 | 0,5–1 kun | 5-kundan keyin |
+
+Jami ≈ 3–4 kun. **Ustuvorlik:** demo kuniga (5-kun) F1–F4 tayyor boʻlsa yetarli — bu «savol → graf → manbali javob» yoʻli. Inspektor va sayqal — keyin. Shu vaqtgacha `web/` dagi 3D kitob zaxira sifatida ishlaydi.
+
 
 ---
 
-*Hujjat versiyasi: 3.2 (5 kunlik reja, Three.js interfeysi, yakuniy graf interfeysi) · Sana: 2026-11-04 · Asos: v2 yoʻl xaritasi · Til: oʻzbek (lotin)*
+*Hujjat versiyasi: 3.3 (5 kunlik reja, toʻliq GPU indeksi, yangi frontend rejasi) · Sana: 2026-11-06 · Asos: v2 yoʻl xaritasi · Til: oʻzbek (lotin)*
