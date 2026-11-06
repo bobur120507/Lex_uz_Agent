@@ -1,0 +1,22 @@
+{
+  "name": "modda-frontend-idea",
+  "private": true,
+  "version": "0.2.0",
+  "type": "module",
+  "description": "Modda \u2014 Legal Intelligence Graph (v2): process graph around the Mind, answer inside the book, Lady Justice scales.",
+  "scripts": {
+    "dev": "vite --host",
+    "build": "vite build",
+    "preview": "vite preview --host --port 4173",
+    "test": "node --test tests/*.test.js",
+    "test:e2e": "node tests/e2e.mjs http://localhost:8080 ./test-results"
+  },
+  "dependencies": {
+    "gsap": "3.12.5",
+    "three": "0.170.0"
+  },
+  "devDependencies": {
+    "vite": "5.4.10",
+    "playwright": "1.49.1"
+  }
+}

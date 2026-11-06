@@ -1,0 +1,43 @@
+/* Design tokens — frontend_idea.md §2.2 (colours) and §2.3 (type). Everything else uses these names. */
+:root {
+  --bg: #070d0c;
+  --bg-2: #0b1412;
+  --glass: rgba(16, 26, 23, 0.78);
+  --glass-solid: #101a17;
+  --elevated: #14211c;
+  --hover: #192a22;
+  --text: #f0f2ed;
+  --text-2: #a1ada5;
+  --muted: #728078;
+  --gold: #d6b66d;
+  --gold-soft: #9e8148;
+  --emerald: #39d6a0;
+  --cyan: #65d8ee;
+  --blue: #73afe0;
+  --amber: #e5ad5c;
+  --red: #e36f72;
+  --border: #293a33;
+  --border-strong: #3a5047;
+  --paper: #ede7d9;
+
+  --font-ui: "Onest", "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-serif: "Literata", "Lora", Georgia, "Times New Roman", serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+
+  --fs-hero: clamp(30px, 3.3vw, 54px);
+  --fs-h2: clamp(19px, 1.6vw, 26px);
+  --fs-h3: 16px;
+  --fs-body: 15px;
+  --fs-small: 12.5px;
+  --fs-meta: 11px;
+
+  --s-1: 4px; --s-2: 8px; --s-3: 12px; --s-4: 16px; --s-5: 24px; --s-6: 32px; --s-7: 48px;
+  --r-1: 6px; --r-2: 10px; --r-3: 16px; --r-pill: 999px;
+  --topbar-h: 64px;
+  --dock-h: 128px;
+  --shadow: 0 18px 50px rgba(0, 0, 0, 0.45);
+  --ring: 0 0 0 2px var(--bg), 0 0 0 4px var(--gold);
+  --ease: cubic-bezier(.22, .8, .24, 1);
+  --t-fast: 160ms;
+  --t-med: 320ms;
+}

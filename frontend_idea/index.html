@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="uz">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Modda — Qonunchilikdan aniq javob</title>
+  <meta name="description" content="Lex.uz maʼlumotlari asosida ishlovchi huquqiy AI-agent: har bir javob manbasi bilan." />
+  <meta name="theme-color" content="#070D0C" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='5' y='4' width='22' height='24' rx='2' fill='none' stroke='%23D6B66D' stroke-width='2.4'/%3E%3Cpath d='M11 4v24' stroke='%23D6B66D' stroke-width='2'/%3E%3C/svg%3E" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Literata:ital,opsz,wght@0,7..72,400;0,7..72,500;0,7..72,600;1,7..72,400&family=Onest:wght@400;500;600&display=swap" />
+  <link rel="stylesheet" href="/src/styles/main.css" />
+</head>
+<body class="is-idle">
+  <a class="skip" href="#question">Savol maydoniga oʻtish</a>
+
+  <canvas id="backdrop" aria-hidden="true"></canvas>
+  <canvas id="scene" aria-hidden="true"></canvas>
+
+  <header class="topbar">
+    <button class="brand" type="button" data-action="home" aria-label="Modda — bosh sahifa">
+      <span class="brand__mark" aria-hidden="true"></span>
+      <span class="brand__name">Modda</span>
+      <span class="brand__rule" aria-hidden="true"></span>
+      <span class="brand__desc">Qonunchilikdan aniq javob</span>
+    </button>
+    <nav class="nav" aria-label="Asosiy boʻlimlar">
+      <button type="button" class="nav__item is-active" data-action="home" aria-current="page">
+        <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M3 11.5 12 4l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg>
+        <span>Bosh sahifa</span></button>
+      <button type="button" class="nav__item" data-action="graph">
+        <svg aria-hidden="true" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><circle cx="4.5" cy="6" r="1.8"/><circle cx="19.5" cy="6" r="1.8"/><circle cx="4.5" cy="18" r="1.8"/><circle cx="19.5" cy="18" r="1.8"/><path d="M6 7l3.6 3M18 7l-3.6 3M6 17l3.6-3M18 17l-3.6-3"/></svg>
+        <span>Graf</span></button>
+      <button type="button" class="nav__item" data-action="documents">
+        <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4M9 12h6M9 16h6"/></svg>
+        <span>Hujjatlar</span></button>
+      <button type="button" class="nav__item" data-action="help">
+        <svg aria-hidden="true" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.6 9.3a2.5 2.5 0 1 1 3.6 2.3c-.8.4-1.2 1-1.2 1.9M12 17h.01"/></svg>
+        <span>Yordam</span></button>
+    </nav>
+    <button type="button" class="status" data-action="status" aria-live="polite" data-state="checking">
+      <span class="status__dot" aria-hidden="true"></span><span class="status__text">Tekshirilmoqda…</span>
+    </button>
+  </header>
+
+  <section class="hero" aria-labelledby="hero-title">
+    <h1 id="hero-title"><span>Qonunchilikdan aniq javob —</span><span class="hero__gold">har bir gapning manbasi bilan</span></h1>
+    <p>Lex.uz maʼlumotlari asosida ishlovchi zamonaviy AI-agent</p>
+  </section>
+
+  <section class="query-title" aria-live="polite" hidden>
+    <span class="query-title__label">Savol</span>
+    <p class="query-title__text"></p>
+  </section>
+
+  <!-- the eight processing stages around the Mind; positioned over the 3D graph (or as a ring without WebGL) -->
+  <section class="graph" aria-label="Tadqiqot bosqichlari grafi">
+    <button type="button" class="mind" data-node="mind" aria-describedby="mind-sub">
+      <span class="mind__icon" aria-hidden="true"></span>
+      <span class="mind__name">Mind</span>
+      <span class="mind__sub" id="mind-sub">LLM — bosing: neyron qatlamlari</span>
+    </button>
+    <ol class="graph__nodes"></ol>
+  </section>
+
+  <button type="button" class="justice-hit" data-action="scales" aria-label="Adolat tarozisi: javobning Lex.uz manbalariga moslik bahosi">
+    <span class="justice-hit__tag">Adolat tarozisi</span>
+  </button>
+
+  <div class="book-ui" hidden>
+    <button type="button" class="btn btn--ghost" data-action="page-prev" aria-label="Oldingi manba">◀</button>
+    <span class="book-ui__where" aria-live="polite"></span>
+    <button type="button" class="btn btn--ghost" data-action="page-next" aria-label="Keyingi manba">▶</button>
+    <button type="button" class="btn" data-action="reader">Kitobni oʻqish</button>
+    <button type="button" class="btn btn--gold book-ui__scales" data-action="scales" aria-label="Adolat tarozisi: javob bahosi">⚖ Tarozi</button>
+    <button type="button" class="btn btn--ghost" data-action="new">Yangi savol</button>
+  </div>
+
+  <footer class="dock">
+    <ul class="trust" aria-label="Modda tamoyillari">
+      <li><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 3l7 3v6c0 4.4-3 7.7-7 9-4-1.3-7-4.6-7-9V6z"/><path d="M9 12l2 2 4-4"/></svg>Rasmiy manbalar</li>
+      <li><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M13 2 4 14h7l-1 8 9-12h-7z"/></svg>Manbali javoblar</li>
+    </ul>
+    <form class="ask" autocomplete="off" novalidate>
+      <label class="sr-only" for="question">Savolingiz</label>
+      <span class="ask__spark" aria-hidden="true">✦</span>
+      <textarea id="question" name="question" rows="1" maxlength="1000" placeholder="Savolingizni yozing..."
+        aria-describedby="ask-hint"></textarea>
+      <button type="submit" class="ask__send" aria-label="Savolni yuborish">
+        <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M3.4 20.4 21 12 3.4 3.6 3.4 10l12.6 2-12.6 2z"/></svg>
+      </button>
+      <p id="ask-hint" class="sr-only">Enter — yuborish, Shift + Enter — yangi qator.</p>
+    </form>
+    <div class="chips" role="group" aria-label="Namuna mavzular">
+      <button type="button" class="chip" data-topic="Soliq stavkalari qanday belgilanadi?">Soliq stavkalari</button>
+      <button type="button" class="chip" data-topic="Har yilgi mehnat taʼtili necha kun?">Mehnat taʼtili</button>
+      <button type="button" class="chip" data-topic="Fuqarolarning asosiy huquqlari qaysilar?">Fuqarolik huquqlari</button>
+    </div>
+    <button type="button" class="how" data-action="help">Qanday ishlaydi? <span aria-hidden="true">ⓘ</span></button>
+  </footer>
+
+  <div class="demo-banner" hidden role="status">Namuna rejimi: bu maʼlumotlar haqiqiy backend’dan emas, oldindan yozib olingan sinov javobi.</div>
+  <div id="live" class="sr-only" aria-live="polite"></div>
+  <div id="overlays"></div>
+  <div class="toasts" aria-live="assertive"></div>
+
+  <noscript><p class="noscript">Modda ishlashi uchun JavaScript kerak.</p></noscript>
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>

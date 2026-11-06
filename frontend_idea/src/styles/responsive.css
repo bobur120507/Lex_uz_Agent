@@ -1,0 +1,56 @@
+/* Tablet: 768–1199 px */
+@media (max-width: 1199px) {
+  :root { --dock-h: 120px; }
+  .brand__desc, .brand__rule { display: none; }
+  .node { width: 104px; }
+  .node__disc { width: 52px; height: 52px; font-size: 20px; }
+  .node__disc svg { width: 22px; height: 22px; }
+  .dock { grid-template-columns: 1fr; padding-bottom: 14px; }
+  .ask, .chips { grid-column: 1; }
+  .trust, .how { display: none; }
+  .grid2, .scales { grid-template-columns: 1fr; }
+}
+/* Mobile: up to 767 px */
+@media (max-width: 767px) {
+  :root { --topbar-h: 56px; --dock-h: 112px; --fs-hero: 27px; }
+  .topbar { grid-template-columns: auto 1fr auto; gap: 8px; padding: 0 12px; }
+  .brand__name { font-size: 21px; }
+  .nav { justify-content: center; gap: 2px; }
+  .nav__item span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  .nav__item { padding: 10px; font-size: 18px; }
+  .nav__item svg { font-size: 19px; }
+  .status { padding: 7px 10px; }
+  .status__text { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  .hero p { font-size: 14px; }
+  .node { width: 76px; gap: 2px; }
+  .node__disc { width: 40px; height: 40px; font-size: 16px; box-shadow: 0 0 0 3px rgba(7, 13, 12, .55); }
+  .node__disc svg { width: 18px; height: 18px; }
+  .node__no { display: none; }
+  .node__name { font-size: 10.5px; }
+  .node__meta { display: none; }
+  .mind { width: 104px; }
+  .mind__sub { display: none; }
+  .mind__name { font-size: 13px; }
+  .dock { padding: 0 12px 10px; }
+  .ask { min-height: 50px; padding-left: 14px; }
+  .ask__send { width: 48px; height: 38px; }
+  .chips { flex-wrap: nowrap; overflow-x: auto; justify-content: flex-start; scrollbar-width: none; margin-top: 8px; }
+  .chip { flex: none; padding: 7px 12px; font-size: 12.5px; }
+  .book-ui { bottom: calc(var(--dock-h) + 4px); gap: 4px; padding: 4px; }
+  .book-ui .btn { padding: 0 11px; font-size: 12.5px; }
+  .book-ui__where { min-width: 4.5em; }
+  .overlay { padding: 0; }
+  .panel { border-radius: 0; height: 100%; width: 100%; }
+  .panel__head { padding: 12px 14px; flex-wrap: wrap; }
+  .panel__body { padding: 14px; }
+  .reader { grid-template-columns: 1fr; }
+  .reader__page + .reader__page { border-left: 0; border-top: 1px solid rgba(60, 45, 20, .2); }
+  .reader__page { padding: 18px; min-height: 0; }
+  .justice-hit__tag { display: none; }
+  .toasts { right: 12px; left: 12px; width: auto; }
+}
+/* No WebGL: the same interface, the graph as a plain ring, the book as an illustration */
+.no-webgl #scene { display: none; }
+.no-webgl .graph { position: fixed; inset: calc(var(--topbar-h) + 120px) 0 calc(var(--dock-h) + 40px) 0; }
+.no-webgl .justice-hit { display: none; }
+.no-webgl .fallback-book { position: fixed; z-index: 2; left: 50%; bottom: calc(var(--dock-h) + 12px); transform: translateX(-50%); width: min(220px, 40vw); border-radius: 6px; box-shadow: var(--shadow); }
