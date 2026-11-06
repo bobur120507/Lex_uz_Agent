@@ -371,13 +371,16 @@ def test_pipeline_emits_every_stage_and_api_shape(indexed):
               emit=events.append, k=2, reranker=OverlapReranker(), checked_at="2026-11-01")
     kinds = [e["type"] for e in events]
     assert kinds == ["query.received", "query.analyzed", "embedding.completed", "retrieval.started", "retrieval.completed",
-                     "ranking.completed", "context.completed", "generation.started", "verification.completed", "answer.completed"]
+                     "ranking.completed", "context.completed", "generation.started", "generation.completed",
+                     "verification.completed", "scoring.completed", "answer.completed"]
     assert len({e["request_id"] for e in events}) == 1
     assert not out["unknown"] and out["checked_at"] == "2026-11-01"
     s = out["answer"][0]
     src = out["sources"][s["chunk_ids"][0]]
     assert src["article_no"] == "4" and s["quote"] and s["quote"].lower() in src["text"].lower()
     assert events[5]["data"]["reranker"] is True
+    assert out["score"]["total"] == 1 and out["score"]["supported"] == 1 and out["score"]["score"] > 0
+    assert out["sources"][s["chunk_ids"][0]]["chunk_id"] == s["chunk_ids"][0]
 
 
 def test_pipeline_drops_unverified_numbers(indexed):
@@ -388,7 +391,9 @@ def test_pipeline_drops_unverified_numbers(indexed):
     out = ask(con, store, emb, llm, question="Taʼtil haqi qachon toʻlanadi?", embed_model="fake", llm_model="x",
               emit=events.append, k=2)
     assert out["unknown"] is True
-    assert events[-2]["data"]["failed"][0]["why"].startswith("manbada yoʻq son")
+    ver = next(e["data"] for e in events if e["type"] == "verification.completed")
+    assert ver["failed"][0]["why"].startswith("manbada yoʻq son")
+    assert out["score"]["supported"] == 0 and out["score"]["score"] == 0.0      # the scales show the rejection
 
 
 def test_rss_parse():
@@ -433,3 +438,84 @@ def test_sparse_only_include_mvp(con):
     n_mvp = run_index(con, store, None, "fake", mode="sparse", include_mvp=True)
     assert n_mvp == mvp_left
     assert con.execute("SELECT COUNT(*) FROM chunks WHERE indexed = 0").fetchone()[0] == 0
+
+
+# --------------------------------------------------------------------------- data for the new frontend (frontend_idea/)
+
+def test_pipeline_trace_diagnostics_and_streaming(indexed):
+    from modda.pipeline import ask
+    con, store, emb = indexed
+
+    class StreamLLM:
+        last_chat = {"prompt_tokens": 120, "output_tokens": 9, "gen_ms": 300.0, "tokens_per_s": 30.0}
+
+        def chat(self, model, messages, on_token=None, **kw):
+            text = "Taʼtil haqi taʼtil boshlanishidan kamida 3 kun oldin toʻlanadi [1]."
+            for w in text.split(" "):
+                on_token(w + " ")
+            return text, 0.3
+
+    events, trace = [], {}
+    out = ask(con, store, emb, StreamLLM(), question="Taʼtil haqi qachon toʻlanadi?", embed_model="fake", llm_model="x",
+              emit=events.append, k=2, trace=trace, diagnostics=True)
+    by = {e["type"]: e["data"] for e in events}
+    assert "".join(e["data"]["text"] for e in events if e["type"] == "generation.delta").strip().endswith("[1].")
+    assert by["generation.completed"]["output_tokens"] == 9            # Ollama's counters passed through, not invented
+    c = by["retrieval.completed"]["candidates"][0]
+    assert {"score", "dense_rank", "sparse_rank", "doc_id"} <= set(c)
+    assert by["query.analyzed"]["terms"] and by["embedding.completed"]["dim"] == 64
+    assert trace["request_id"] == out["request_id"] and len(trace["vector"]) == 64 and trace["candidates"]
+    assert by["scoring.completed"]["method"] == "lexical-support-v1"
+
+
+def test_scoring_counts_rejected_sentences():
+    from modda.rag import Context
+    from modda.scoring import score_answer
+    ctx = {"a": Context(1, "a", 1.0, "1-modda", "Taʼtil haqi kamida uch kun oldin toʻlanadi.", {})}
+    res = score_answer([{"text": "Taʼtil haqi uch kun oldin toʻlanadi [1].", "chunk_ids": ["a"], "ok": True, "why": "ok"},
+                        {"text": "Jarima 10 foiz.", "chunk_ids": ["a"], "ok": False, "why": "manbada yoʻq son: 10"}], ctx)
+    assert res["total"] == 2 and res["supported"] == 1
+    assert res["sentences"][0]["overlap"] == 1.0 and res["sentences"][1]["supported"] is False
+    assert res["score"] == 50.0                                         # one fully matched, one rejected
+    assert score_answer([], ctx)["score"] is None
+
+
+def test_book_context_neighbours(con):
+    from modda import library
+    res = library.chunk_context(con, "9001:4", n=5)
+    labels = [a["label"] for a in res["articles"]]
+    assert labels == ["3", "4"] and res["articles"][1]["is_target"] and res["document"]["doc_id"] == "9001"
+    assert library.chunk_context(con, "nope") is None
+    docs = library.search_documents(con, "soliq")
+    assert [d["doc_id"] for d in docs] == ["9002"] and docs[0]["articles"] == 2
+    assert [a["label"] for a in library.document_articles(con, "9002")["articles"]] == ["7", "8"]
+
+
+def test_projection_is_reproducible(indexed, tmp_path):
+    import numpy as np
+    from modda import projection
+    con, store, emb = indexed
+    sample = store.sample_vectors(100) * 3                              # small index: repeat to reach 10 points
+    sample = [(f"{c}#{i}", v, p) for i, (c, v, p) in enumerate(sample)]
+    p1, p2 = projection.fit(sample), projection.fit(sample)
+    assert p1.version == p2.version and p1.components.shape == (3, 64)
+    q = emb.embed("fake", ["taʼtil haqi"])[0]
+    assert np.allclose(p1.apply([q]), p2.apply([q]))
+    assert 0 < sum(p1.explained) <= 1.0001
+
+
+def test_model_card_reads_only_reported_fields():
+    from modda.modelinfo import card
+    show = {"details": {"family": "qwen3", "parameter_size": "8.2B", "quantization_level": "Q4_K_M"},
+            "model_info": {"general.architecture": "qwen3", "qwen3.block_count": 36, "qwen3.embedding_length": 4096,
+                           "qwen3.attention.head_count": 32, "qwen3.attention.head_count_kv": 8,
+                           "qwen3.feed_forward_length": 12288, "qwen3.context_length": 40960}}
+    c = card(show, "qwen3:8b")
+    assert c["layers"] == 36 and c["kv_heads"] == 8 and c["head_dim"] == 128 and c["head_dim_derived"]
+    assert "experts" not in c and card({}, "x") == {"name": "x", "source": "ollama /api/show"}
+
+
+def test_ollama_stats_from_nanoseconds():
+    from modda.llm import _stats
+    s = _stats({"prompt_eval_count": 100, "eval_count": 50, "eval_duration": 2_000_000_000, "total_duration": 3_500_000_000})
+    assert s == {"prompt_tokens": 100, "output_tokens": 50, "gen_ms": 2000.0, "total_ms": 3500.0, "tokens_per_s": 25.0}

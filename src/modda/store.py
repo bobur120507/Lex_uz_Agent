@@ -129,6 +129,37 @@ class QdrantStore:
                 p["filter"] = f
         return self._points({"prefetch": pre, "query": {"fusion": "rrf"}, "limit": limit, "with_payload": True})
 
+    def vectors(self, chunk_ids: list[str]) -> dict[str, list[float]]:
+        """Stored bge-m3 vectors of these chunks (chunks without a dense vector are left out)."""
+        if not chunk_ids:
+            return {}
+        res = self._req("POST", f"/collections/{self.collection}/points",
+                        {"ids": [point_id(c) for c in chunk_ids], "with_vector": ["dense"], "with_payload": ["chunk_id"]})
+        out = {}
+        for p in res.get("result", []):
+            v = (p.get("vector") or {}).get("dense")
+            if v:
+                out[p["payload"]["chunk_id"]] = v
+        return out
+
+    def sample_vectors(self, n: int = 2000) -> list[tuple[str, list[float], dict]]:
+        """The first n points in id order — a fixed, reproducible sample (used for the PCA reference)."""
+        out, offset = [], None
+        while len(out) < n:
+            body = {"limit": min(256, n - len(out)), "with_vector": ["dense"],
+                    "with_payload": ["chunk_id", "doc_type"]}
+            if offset is not None:
+                body["offset"] = offset
+            res = self._req("POST", f"/collections/{self.collection}/points/scroll", body)["result"]
+            for p in res.get("points", []):
+                v = (p.get("vector") or {}).get("dense")
+                if v:
+                    out.append((p["payload"]["chunk_id"], v, p["payload"]))
+            offset = res.get("next_page_offset")
+            if offset is None:
+                break
+        return out[:n]
+
 
 class MemoryStore:
     """Same interface as QdrantStore, everything in RAM. Used by tests and `--store memory`."""
@@ -154,6 +185,12 @@ class MemoryStore:
 
     def count(self) -> int:
         return len(self.points)
+
+    def vectors(self, chunk_ids):
+        return {c: self.points[c][0].tolist() for c in chunk_ids if c in self.points and self.points[c][0] is not None}
+
+    def sample_vectors(self, n=2000):
+        return [(c, v.tolist(), p) for c, (v, _, p) in sorted(self.points.items()) if v is not None][:n]
 
     def _match(self, payload: dict, flt: dict | None) -> bool:
         if not flt:

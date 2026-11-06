@@ -3,6 +3,7 @@
 data/raw/
 data/*.sqlite*
 data/exports/
+data/projection/
 data/qdrant_storage/
 data/*.log
 tools/
@@ -13,3 +14,6 @@ __pycache__/
 .venv/
 node_modules/
 web/dist/
+
+# heavy source models (the optimized copy lives in frontend_idea/src/assets/models/)
+3D_Models/

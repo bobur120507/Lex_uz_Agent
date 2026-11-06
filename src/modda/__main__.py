@@ -300,9 +300,16 @@ def cmd_rss(s, a):
 
 def cmd_serve(s, a):
     try:
+        if a.stdlib:
+            raise ImportError
+        import fastapi  # noqa: F401
         import uvicorn
-    except ImportError as exc:
-        raise SystemExit('API uchun: uv pip install -e ".[api]"') from exc
+    except ImportError:
+        if not a.stdlib:
+            print('FastAPI oʻrnatilmagan — standart kutubxonadagi server ishlatiladi (xuddi shu API). '
+                  'FastAPI uchun: uv pip install -e ".[api]"', flush=True)
+        from .devserver import serve
+        return serve(a.host, a.port)
     uvicorn.run("modda.api:app", host=a.host, port=a.port, reload=False)
 
 
@@ -357,7 +364,8 @@ def main(argv=None):
     x.set_defaults(fn=cmd_snapshot_import)
     sub.add_parser("rss", help="Lex.uz RSS’dagi yangi hujjatlarni saqlash").set_defaults(fn=cmd_rss)
     x = sub.add_parser("serve", help="FastAPI server: /health, /ask, /ask/stream")
-    x.add_argument("--host", default="0.0.0.0"); x.add_argument("--port", type=int, default=8080); x.set_defaults(fn=cmd_serve)
+    x.add_argument("--host", default="0.0.0.0"); x.add_argument("--port", type=int, default=8080)
+    x.add_argument("--stdlib", action="store_true", help="FastAPI’siz server (xuddi shu API)"); x.set_defaults(fn=cmd_serve)
     x = sub.add_parser("export-golden", help="oltin toʻplam uchun asosiy hujjatlardan haqiqiy moddalar")
     x.add_argument("--per-doc", type=int, default=6); x.set_defaults(fn=cmd_export_golden)
     x = sub.add_parser("fetch-fixtures", help="parser testlari uchun 10 ta Lex.uz sahifasi (20 s oraliq bilan)")

@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import math
 import re
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 import requests
 
@@ -20,6 +21,8 @@ class Ollama:
     url: str = "http://localhost:11434"
     timeout: float = 600.0
     keep_alive: str = "30m"          # keep models in memory between batches (no reload every few minutes)
+    last_embed: dict = field(default_factory=dict)   # Ollama's own counters for the latest call (shown on the site)
+    last_chat: dict = field(default_factory=dict)
 
     def _post(self, path: str, payload: dict) -> dict:
         try:
@@ -59,12 +62,18 @@ class Ollama:
         vecs = data.get("embeddings")
         if not vecs or len(vecs) != len(texts):
             raise OllamaError(f"Embedding javobi notoʻgʻri: {str(data)[:200]}")
+        self.last_embed = _stats(data)
         return vecs
 
+    def show(self, model: str) -> dict:
+        """Model card from Ollama (`/api/show`): architecture numbers such as layers, width and heads."""
+        return self._post("/api/show", {"model": model})
+
     def chat(self, model: str, messages: list[dict], *, temperature: float = 0.0, num_ctx: int = 8192,
-             json_mode: bool = False) -> tuple[str, float]:
+             json_mode: bool = False, on_token=None) -> tuple[str, float]:
+        """Returns (text, seconds). With `on_token`, the answer is streamed and each piece is passed to it."""
         payload: dict = {
-            "model": model, "messages": messages, "stream": False, "keep_alive": self.keep_alive,
+            "model": model, "messages": messages, "stream": on_token is not None, "keep_alive": self.keep_alive,
             "options": {"temperature": temperature, "num_ctx": num_ctx},
         }
         if model.startswith(("qwen3", "deepseek-r1", "gpt-oss")):
@@ -72,10 +81,49 @@ class Ollama:
         if json_mode:
             payload["format"] = "json"
         t0 = time.perf_counter()
-        data = self._post("/api/chat", payload)
+        if on_token is None:
+            data = self._post("/api/chat", payload)
+            text = data.get("message", {}).get("content", "")
+        else:
+            text, data = self._stream_chat(payload, on_token)
         dt = time.perf_counter() - t0
-        text = data.get("message", {}).get("content", "")
+        self.last_chat = _stats(data)
         return strip_think(text), dt
+
+    def _stream_chat(self, payload: dict, on_token) -> tuple[str, dict]:
+        try:
+            r = requests.post(f"{self.url}/api/chat", json=payload, timeout=self.timeout, stream=True)
+        except requests.Timeout as exc:
+            raise OllamaError(f"Ollama /api/chat {self.timeout:.0f} s ichida javob bermadi") from exc
+        except requests.ConnectionError as exc:
+            raise OllamaError(f"Ollama’ga ulanib boʻlmadi ({self.url}). `ollama serve` ishlayaptimi?") from exc
+        if r.status_code != 200:
+            raise OllamaError(f"Ollama /api/chat → HTTP {r.status_code}: {r.text[:300]}")
+        parts, last = [], {}
+        for line in r.iter_lines():
+            if not line:
+                continue
+            ev = json.loads(line)
+            if ev.get("error"):
+                raise OllamaError(f"Ollama: {ev['error']}")
+            piece = ev.get("message", {}).get("content", "")
+            if piece:
+                parts.append(piece)
+                on_token(piece)
+            if ev.get("done"):
+                last = ev
+        return "".join(parts), last
+
+
+def _stats(data: dict) -> dict:
+    """Ollama's measured numbers (durations come in nanoseconds). Missing ones stay out — never guessed."""
+    ms = lambda k: round(data[k] / 1e6, 1) if isinstance(data.get(k), (int, float)) else None
+    out = {"prompt_tokens": data.get("prompt_eval_count"), "output_tokens": data.get("eval_count"),
+           "load_ms": ms("load_duration"), "prompt_ms": ms("prompt_eval_duration"),
+           "gen_ms": ms("eval_duration"), "total_ms": ms("total_duration")}
+    if out["output_tokens"] and out["gen_ms"]:
+        out["tokens_per_s"] = round(out["output_tokens"] / (out["gen_ms"] / 1000), 2)
+    return {k: v for k, v in out.items() if v is not None}
 
 
 def strip_think(text: str) -> str:

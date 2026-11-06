@@ -4,12 +4,113 @@
 **Document type:** Product Design Specification + Frontend Implementation Brief
 **Product:** Modda — Uzbek Legal AI Agent
 **Primary data source:** Lex.uz
+**Version:** v2 (2026-11-06) — see §0 first
 **Frontend:** Vanilla JavaScript + Vite + Three.js
 **Animation:** GSAP
 **3D interaction:** Three.js OrbitControls (restricted camera movement)
 **Backend:** FastAPI + Server-Sent Events (SSE)
 **Architecture:** Event-driven, modular, backend-connected
 **Design reference:** The attached final Modda visual concept. Recreate its visual language and composition using editable HTML/CSS and real 3D elements. Do not use the reference image as a flattened website background.
+
+---
+
+# 0. FINAL CONCEPT v2 — Bobur's decisions (2026-11-06)
+
+**This section overrides everything below where they differ.** It was written after reviewing the reference image (`frontend_idea/reference/Modda_ Qonunchilikdan Aniq Javob.png`). The reference image is ≈ 70 % right; this section describes the remaining 30 %.
+
+## 0.1 What changes compared with the reference image
+
+| Reference image | v2 decision |
+|---|---|
+| Left panel «Tadqiqot jarayoni» with 7 stages | **Removed.** The research stages live in the central graph |
+| Right panel «Javob tayyor! / Javob · Manbalar · Grafda ko‘rish» | **Removed.** The answer is written **inside the book** |
+| Central circular graph: topic/document nodes around a «Soliq majburiyati» core | **Process graph:** the **Mind** (the LLM) in the centre, the real processing stages around it |
+| Lady Justice statue: decoration | **Interactive:** clicking it opens the **answer score on the scales** |
+| Book: closed decoration | **The book is the result:** it searches, opens at the found modda, shows ±5 neighbouring moddas and the answer with references |
+
+Everything else stays as in the image: header, headline, background, platform, query field, topic chips, bottom trust indicators, «Qanday ishlaydi?».
+
+## 0.2 Screen composition (desktop 1600 × 900)
+
+```text
+┌──────────────────────────────────────────────────────────────────────────┐
+│ Modda | Qonunchilikdan aniq javob    Bosh sahifa  Graf  Hujjatlar  Yordam  ● Onlayn │
+│                 Qonunchilikdan aniq javob —                              │
+│                 har bir gapning manbasi bilan                            │
+│   ⚖ Lady Justice      ╭──── process graph ────╮                          │
+│   (clickable,         │  stages around MIND   │                          │
+│    left side)         ╰───────────┬───────────╯                          │
+│                          ┌────────┴────────┐                             │
+│                          │   MODDA  BOOK   │  ← opens, pages = result     │
+│                          └─────────────────┘                             │
+│ [Rasmiy manbalar | Tez javob]  [ Savolingizni yozing…  ➤ ]  [Qanday ishlaydi?] │
+│                  (Soliq stavkalari) (Mehnat ta’tili) (Fuqarolik huquqlari)    │
+└──────────────────────────────────────────────────────────────────────────┘
+```
+
+When the answer is open, the book becomes the main reading area (it grows and the graph moves up and shrinks); the graph and the statue stay clickable.
+
+## 0.3 The central process graph
+
+**Centre — the Mind (LLM).** A glowing brain-like core. **Clicking it opens the LLM inspector:** the model's *real* architecture read from Ollama (`GET /model/info` → `/api/show`): number of transformer layers, hidden size, attention heads / KV heads, feed-forward size, context length, parameter count, quantisation; drawn as a 3-D stack of layers. Each layer shows a fixed sample of its neurons — the page states the real width («4096 ta neyron; 48 tasi ko‘rsatilgan»). Per-request numbers come from Ollama's counters: prompt tokens, output tokens, prompt/generation time, tokens per second. **Activations and attention values are not available from Ollama and are never drawn** (no flashing "thinking" neurons).
+
+**While a question is processed, the centre switches to the stage that is running** (its icon, colour and name replace the Mind for the duration of that stage); when the pipeline finishes, the centre returns to the Mind with the completed state.
+
+**Around the Mind — eight stage nodes, each different and clickable**, each opening its own visualisation built from that stage's real data:
+
+| # | Node (uz) | Real operation | Its inspector shows |
+|---|---|---|---|
+| 1 | Savol tahlili | normalisation, Cyrillic → Latin, router (exact article reference), search terms | original vs. normalised question, route, recognised reference, terms (as chips) |
+| 2 | Embedding | `bge-m3` → 1024-dim vector | the exact vector: 32 × 32 heat-map, dimension search, value list, copy JSON; norm/min/max/mean; token count and time; bge-m3 architecture (layers, width, heads) |
+| 3 | Vektor qidiruv | Qdrant dense search (cosine) | 3-D PCA view (versioned transform, fitted on 2 000 reference points): reference cloud, query point, candidates with cosine similarity; dense ranking list |
+| 4 | Lex.uz indeksi (BM25) | keyword search over the Lex.uz-derived index | query terms, BM25 ranking list with real scores. (It searches our index built from Lex.uz — not the live lex.uz site; the label says so) |
+| 5 | Saralash (RRF) | Reciprocal Rank Fusion of 3 + 4, optional reranker, τ | two ranked columns joined by lines to the fused list; selected vs. rejected; reranker shown as «Faol emas» when off |
+| 6 | O‘qish (kontekst) | selected passages given to the LLM | the passages, their headers, word counts, total context size |
+| 7 | LLM javob | the model writes the answer | model, streamed text as it arrives, tokens in/out, speed, time |
+| 8 | Tekshiruv | citation + number verifier | every sentence: cited source, verified / rejected and why |
+
+Node states: waiting (grey), running (gold/cyan pulse), done (emerald), skipped (grey + «o‘tkazildi»), failed (red), warning (amber). Edges follow the pipeline order, particles move only along edges of stages that are actually running. Nodes before the first query are a quiet ambient graph with no data claims.
+
+## 0.4 The book
+
+1. **Idle:** closed, gently breathing, never rotating (as in the reference).
+2. **Search:** on submit the cover opens and pages riffle — the book "searches" while the backend works (as in the current `web/` book). The animation never delays the answer.
+3. **Found:** when `retrieval.completed` arrives the book settles on the page of the first candidate.
+4. **Answer spread (final):**
+   * **Left page — «Javob»:** the answer sentences with reference marks [1] [2]…, a short source list, the disclaimer «Modda rasmiy yuridik maslahat o‘rnini bosmaydi.»
+   * **Right page — the source:** the document title and the found modda **among its ±5 neighbouring moddas** in document order (`GET /chunks/{id}/context?n=5`), the found one highlighted, others dimmed; the official wording unchanged; link «Lex.uz’da ochish».
+   * Clicking a reference mark [n] **turns the pages** to source n's spread. Page controls ◀ ▶ (and keyboard arrows) move between source spreads.
+5. **Unknown answer:** left page says «Lex.uz ma’lumotlari asosida ishonchli javob topilmadi.» with a next-step hint; no green state.
+6. **Accessibility:** the same pages exist as real HTML (a reader overlay «Kitobni o‘qish») for screen readers, copying and the no-WebGL mode.
+
+## 0.5 Lady Justice — the scales
+
+A golden Lady Justice holding scales stands left of the graph. Model file: `frontend_idea/public/models/lady-justice.glb` (provided by Bobur; until then a clearly simple stand-in figure is used). Hover: soft gold rim light. **Click → the scales inspector:**
+
+* Left pan **«Javob»** (the claims the LLM wrote), right pan **«Lex.uz»** (the evidence). The beam tilts by the real score: balanced at 100, tilted towards «Javob» when claims are unsupported.
+* **Score = «Manbaga moslik»** (`scoring.completed`, method `lexical-support-v1`): for every sentence the LLM wrote — is it cited, do its numbers occur in the source, what share of its content words occur in the cited source; score = mean of (overlap if supported else 0) × 100. Rejected sentences count fully against the answer.
+* A table lists each sentence with its source, ✓/✗, the reason and the matched words. The page explains in one line that this is a wording-match measure, not a legal opinion.
+* Before an answer exists the statue shows «Hali javob yo‘q».
+
+## 0.6 Navigation
+
+* **Bosh sahifa** — new question, book closes. **Graf** — focuses the process graph (opens the last request's graph). **Hujjatlar** — searchable list of documents (`GET /documents?q=`) and reading a document's articles in the book. **Yordam** — how Modda works (the eight stages in plain words). **● Onlayn** — real `/health`: emerald only when Ollama and Qdrant both answer.
+
+## 0.7 Backend data used (all added 2026-11-06; nothing existing removed)
+
+| Need | Source |
+|---|---|
+| stage events + streaming text | `POST /ask/stream`: §13 events + `generation.delta`, `generation.completed`, `scoring.completed` |
+| retrieval scores and both rankings | `retrieval.completed.candidates[]`: `score`, `dense_rank/score`, `sparse_rank/score`; `dense_list`, `sparse_list` |
+| exact vector, PCA, candidate positions | `GET /ask/{request_id}/embedding` |
+| model architecture | `GET /model/info` |
+| book pages (±5 moddas) | `GET /chunks/{chunk_id}/context?n=5` |
+| documents page | `GET /documents?q=`, `GET /documents/{doc_id}` |
+| honest status badge | `GET /health` → `services.ollama`, `services.qdrant`, `ready` |
+
+## 0.8 Technology (unchanged)
+
+Vite + vanilla JavaScript + Three.js + GSAP, built in `frontend_idea/`; `web/` and the backend's existing behaviour stay as they are. §§ 2 (colours, fonts), 11–13, 16–19 below remain valid. §§ 3.1–3.5 (five regions), 5.2 (three-column layout), 7 (left progress panel) and 9 (right answer panel) are **replaced** by §0.
 
 ---
 
@@ -147,6 +248,8 @@ Provide appropriate fallbacks and ensure Uzbek characters render correctly, incl
 ---
 
 # 3. GLOBAL PAGE STRUCTURE
+
+> **v2:** regions 3 and 4 (left and right panels) are removed (§0.2).
 
 Design the main desktop experience around a 1600 × 900 viewport.
 
@@ -412,6 +515,8 @@ Do not hardcode a legal conclusion for this demonstration. Actual answers must c
 
 ## 5.2 Main layout
 
+> **v2:** replaced — no side panels (§0.2).
+
 Desktop composition:
 
 | Region | Approximate width |
@@ -437,6 +542,8 @@ Initially shows retrieved document candidates and research information.
 After answer completion, it transforms into the answer/evidence panel.
 
 ## 5.3 The seven clickable research stages
+
+> **v2:** now eight stages around the Mind (§0.3); the per-stage rules below still apply.
 
 The seven nodes surrounding the central intelligence core must represent the following actual backend stages.
 
@@ -939,6 +1046,8 @@ Protect request-scoped diagnostic data according to the application's access and
 
 # 7. FRAME 04 — LIVE RESEARCH PROGRESS PANEL
 
+> **v2:** replaced — the stages are nodes of the central graph (§0.3).
+
 The left panel must remain visible throughout the research process.
 
 It displays seven vertical stages.
@@ -1071,6 +1180,8 @@ Keep camera movement restricted and predictable.
 ---
 
 # 9. FRAME 06 — ANSWER GENERATION AND RESULT PANEL
+
+> **v2:** replaced — the answer is written inside the book (§0.4). The content rules below (disclaimer, real sources, no invented metadata) still apply.
 
 After research finishes, the right-side panel transforms into the final answer panel.
 

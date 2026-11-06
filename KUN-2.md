@@ -112,3 +112,21 @@ cd web && npm run dev                              # http://localhost:5173
 Agar `snapshot-import` «Boʻlaklar mos emas» desa: `python -m modda chunk --rebuild`, keyin 2-qadamni takrorlang.
 
 Natijalarni (`stats`, `eval`, birinchi javob) yuboring — yoʻl xaritasiga yoziladi va 2-kun yopiladi.
+
+### 6-noyabr holati
+
+Bajarildi: `ingest` (54 173), `fix-numbers` (**1 540** ta 195¹ tiklandi), `rss` (118). Toʻxtadi: `snapshot-import` — **Qdrant ishlamayotgan edi** (`docker ps` roʻyxatida yoʻq). `uv pip install ".[api]"` internet sekinligidan uzilgan — endi `serve` FastAPI’siz ham ishlaydi.
+
+```bash
+docker ps -a --format '{{.Names}}\t{{.Image}}\t{{.Status}}' | grep -i qdrant
+docker start <NOM> && docker update --restart unless-stopped <NOM>
+#   hech narsa chiqmasa — yangisi:
+docker run -d --name qdrant --restart unless-stopped -p 6333:6333 -v ~/qdrant_storage:/qdrant/storage qdrant/qdrant:v1.20.0
+curl -s localhost:6333/healthz
+python -m modda snapshot-import ~/Downloads/modda-20261105-0637.snapshot
+python -m modda stats | head -8
+python -m modda eval
+python -m modda serve                     # FastAPI yoʻq boʻlsa — standart kutubxona serveri, xuddi shu API
+```
+
+Yangi sayt (v2): `cd frontend_idea && npm install && npm run dev` → http://localhost:5174 — [frontend_idea/README.md](frontend_idea/README.md).
