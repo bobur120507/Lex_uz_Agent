@@ -56,3 +56,6 @@ Savollar va kutilgan natijalar: `scripts/demo_questions.py`.
 * Tarozi bahosi — soʻz mosligi (`lexical-support-v1`): javob manba matniga qanchalik yaqin, yuridik xulosa emas.
 * Korpus — Hugging Face’dagi Lex.uz nusxasi (qatʼiy versiya); undan keyingi oʻzgarishlar RSS orqali faqat belgilanadi.
 * Bu tizim yuridik maslahat bermaydi; rasmiy matn — lex.uz.
+
+> **Izoh (8-noyabr, qoʻlda):** 7-noyabr 23:47 dagi qayta hisobotda demo gemma4:e4b bilan oʻtgan — 1, 5, 6 ✅, lekin 2–4 notoʻgʻri «Bilmayman»: model yashirin «fikrlash» ga butun 700 tokenni sarflagan (`think` yuborilmagan). Tuzatildi ([KUN-4.md §4–5](../KUN-4.md)); demo jadvali keyingi ishga tushirishda yangilanadi. Qolgan boʻlimlar 23:47 hisobotida aynan shu (gibrid MRR 0,773).
+

@@ -70,27 +70,47 @@ class Ollama:
         return self._post("/api/show", {"model": model})
 
     def chat(self, model: str, messages: list[dict], *, temperature: float = 0.0, num_ctx: int = 8192,
-             json_mode: bool = False, on_token=None, num_predict: int = 700) -> tuple[str, float]:
-        """Returns (text, seconds). With `on_token`, the answer is streamed and each piece is passed to it."""
+             json_mode: bool = False, on_token=None, num_predict: int = 900) -> tuple[str, float]:
+        """Returns (text, seconds). With `on_token`, the answer is streamed and each piece is passed to it.
+
+        `think: False` goes to every model: thinking models (qwen3, gemma4, deepseek-r1, gpt-oss…) otherwise
+        spend the `num_predict` budget on a hidden chain and return an empty or cut answer (day-4 run: gemma4
+        hit 700/700 tokens with no answer text). Ollama ignores it for models that do not think; an Ollama that
+        refuses it gets the request again without it."""
         payload: dict = {
             "model": model, "messages": messages, "stream": on_token is not None, "keep_alive": self.keep_alive,
             "options": {"temperature": temperature, "num_ctx": num_ctx, "num_predict": num_predict},
+            "think": False,
         }
-        if model.startswith(("qwen3", "deepseek-r1", "gpt-oss")):
-            payload["think"] = False             # reasoning models: no hidden chain, faster
         if json_mode:
             payload["format"] = "json"
         t0 = time.perf_counter()
-        if on_token is None:
-            data = self._post("/api/chat", payload)
-            text = data.get("message", {}).get("content", "")
-        else:
-            text, data = self._stream_chat(payload, on_token)
+        try:
+            text, thinking, data = self._chat_once(payload, on_token)
+        except OllamaError as exc:
+            if "HTTP 400" not in str(exc) or "think" not in str(exc).lower():
+                raise
+            payload.pop("think")
+            text, thinking, data = self._chat_once(payload, on_token)
         dt = time.perf_counter() - t0
         self.last_chat = _stats(data)
+        if data.get("done_reason"):
+            self.last_chat["done_reason"] = data["done_reason"]       # "length" = cut at num_predict
+        if data.get("done_reason") == "length" or (data.get("eval_count") or 0) >= num_predict:
+            self.last_chat["truncated"] = True
+        inline = sum(len(m.group(0)) for m in THINK_RE.finditer(text))
+        if thinking or inline:
+            self.last_chat["thinking_chars"] = len(thinking) + inline
         return strip_think(text), dt
 
-    def _stream_chat(self, payload: dict, on_token) -> tuple[str, dict]:
+    def _chat_once(self, payload: dict, on_token) -> tuple[str, str, dict]:
+        if on_token is None:
+            data = self._post("/api/chat", payload)
+            msg = data.get("message", {})
+            return msg.get("content", "") or "", msg.get("thinking", "") or "", data
+        return self._stream_chat(payload, on_token)
+
+    def _stream_chat(self, payload: dict, on_token) -> tuple[str, str, dict]:
         try:
             r = requests.post(f"{self.url}/api/chat", json=payload, timeout=self.timeout, stream=True)
         except requests.Timeout as exc:
@@ -99,20 +119,23 @@ class Ollama:
             raise OllamaError(f"Ollama’ga ulanib boʻlmadi ({self.url}). `ollama serve` ishlayaptimi?") from exc
         if r.status_code != 200:
             raise OllamaError(f"Ollama /api/chat → HTTP {r.status_code}: {r.text[:300]}")
-        parts, last = [], {}
+        parts, thought, last = [], [], {}
         for line in r.iter_lines():
             if not line:
                 continue
             ev = json.loads(line)
             if ev.get("error"):
                 raise OllamaError(f"Ollama: {ev['error']}")
-            piece = ev.get("message", {}).get("content", "")
+            msg = ev.get("message", {})
+            if msg.get("thinking"):
+                thought.append(msg["thinking"])
+            piece = msg.get("content", "")
             if piece:
                 parts.append(piece)
                 on_token(piece)
             if ev.get("done"):
                 last = ev
-        return "".join(parts), last
+        return "".join(parts), "".join(thought), last
 
 
 def _stats(data: dict) -> dict:
@@ -126,8 +149,12 @@ def _stats(data: dict) -> dict:
     return {k: v for k, v in out.items() if v is not None}
 
 
+# a reasoning block written into the answer text: <think>…</think>, <thought>…, also one cut before its end tag
+THINK_RE = re.compile(r"<(think|thinking|thought)>.*?(?:</\1>|\Z)", re.S | re.I)
+
+
 def strip_think(text: str) -> str:
-    return re.sub(r"<think>.*?</think>", "", text, flags=re.S).strip()
+    return THINK_RE.sub("", text).strip()
 
 
 class FakeEmbedder:

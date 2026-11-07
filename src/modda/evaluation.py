@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import csv
 import json
+import re
 import time
 from pathlib import Path
 
@@ -138,6 +139,7 @@ def bakeoff(con, store, embedder, llm, *, embed_model: str, models: list[str], i
                 "false_answer": (not answerable and not ans.unknown),
                 "cyrillic": has_cyrillic(ans.text), "seconds": round(ans.llm_seconds, 2),
                 "answer": ans.text.replace("\n", " ")[:600], "error": "",
+                "truncated": bool((getattr(llm, "last_chat", None) or {}).get("truncated")),
             })
             mark = "✓" if (cited_ok if answerable else ans.unknown) else "✗"
             print(f"  {mark} {it['id']} {ans.llm_seconds:5.1f}s  {ans.text[:80]!r}")
@@ -149,8 +151,8 @@ def bakeoff(con, store, embedder, llm, *, embed_model: str, models: list[str], i
         w.writerows(rows)
 
     md = [f"# Modellar solishtiruvi — {stamp}", "", f"Savollar: {len(items)}, kontekst: top-{k} (dense)", "",
-          "| Model | Toʻgʻri manba (javobi bor) | Toʻgʻri «Bilmayman» (javobi yoʻq) | Yolgʻon javob | Kirill harflar | Oʻrtacha vaqt, s | Xato |",
-          "|---|---|---|---|---|---|---|"]
+          "| Model | Toʻgʻri manba (javobi bor) | Toʻgʻri «Bilmayman» (javobi yoʻq) | Yolgʻon javob | Kirill harflar | Oʻrtacha vaqt, s | Xato | Kesilgan |",
+          "|---|---|---|---|---|---|---|---|"]
     for model in models:
         rs = [r for r in rows if r["model"] == model and not r.get("error")]
         ans_rs = [r for r in rs if r["answerable"]]
@@ -160,9 +162,33 @@ def bakeoff(con, store, embedder, llm, *, embed_model: str, models: list[str], i
                   f"{pct(sum(r['unknown'] for r in no_rs), len(no_rs))} | {sum(r['false_answer'] for r in rs)} | "
                   f"{sum(r['cyrillic'] for r in rs)} | "
                   f"{(sum(r['seconds'] for r in rs) / len(rs)) if rs else 0:.1f} | "
-                  f"{sum(1 for r in rows if r['model'] == model and r.get('error'))} |")
-    md += ["", "**Tanlash qoidasi:** avval eng kam *yolgʻon javob*, keyin eng koʻp *toʻgʻri manba*, keyin tezlik.",
+                  f"{sum(1 for r in rows if r['model'] == model and r.get('error'))} | {sum(bool(r.get('truncated')) for r in rs)} |")
+    md += ["", "LLM «fikrlash» (think) oʻchirilgan; *Kesilgan* — javob token chegarasiga yetgan savollar.",
+           "", "**Tanlash qoidasi:** avval eng kam *yolgʻon javob*, keyin eng koʻp *toʻgʻri manba*, keyin tezlik.",
            "Javoblarni CSV faylida koʻzdan kechiring: oʻzbek tili sifati raqamlarda koʻrinmaydi.", ""]
     md_path = out_dir / f"bakeoff-{stamp}.md"
     md_path.write_text("\n".join(md), encoding="utf-8")
     return md_path
+
+
+def bakeoff_pick(md: str) -> tuple[str | None, list[dict]]:
+    """Reads a bakeoff-*.md table and applies its rule: fewest false answers, then most correct sources,
+    then fewest errors, then the fastest. Returns (model, parsed rows)."""
+    rows = []
+    for line in md.splitlines():
+        m = re.match(r"\|\s*`([^`]+)`\s*\|(.*)\|\s*$", line)
+        if not m:
+            continue
+        cells = [c.strip() for c in m.group(2).split("|")]
+        if len(cells) < 6:
+            continue
+        frac = lambda c: (int(c.split("/")[0]) / int(c.split("/")[1])) if "/" in c and c.split("/")[1] != "0" else 0.0
+        try:
+            rows.append({"model": m.group(1), "correct": frac(cells[0]), "unknown_ok": frac(cells[1]),
+                         "false": int(cells[2]), "seconds": float(cells[4]), "errors": int(cells[5])})
+        except ValueError:
+            continue
+    if not rows:
+        return None, rows
+    best = min(rows, key=lambda r: (r["false"], -r["correct"], r["errors"], r["seconds"]))
+    return best["model"], rows

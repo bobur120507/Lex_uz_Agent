@@ -34,6 +34,7 @@ QUESTIONS = [
 def one(kind: str, q: str, expect: str) -> dict:
     marks: dict[str, float] = {}
     gen: dict = {}
+    raw: list[str] = []
     t0 = time.time()
 
     def emit(ev):
@@ -41,6 +42,8 @@ def one(kind: str, q: str, expect: str) -> dict:
         marks.setdefault(t, round(time.time() - t0, 2))
         if t == "generation.completed":
             gen.update(ev.get("data") or {})
+        elif t == "generation.delta":
+            raw.append((ev.get("data") or {}).get("text", ""))
 
     try:
         r = service.run(q, emit=emit)
@@ -57,7 +60,9 @@ def one(kind: str, q: str, expect: str) -> dict:
         "sources": [{"title": s.get("title"), "article": s.get("article_no"), "url": s.get("url"), "stale": s.get("stale")}
                     for s in srcs.values()],
         "score": score.get("score"), "supported": score.get("supported"), "total": score.get("total"),
-        "llm": {k: gen.get(k) for k in ("model", "ms", "prompt_tokens", "output_tokens", "tokens_per_s") if k in gen},
+        "llm": {k: gen.get(k) for k in ("model", "ms", "prompt_tokens", "output_tokens", "tokens_per_s", "done_reason",
+                                        "truncated", "thinking_chars") if k in gen},
+        "raw": "".join(raw)[:2000],                    # the LLM's own text before the citation check
         "stage_at_s": marks,
     }
 
@@ -76,8 +81,14 @@ def main():
         llm = r["llm"]
         print(f"    {r['seconds']} s · LLM {llm.get('tokens_per_s', '?')} token/s ({llm.get('output_tokens', '?')} token) · "
               f"baho {r['score']} ({r['supported']}/{r['total']} gap)", flush=True)
+        if llm.get("truncated"):
+            print(f"    ⚠ LLM token chegarasiga yetdi ({llm.get('output_tokens')} token) — javob kesilgan", flush=True)
+        if llm.get("thinking_chars"):
+            print(f"    ⚠ model yashirin «fikrlash» yozdi: {llm['thinking_chars']} belgi", flush=True)
         if r["unknown"]:
             print(f"    → Bilmayman: {r['message'] or ''}"[:300], flush=True)
+            if r["raw"].strip():
+                print(f"    LLM matni: {' '.join(r['raw'].split())[:260]}", flush=True)
         for s in r["answer"][:4]:
             print(f"    → {s[:220]}", flush=True)
         for s in r["sources"][:4]:

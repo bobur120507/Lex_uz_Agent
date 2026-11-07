@@ -1,8 +1,10 @@
 """Modda — 4-kun, GPU noutbukda: sozlash, toʻliq baholash, zaxira demo. Bitta skript, bitta hisobot.
 
     double-click scripts\\day4.bat            (Bobur tanlagan LLM bilan: scripts\\day4.bat --llm gemma4:e4b)
+                                             (bakeoff’dan keyin oʻzi tanlasin: scripts\\day4.bat --llm auto)
 
-  1 llm        --llm MODEL boʻlsa: .env dagi LLM_MODEL ni oʻzgartiradi (bakeoff natijasiga qarab Bobur aytadi)
+  0 bakeoff    (--llm auto yoki --only bakeoff) qwen3:8b va gemma4:e4b — 20 oltin savol, «fikrlash»siz; qoida boʻyicha tanlaydi
+  1 llm        --llm MODEL boʻlsa: .env dagi LLM_MODEL ni oʻzgartiradi (--llm auto: bakeoff gʻolibi)
   2 calibrate  «Bilmayman» chegarasi τ: savol ↔ eng yaqin modda oʻxshashligi; ajratish yaxshi boʻlsa DENSE_TAU .env ga yoziladi
   3 eval       qidiruv sifati, 45 oltin savol (dense, BM25, gibrid) → data\\reports\\eval.json
   4 demo       6 demo savol yangi sozlamalar bilan (τ, kuchaytirilgan iqtibos tekshiruvchi)
@@ -12,7 +14,7 @@
   7 video      zaxira demo video (1920×1080 .webm) + haqiqiy kadr/s — ekranda Chromium oynasi ochiladi, ≈ 2 daqiqa tegmang
   8 report     toʻliq baholash hisoboti → data\\reports\\BAHOLASH.md (logga ham yoziladi)
 
-Hammasi data\\reports\\day4-<vaqt>.log ga ham yoziladi — shu faylni (va fixture.json, video’ni) Bobur’ga yuboring.
+Oxirida shu ishga tushirishning hamma fayllari data\\reports\\Bobur_uchun-<vaqt>\\ ga yigʻiladi — shu papkani Bobur’ga yuboring.
   --only calibrate,eval,report     faqat shu qismlar        --question "..."   fixture/video savoli
 """
 
@@ -40,7 +42,8 @@ import setup_server as srv                            # noqa: E402
 from setup_windows import C, IS_WIN, REPORTS, ROOT, VPY, StepFailed, bad, ok, run, say, warn  # noqa: E402
 
 PARTS = ["llm", "calibrate", "eval", "demo", "build", "fixture", "video", "report"]
-OPTIONAL = ["browser"]
+OPTIONAL = ["bakeoff", "browser"]
+BAKEOFF = ["gemma4:e4b", "qwen3:8b"]
 QUESTION = "Har yilgi mehnat taʼtili necha kun?"
 FIXTURE = REPORTS / "fixture.json"             # not public/demo/ directly: a changed tracked file would block `git pull`
 
@@ -65,7 +68,7 @@ def part_llm(model: str | None):
     srv.ensure_services()
     srv.unload_all(quiet=True)
     try:
-        r = base.http_json(f"{base.OLLAMA}/api/generate", {"model": model, "stream": False, "keep_alive": "10m",
+        r = base.http_json(f"{base.OLLAMA}/api/generate", {"model": model, "stream": False, "think": False, "keep_alive": "10m",
                                                              "prompt": "Mehnat shartnomasi nima? 4 gap bilan tushuntiring.",
                                                              "options": {"num_predict": 160}}, timeout=900)
         tps = r.get("eval_count", 0) / max(1e-9, r.get("eval_duration", 1) / 1e9)
@@ -77,6 +80,25 @@ def part_llm(model: str | None):
             warn("Model GPU’ga toʻliq sigʻmadi — javob sekinroq boʻladi (zaryadlovchi ulanganmi? boshqa dasturlar yopiqmi?)")
     except Exception as exc:
         warn(f"{model} sinovi oʻtmadi: {exc}")
+
+
+def part_bakeoff(models: list[str]) -> str | None:
+    """Same 20 golden questions and context for each model, thinking off (llm.chat) — the day-3 bakeoff measured
+    gemma4 with its hidden reasoning on. Returns the model the bakeoff rule picks."""
+    have = [m for m in models if base.have_model(m)]
+    if not have:
+        raise StepFailed(f"modellar yoʻq: {', '.join(models)}")
+    srv.ensure_services()
+    srv.unload_all(quiet=True)
+    say(f"Bakeoff: {', '.join(have)} — 20 oltin savol, har biri ≈ 5 s…")
+    code, out = base.modda("bakeoff", "--models", ",".join(have), "--n", "20", check=False, timeout=3 * 3600)
+    srv.unload_all(quiet=True)
+    m = re.search(r"Qoida boʻyicha gʻolib:\s*(\S+)", out)
+    if code != 0 or not m:
+        raise StepFailed("bakeoff xato bilan tugadi — yuqoridagi jadval/xabarga qarang")
+    best = m.group(1)
+    ok(f"Qoida boʻyicha gʻolib (eng kam yolgʻon → koʻp toʻgʻri manba → tezlik): {best}")
+    return best
 
 
 def part_calibrate():
@@ -201,23 +223,55 @@ def part_report():
     ok(f"Hisobot: {REPORTS / 'BAHOLASH.md'}")
 
 
+def collect(started: float) -> Path:
+    """Copies this run's own outputs into one folder for Bobur — files older than the run are left out, so an
+    old BAHOLASH.md or fixture.json can no longer be sent by mistake."""
+    dest = REPORTS / f"Bobur_uchun-{datetime.fromtimestamp(started):%Y%m%d-%H%M}"
+    dest.mkdir(parents=True, exist_ok=True)
+    pats = ["BAHOLASH.md", "fixture.json", "calibration.json", "eval.json", "demo-*.json", "bakeoff-*.md", "bakeoff-*.csv",
+            "video/*.webm"]
+    fresh = [f for pat in pats for f in REPORTS.glob(pat) if f.is_file() and f.stat().st_mtime >= started]
+    for f in fresh:
+        shutil.copy2(f, dest / f.name)
+    base._log.flush()
+    shutil.copy2(base.LOG_PATH, dest / base.LOG_PATH.name)
+    say(f"  {len(fresh) + 1} fayl: {', '.join(sorted([base.LOG_PATH.name, *(f.name for f in fresh)]))}")
+    return dest
+
+
 def main():
+    started = time.time()
     ap = argparse.ArgumentParser(description="Modda — 4-kun: τ, baholash, zaxira demo, hisobot")
     ap.add_argument("--only", help="vergul bilan: " + ",".join(PARTS + OPTIONAL))
-    ap.add_argument("--llm", help="LLM_MODEL ni shu modelga oʻzgartirish (masalan qwen3:8b)")
+    ap.add_argument("--llm", help="LLM_MODEL ni shu modelga oʻzgartirish (masalan qwen3:8b); auto = bakeoff gʻolibi")
+    ap.add_argument("--models", default=",".join(BAKEOFF), help="bakeoff modellari")
     ap.add_argument("--question", default=QUESTION)
     a = ap.parse_args()
-    order = ["llm", "browser", *PARTS[1:]]                            # the GPU setting before the video
-    parts = [p for p in order if (p in a.only.split(",") if a.only else p in PARTS)]
+    order = ["bakeoff", "llm", "browser", *PARTS[1:]]                 # the GPU setting before the video
+    wanted = set(a.only.split(",")) if a.only else set(PARTS)
+    if a.llm == "auto":
+        wanted |= {"bakeoff", "llm"}
+    parts = [p for p in order if p in wanted]
+    chosen = {"model": None if a.llm == "auto" else a.llm}
     if IS_WIN:
         base.keep_awake()
     git = srv.find_git()
     code, head = run([git, "-C", ROOT, "log", "-1", "--format=%h %ad %s", "--date=short"], check=False, quiet=True) if git else (1, "")
     print(f"{C['b']}{C['c']}Modda — 4-kun (GPU noutbuk){C['0']}   {ROOT}")
     say(f"Kod versiyasi: {head.strip().splitlines()[-1] if code == 0 and head.strip() else '?'}  |  Hisobot: {base.LOG_PATH}")
+    try:
+        srv.ensure_services()                       # Qdrant must be up, or the check below reports a false «incomplete»
+    except Exception as exc:
+        warn(f"Xizmatlar ishga tushmadi: {exc}")
     if not srv.index_complete():
         warn("Indeks toʻliq emas — natijalar Bobur’dagidan farq qiladi (avval scripts\\day3.bat)")
-    fns = {"llm": lambda: part_llm(a.llm), "calibrate": part_calibrate, "eval": part_eval, "demo": part_demo,
+    def do_bakeoff():
+        best = part_bakeoff(a.models.split(","))
+        if a.llm == "auto":
+            chosen["model"] = best
+
+    fns = {"bakeoff": do_bakeoff,
+           "llm": lambda: part_llm(chosen["model"]), "calibrate": part_calibrate, "eval": part_eval, "demo": part_demo,
            "build": part_build, "fixture": lambda: part_fixture(a.question), "video": lambda: part_video(a.question),
            "report": part_report, "browser": part_browser}
     for i, name in enumerate(parts, 1):
@@ -237,7 +291,8 @@ def main():
             base.log(traceback.format_exc())
             bad(f"{name}: kutilmagan xato: {exc!r}")
     print()
-    say(f"Tamom. Bobur’ga yuboring: {base.LOG_PATH}" + (f", {FIXTURE}" if FIXTURE.exists() else ""), "b")
+    out = collect(started)
+    say(f"Tamom. Bobur’ga shu papkani toʻliq yuboring (faqat shu ishga tushirishdagi fayllar): {out}", "b")
     return 0
 
 

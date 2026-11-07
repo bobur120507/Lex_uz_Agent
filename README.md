@@ -9,7 +9,7 @@ Oʻzbek tilidagi huquqiy savolga **Lex.uz moddalariga tayangan**, har bir gapi m
 ```
 savol → marshrut (aniq havola / qidiruv) → bge-m3 vektor + BM25 → Qdrant gibrid qidiruv (RRF)
       → τ: savol hech bir moddaga yaqin boʻlmasa «Bilmayman» (LLM chaqirilmaydi)
-      → LLM (Ollama, qwen3:8b) faqat berilgan moddalar bilan, [n] havolalar bilan yozadi
+      → LLM (Ollama, `.env` dagi LLM_MODEL, fikrlash oʻchiq) faqat berilgan moddalar bilan, [n] havolalar bilan yozadi
       → iqtibos tekshiruvchi: havola · raqamlar manbada · soʻzlar manbada → oʻtmagan gap olib tashlanadi
       → tarozi bahosi «manbaga moslik» + RSS: «Lex.uz’da oʻzgargan boʻlishi mumkin» belgisi
 ```
@@ -20,7 +20,7 @@ Har bosqich saytda jonli koʻrinadi (SSE hodisalari): Mind atrofidagi graf tugun
 |---|---|
 | Korpus | Hugging Face’dagi Lex.uz nusxasi (qatʼiy versiya): 24 267 hujjat, 54 173 modda → 183 170 boʻlak |
 | Qidiruv | bge-m3 (1024 oʻlcham) + BM25, Qdrant 1.20, RRF |
-| LLM | Ollama: **`gemma4:e4b`** (bakeoff gʻolibi: 0 yolgʻon javob) yoki `qwen3:8b` (2× tezroq) |
+| LLM | Ollama: `gemma4:e4b` yoki `qwen3:8b` — fikrlash oʻchiq, bakeoff qoidasi tanlaydi (`day4 --llm auto`) |
 | Baza | SQLite yoki PostgreSQL |
 | API | FastAPI (yoki standart kutubxona serveri) — `src/modda/api.py`, `service.py` |
 | Sayt | `frontend_idea/` — Vite, Three.js, GSAP |
@@ -46,7 +46,7 @@ cd frontend_idea && npm ci && npm run dev             # sayt :5174
 |---|---|
 | `python -m modda ask "savol"` | terminalda javob |
 | `python -m modda eval` | Recall@5, MRR (dense / BM25 / gibrid) |
-| `python -m modda bakeoff --models a,b` | LLM’larni bir xil kontekstda solishtirish |
+| `python -m modda bakeoff --models a,b` | LLM’larni bir xil kontekstda solishtirish (oxirida qoida boʻyicha gʻolib) |
 | `python -m modda calibrate --write-env` | «Bilmayman» chegarasi τ → `.env` (`DENSE_TAU`) |
 | `python -m modda rss` | Lex.uz RSS → «oʻzgargan boʻlishi mumkin» belgilari |
 | `python -m modda report` | `data/reports/BAHOLASH.md` |

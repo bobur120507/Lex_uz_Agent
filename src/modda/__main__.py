@@ -253,7 +253,7 @@ def cmd_report(s, a):
 
 
 def cmd_bakeoff(s, a):
-    from .evaluation import bakeoff, load_golden, only_indexed, spread
+    from .evaluation import bakeoff, bakeoff_pick, load_golden, only_indexed, spread
     con = _con(s)
     items, skipped = only_indexed(con, load_golden(s.golden_path))
     if skipped:
@@ -262,7 +262,11 @@ def cmd_bakeoff(s, a):
     path = bakeoff(con, _store(s), _llm(s), _llm(s), embed_model=s.embed_model,
                    models=a.models.split(","), items=chosen, out_dir=s.reports_dir, k=a.k)
     print(f"\nHisobot: {path}")
-    print(path.read_text(encoding="utf-8"))
+    md = path.read_text(encoding="utf-8")
+    print(md)
+    best, _ = bakeoff_pick(md)
+    if best:
+        print(f"Qoida boʻyicha gʻolib: {best}")
 
 
 def cmd_sample(s, a):

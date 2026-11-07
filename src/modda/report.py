@@ -75,6 +75,8 @@ def build(reports: Path, golden_path: Path | None = None) -> tuple[Path, str]:
         md += ["## 4. Demo savollar", "", "| # | Tur | Vaqt, s | Natija | Manbalar | Baho | LLM, token/s |", "|---|---|---|---|---|---|---|"]
         for i, r in enumerate(demo, 1):
             res = "XATO" if r.get("error") else "Bilmayman" if r.get("unknown") else f"{len(r.get('answer') or [])} gap"
+            if (r.get("llm") or {}).get("truncated"):
+                res += " (LLM kesildi)"
             srcs = "; ".join(f"{(s.get('title') or '?')[:40]} {s.get('article') or ''}".strip() for s in (r.get("sources") or [])[:2]) or "—"
             md.append(f"| {i} | {r.get('kind')} | {r.get('seconds')} | {res} | {srcs} | {r.get('score') if r.get('score') is not None else '—'} "
                       f"| {(r.get('llm') or {}).get('tokens_per_s', '—')} |")

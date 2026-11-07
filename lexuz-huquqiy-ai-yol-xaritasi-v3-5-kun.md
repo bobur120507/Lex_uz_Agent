@@ -12,7 +12,7 @@ Tushunchalar va vositalar jamoa uchun [I_EXPLAIN.md](I_EXPLAIN.md) da tushuntiri
 
 > Har bir qadam tugaganda shu roʻyxat yangilanadi. Belgilar: ✅ bajarildi · 🔄 jarayonda · ⏸️ toʻxtatilgan · ↪️ boshqa yoʻl bilan · ❌ toʻsiq · ⬜ hali boshlanmagan. Batafsil buyruqlar — [KUN-1.md](KUN-1.md).
 >
-> **Oxirgi yangilanish:** 2026-11-07 23:15 (4-kun). **GPU noutbuk Bobur’dagi holatga yetdi** (54 173 / 183 170 / Recall@5 0,911). **LLM: gemma4:e4b** (bakeoff: 0 yolgʻon javob, 5/5 «Bilmayman»). τ = 0,58. Demo: 1, 3, 6 ✅; 2 (raqam soʻz bilan) va 5 (ob-havo) — **tuzatildi**; kadr/s 27 — brauzer Intel GPU’da edi → tuzatish. **Sayt:** hakam bolgʻachasi (kitob oʻngida, hukm bilan uradi), sarlavha «Javob qonundan — isbot manbadan». Keyingi: `day4 --llm gemma4:e4b …` ([KUN-4.md](KUN-4.md)).
+> **Oxirgi yangilanish:** 2026-11-08 00:10 (4→5-kun). **Sayt RTX 4060’da: 60 kadr/s** (eng past 53) ✅. Qidiruv oʻzgarmadi (Recall@5 0,911, MRR 0,773). **gemma4 demo’da 2–4-savol notoʻgʻri «Bilmayman»** — model 700 tokenni yashirin «fikrlash»ga sarflagan → `think: false` hamma modelga, chegara 900, kesilish belgisi. Keyingi: `day4 --llm auto --only demo,fixture,video,report` — fikrlashsiz bakeoff gemma4 ↔ qwen3, gʻolib bilan demo, fixture, video ([KUN-4.md §6](KUN-4.md)).
 
 ### 1-kun — uzoq ishlar va asos
 
@@ -105,10 +105,11 @@ Gibrid har ikkalasidan yaxshi → standart sifatida qoladi; reranker hozircha o�
 
 | Holat | Qadam |
 |---|---|
-| ✅ | top-k = 5, τ = 0,58, prompt: raqamni manbadagidek yozish, qonunchilikdan tashqari savolga BILMAYMAN; javob ≤ 700 token. Tekshiruvchi raqamni soʻz bilan ham taniydi («yigirma bir» = 21) |
+| ✅ | top-k = 5, τ = 0,58, prompt: raqamni manbadagidek yozish, qonunchilikdan tashqari savolga BILMAYMAN; javob ≤ 900 token, **fikrlash oʻchirilgan** (`think: false` hamma modelga; chegaraga yetsa «kesilgan» belgisi). Tekshiruvchi raqamni soʻz bilan ham taniydi («yigirma bir» = 21) |
 | ✅ | Prompt-injection — demo 6-savol: «Bilmayman», koʻrsatmaga boʻysunmadi, tizim prompti chiqmadi (qwen3:8b, 6,6 s) |
-| ✅ | Toʻliq baholash hisoboti — [docs/BAHOLASH.md](docs/BAHOLASH.md) (GPU noutbuk, 7-noyabr 22:09: qidiruv, bakeoff, τ, 6 demo). gemma4 bilan yangilanadi |
-| 🔄 | 3D: unumdorlik, zaxira rejim, klaviatura | yangi frontend’da: WebGL’siz rejim, klaviatura, qisqartirilgan harakat tayyor; kadr/s — Bobur’ning noutbukida oʻlchanadi |
+| ✅ | Toʻliq baholash hisoboti — [docs/BAHOLASH.md](docs/BAHOLASH.md) (GPU noutbuk, 7-noyabr 22:09 va 23:47: qidiruv, bakeoff, τ, 6 demo) |
+| 🔄 | LLM yakuniy tanlovi: gemma4:e4b 23:47 demo’sida 2–4-savolni yashirin fikrlash tufayli boy berdi → **fikrlashsiz qayta bakeoff** (gemma4 ↔ qwen3), gʻolib avtomatik `.env` ga (`day4 --llm auto`) |
+| ✅ | 3D: unumdorlik, zaxira rejim, klaviatura — WebGL’siz rejim, klaviatura, qisqartirilgan harakat; **RTX 4060: median 60, eng past 53 kadr/s** (render koeff. 1,5) |
 
 ### 5-kun — muzlatish va demo
 
@@ -116,7 +117,7 @@ Gibrid har ikkalasidan yaxshi → standart sifatida qoladi; reranker hozircha o�
 |---|---|
 | ⬜ | Yakuniy baholash |
 | ✅ | README (yangi, ildizda), I_EXPLAIN §0.1 «Rejadan amalga» — qaysi qism qanday qurildi |
-| 🔄 | Demo ssenariysi, zaxira video — `fixture.json` va video yozildi (qwen3); kadr/s 27 — brauzer **Intel Iris Xe** da chizgan → `day4 --only …browser…` (RTX 4060) bilan qayta yoziladi |
+| 🔄 | Demo ssenariysi, zaxira video — video RTX 4060’da yozildi (60 kadr/s) ✅, lekin javob buzilgan gemma4 bilan → yakuniy model bilan qayta; `day4` endi oʻz fayllarini `Bobur_uchun-<vaqt>` papkasiga yigʻadi (eski nusxa yuborilmaydi) |
 
 ### Yakuniy bosqich — yangi frontend `frontend_idea/` (12- va 13-boʻlimlar)
 
@@ -145,9 +146,9 @@ Batafsil tekshiruv roʻyxati — [13.5](#135-tekshiruv-roʻyxati-bosqichlar-boʻ
 | ✅ | Hamma graflar oynada; **Mind oynasi**: keng oyna, 3D qatlamlar asosiy, maʼlumot — bitta qator teg + bitta izoh |
 | ✅ | **Hakam bolgʻachasi (7-noyabr 23:00):** kitobning oʻng tomonida (haykalning juftligi), Bobur’ning modeli (teksturalar 1024 px, 5,2 → 1,0 MB); hukm kelganda bir marta uradi (yorugʻlik halqasi), bosilsa yana; sarlavha «Javob qonundan — isbot manbadan» |
 | ✅ | **Hukm lahzasi (7-noyabr):** javob tayyor boʻlganda kamera kitobdan ketmaydi — haykal joyida (javob rejimida toʻliq koʻrinadi) pallalarini bahoga qarab ogʻdiradi, medal va Lex.uz logotipi pallaga «otilib» chiqadi, olov bir lahza kuchayadi; haykal ostida «⚖ 97 / 100 · manbaga moslik»; **kitobning javob sahifasida oltin muhr** (baho, gaplar soni) — bosilsa tarozi markazga keladi |
-| 🔄 | F6 — Sifat: telefon/planshet, WebGL’siz rejim, qisqartirilgan harakat, klaviatura ✅; kadr/s: Iris Xe’da 27 (median) → RTX 4060 bilan qayta oʻlchash ⬜ |
+| ✅ | F6 — Sifat: telefon/planshet, WebGL’siz rejim, qisqartirilgan harakat, klaviatura ✅; kadr/s: Iris Xe’da 27 → **RTX 4060’da median 60, eng past 53** ✅ |
 | ✅ | F7 — Brauzer sinovlari va vizual tanqid (Playwright, 5 oʻlcham, WebGL’siz) — sinov muhitida (haqiqiy backend kodi + Qdrant 1.20 + 10 kodeks + sinov LLM) |
-| 🔄 | F8 — Yakuniy tekshiruv: testlar ✅, README ✅, `npm run build` noutbukda ✅, 6 demo haqiqiy LLM bilan ✅ (qwen3) → gemma4 bilan qayta ⬜ |
+| 🔄 | F8 — Yakuniy tekshiruv: testlar ✅ (53), README ✅, `npm run build` noutbukda ✅, 6 demo haqiqiy LLM bilan ✅ (qwen3); gemma4 bilan 2–4 buzildi (fikrlash) → tuzatildi, yakuniy model bilan qayta ⬜ |
 
 ---
 
@@ -842,7 +843,7 @@ Tasdiqlanmasa ham frontend toʻliq ishlaydi — faqat tegishli joylar «Mavjud e
 - [x] WebGL’siz rejim: statik kitob, oddiy graf, 7 bosqich, kartalar, toʻliq javob
 - [x] `prefers-reduced-motion`: zarralar va kamera harakati oʻchadi, funksiya qoladi
 - [x] Klaviatura, koʻrinadigan fokus, ekran oʻquvchi uchun holat xabarlari, rang yagona belgi emas (WCAG 2.2 AA)
-- [ ] Unumdorlik: ≥ 45 kadr/s (Bobur’ning noutbuki, Iris Xe), DPR ≤ 1,75, yashirin tabda render yoʻq, yangi savolda tozalash — Bobur’ning noutbukida `?debug` yoʻq — konsolda `__moddaFps`
+- [x] Unumdorlik: ≥ 45 kadr/s, yashirin tabda render yoʻq, yangi savolda tozalash — **RTX 4060 noutbukda median 60, eng past 53** (`record_video.mjs`, 8-noyabr); Iris Xe’da 27 — demo shu sababli GPU noutbukda
 
 **F7 — Brauzer sinovi va vizual tanqid** *(Master prompt 10-boʻlim)*
 - [x] Playwright: yoʻnalishlar, tugmalar (§12 jadvalidagi 25 ta boshqaruv), xato va «Bilmayman» holatlari — `tests/e2e.mjs`: ~45 tekshiruv

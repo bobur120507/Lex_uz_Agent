@@ -259,6 +259,8 @@ def ask(con, store, embedder, llm, *, question: str, embed_model: str, llm_model
         trace["score"] = score
     if ans.unknown or not kept:
         unknown["score"] = score
+        if (getattr(llm, "last_chat", None) or {}).get("truncated"):
+            unknown["llm_truncated"] = True            # the model hit num_predict before finishing (see llm.chat)
         return finish(unknown)
     used = {i for s in kept for i in s["chunk_ids"]}
     stale_ids = stale_ids or set()

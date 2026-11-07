@@ -1,5 +1,6 @@
 """Offline tests: no Ollama, no Qdrant. Real services are exercised by `python -m modda doctor`."""
 
+import json
 import os
 from pathlib import Path
 
@@ -590,3 +591,70 @@ def test_numbers_written_as_words_count_as_numbers():
     assert verify({"text": "Yillik asosiy mehnat taʼtili 21 kalendar kundan kam boʻlmaydi.", "chunk_ids": ["a218"]}, {"a218": c})[0]
     ok, why = verify({"text": "Yillik asosiy mehnat taʼtili 15 ish kuni.", "chunk_ids": ["a218"]}, {"a218": c})
     assert not ok and "15" in why                                   # the old code's figure is still caught
+
+
+def test_strip_think_unclosed_and_other_tags():
+    assert strip_think("<thought>uzun fikr…") == ""
+    assert strip_think("<THINKING>a</THINKING> Javob [1].") == "Javob [1]."
+
+
+class _OllamaResp:
+    def __init__(self, data, lines=None, status=200):
+        self.status_code, self._data, self._lines, self.text = status, data, lines, json.dumps(data)
+
+    def json(self):
+        return self._data
+
+    def iter_lines(self):
+        return [json.dumps(x).encode() for x in self._lines]
+
+
+def test_chat_sends_think_false_and_flags_cut_answers(monkeypatch):
+    from modda import llm as llm_mod
+    sent = []
+
+    def post(url, json=None, timeout=None, stream=False):
+        sent.append(json)
+        if stream:
+            return _OllamaResp({}, [{"message": {"thinking": "hmm "}}, {"message": {"content": "Javob [1]."}},
+                              {"done": True, "done_reason": "length", "eval_count": 900, "eval_duration": 9e9}])
+        return _OllamaResp({"message": {"content": "Javob [1].", "thinking": ""}, "done_reason": "stop", "eval_count": 40})
+
+    monkeypatch.setattr(llm_mod.requests, "post", post)
+    o = llm_mod.Ollama()
+    text, _ = o.chat("gemma4:e4b", [{"role": "user", "content": "?"}])
+    assert sent[-1]["think"] is False and sent[-1]["options"]["num_predict"] == 900
+    assert text == "Javob [1]." and "truncated" not in o.last_chat and o.last_chat["done_reason"] == "stop"
+    pieces = []
+    text, _ = o.chat("gemma4:e4b", [{"role": "user", "content": "?"}], on_token=pieces.append)
+    assert text == "Javob [1]." and pieces == ["Javob [1]."]
+    assert o.last_chat["truncated"] is True and o.last_chat["thinking_chars"] == 4
+
+
+def test_chat_retries_without_think_when_refused(monkeypatch):
+    from modda import llm as llm_mod
+    sent = []
+
+    def post(url, json=None, timeout=None, stream=False):
+        sent.append(dict(json))
+        if "think" in json:
+            return _OllamaResp({"error": "registry.ollama.ai/x does not support thinking"}, status=400)
+        return _OllamaResp({"message": {"content": "ok"}})
+
+    monkeypatch.setattr(llm_mod.requests, "post", post)
+    text, _ = llm_mod.Ollama().chat("old-model", [{"role": "user", "content": "?"}])
+    assert text == "ok" and len(sent) == 2 and "think" not in sent[1]
+
+
+def test_bakeoff_pick_rule():
+    from modda.evaluation import bakeoff_pick
+    md = """| Model | a | b | c | d | e | f | g |
+|---|---|---|---|---|---|---|---|
+| `qwen3:8b` | 12/15 | 2/4 | 2 | 0 | 6.5 | 1 | 0 |
+| `gemma4:e4b` | 12/15 | 5/5 | 0 | 0 | 15.4 | 0 | 3 |
+| `fast:1b` | 13/15 | 5/5 | 0 | 0 | 3.0 | 0 | 0 |
+"""
+    best, rows = bakeoff_pick(md)
+    assert best == "fast:1b" and len(rows) == 3
+    assert bakeoff_pick(md.replace("13/15", "11/15"))[0] == "gemma4:e4b"
+    assert bakeoff_pick("nothing")[0] is None
