@@ -14,7 +14,7 @@ export function hasWebGL() {
 const SHOTS = {
   idle:     { pos: [0, 2.35, 6.9], look: [0, 1.22, 0] },
   research: { pos: [0, 2.45, 6.5], look: [0, 1.25, 0] },
-  answer:   { pos: [0, 3.25, 5.3], look: [0, 0.78, -0.3] },
+  answer:   { pos: [0, 3.9, 4.65], look: [0, 0.6, -0.15] },     // higher: the pages face the camera more (sharper text)
 };
 const TABLET = {
   idle:     { pos: [0, 2.6, 8.6], look: [0, 1.5, 0] },
@@ -64,7 +64,7 @@ export class Stage {
     lamp.position.set(-2.2, 5.2, 2.6);
     lamp.target.position.set(0.1, 0, 0);
     lamp.castShadow = true;
-    lamp.shadow.mapSize.set(1024, 1024);
+    lamp.shadow.mapSize.set(2048, 2048);
     lamp.shadow.bias = -0.0004; lamp.shadow.normalBias = 0.02;
     this.scene.add(lamp, lamp.target);
     const statueLight = new THREE.SpotLight('#ffd49a', 30, 9, 0.45, 0.8, 1.4);
@@ -95,7 +95,7 @@ export class Stage {
 
     this.clock = new THREE.Clock();
     this.onFrame = [];
-    this.frames = 0; this.fpsT = 0; this.fps = 0;
+    this.frames = 0; this.fpsT = 0; this.fps = 0; this.slow = 0; this.fast = 0;
     this.running = true;
     document.addEventListener('visibilitychange', () => { this.running = !document.hidden; if (this.running) { this.clock.getDelta(); this.loop(); } });
     window.addEventListener('resize', () => this.resize());
@@ -142,10 +142,16 @@ export class Stage {
     return 'desktop';
   }
 
+  /** Fly to an explicit camera position (e.g. Lady Justice in focus); kept on resize via onResize. */
+  flyTo(pos, look, duration = 1.3) {
+    this.custom = { pos, look };
+    this.setShot('custom', duration);
+  }
+
   setShot(name, duration = 1.1) {
     this.shotName = name;
     const set = { desktop: SHOTS, tablet: TABLET, mobile: MOBILE }[this.layoutKind];
-    const s = set[name];
+    const s = name === 'custom' ? this.custom : set[name];
     const d = this.reduced ? 0 : duration;
     gsap.to(this.camera.position, { x: s.pos[0], y: s.pos[1], z: s.pos[2], duration: d, ease: 'power2.inOut', overwrite: true });
     gsap.to(this.look, { x: s.look[0], y: s.look[1], z: s.look[2], duration: d, ease: 'power2.inOut', overwrite: true });
@@ -157,8 +163,12 @@ export class Stage {
 
   resize() {
     this.width = window.innerWidth; this.height = window.innerHeight;
-    const dpr = Math.min(window.devicePixelRatio || 1, this.width < 768 ? 1.25 : 1.75);
-    this.renderer.setPixelRatio(dpr);
+    // Sharpness: render at up to 2× the screen's pixels (supersampling on 1× screens), then let the governor in
+    // loop() step down by 0.25 while the frame rate stays under 40 fps, and back up when there is headroom.
+    const low = /[?&]quality=low/.test(location.search);
+    this.dprTarget = low ? 1 : Math.min(this.width < 768 ? 1.5 : 2, Math.max(window.devicePixelRatio || 1, 1.5));
+    this.dpr = Math.min(this.dpr || this.dprTarget, this.dprTarget);
+    this.renderer.setPixelRatio(this.dpr);
     this.renderer.setSize(this.width, this.height, false);
     this.camera.aspect = this.width / this.height;
     this.camera.fov = this.layoutKind === 'mobile' ? 44 : 36;
@@ -176,6 +186,18 @@ export class Stage {
     return out;
   }
 
+  governDpr(t) {
+    if (document.hidden) return;
+    const set = (v) => { this.dpr = v; this.renderer.setPixelRatio(v); this.renderer.setSize(this.width, this.height, false); };
+    if (this.fps < 40 && this.dpr > 1) {
+      if (++this.slow >= 2) { set(Math.max(1, this.dpr - 0.25)); this.slow = 0; this.droppedAt = t; }
+    } else this.slow = 0;
+    if (this.fps >= 57 && this.dpr < this.dprTarget && t - (this.droppedAt || -99) > 20) {
+      if (++this.fast >= 4) { set(Math.min(this.dprTarget, this.dpr + 0.25)); this.fast = 0; }
+    } else this.fast = 0;
+    window.__moddaDpr = this.dpr;
+  }
+
   loop() {
     if (!this.running) return;
     requestAnimationFrame(() => this.loop());
@@ -191,6 +213,9 @@ export class Stage {
     for (const fn of this.onFrame) fn(dt, t);
     this.renderer.render(this.scene, this.camera);
     this.frames++; this.fpsT += dt;
-    if (this.fpsT >= 1) { this.fps = Math.round(this.frames / this.fpsT); this.frames = 0; this.fpsT = 0; window.__moddaFps = this.fps; }
+    if (this.fpsT >= 1) {
+      this.fps = Math.round(this.frames / this.fpsT); this.frames = 0; this.fpsT = 0; window.__moddaFps = this.fps;
+      this.governDpr(t);
+    }
   }
 }

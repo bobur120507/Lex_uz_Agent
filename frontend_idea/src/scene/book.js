@@ -2,7 +2,7 @@
 // The spine lies along z at x = 0; pages turn from +x (right) to −x (left). Adapted from web/src/scene/book.js.
 import * as THREE from 'three';
 import { gsap } from 'gsap';
-import { blankPage, coverTexture, clothTexture, paperEdge, mirrored, PX } from './pages.js';
+import { blankPage, coverTexture, clothTexture, paperEdge, mirrored, sweepPages, PX } from './pages.js';
 
 export const W = 1.45, H = 1.95;
 const SEG = 28, C = 0.045, OVER = 0.05, TOTAL = 260, PT = 0.0011, POOL = 8, LIFT = 0.0015;
@@ -238,12 +238,21 @@ export class Book {
     }
     this.hits = { left: spread.leftHits || [], right: spread.rightHits || [] };
     this.layout();
+    this.sweep();
   }
 
   /** Replace a page in place (no turn) — used while the answer is being written. */
   replace(side, texture, hits = []) {
     if (side === 'left') this.setPages(texture, null); else this.setPages(null, texture);
     this.hits[side] = hits;
+    this.sweep();
+  }
+
+  /** Free the GPU memory of result pages the book no longer shows (they are 2048 × 2752 each). */
+  sweep() {
+    const inUse = new Set([this.leftPage.material.map, this.rightPage.material.map]);
+    for (const p of this.pool) if (p.busy) { inUse.add(p.f.material.map); inUse.add(p.b.material.map); }
+    sweepPages(inUse);
   }
 
   /** Raycast the open pages: {side, x, y, hit} in page-canvas pixels. */

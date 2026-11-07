@@ -142,7 +142,7 @@ function vector(state, ctx, panel) {
   }).catch((err) => { viz.replaceWith(unavailable(`Vektor maʼlumoti mavjud emas (${err.message}).`)); info.replaceChildren(); });
   const dense = r.dense_list || [];
   return [
-    h('div', { class: 'grid2' }, viz, info),
+    viz, info,
     card(['Vektor qidiruv tartibi', `${dense.length} ta`], dense.length ? table(['#', 'Boʻlak', 'kosinus'], dense.slice(0, 15).map((x) => [x.rank, link(label(x.chunk_id), () => ctx.showSource(x.chunk_id)), x.score?.toFixed(4)]))
       : unavailable('Alohida dense roʻyxat qaytarilmadi (faqat birlashtirilgan natija).')),
   ];
@@ -240,7 +240,7 @@ function verify(state, ctx) {
     sents.length ? h('div', {}, sents.map((s) => h('section', { class: `sentence ${s.ok ? 'is-ok' : 'is-bad'}` }, h('p', {}, s.text),
       h('footer', {}, tag(s.ok ? '✓ tasdiqlandi' : `✗ ${s.why}`, s.ok ? 'emerald' : 'amber'), (s.chunk_ids || []).map((id) => link(candidateLabel(state)(id), () => ctx.showSource(id)))))))
       : unavailable('Gaplar roʻyxati qaytarilmadi.'),
-    h('button', { type: 'button', class: 'btn btn--gold', onclick: () => ctx.openScales() }, 'Adolat tarozisida koʻrish'),
+    h('button', { type: 'button', class: 'btn btn--gold', onclick: () => ctx.openScales() }, 'Adolat tarozisida koʻrish (haykal)'),
   ];
 }
 

@@ -43,12 +43,15 @@ class Handler(BaseHTTPRequestHandler):
 
     def _json(self, obj, status=200):
         body = json.dumps(obj, ensure_ascii=False).encode()
-        self.send_response(status)
-        self.send_header("Content-Type", "application/json; charset=utf-8")
-        self.send_header("Content-Length", str(len(body)))
-        self._cors()
-        self.end_headers()
-        self.wfile.write(body)
+        try:
+            self.send_response(status)
+            self.send_header("Content-Type", "application/json; charset=utf-8")
+            self.send_header("Content-Length", str(len(body)))
+            self._cors()
+            self.end_headers()
+            self.wfile.write(body)
+        except (BrokenPipeError, ConnectionResetError):   # the page gave up or moved on — nothing to answer
+            self.close_connection = True
 
     def _error(self, status, detail):
         self._json({"detail": detail}, status)
@@ -97,6 +100,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._error(404, str(exc))
         except BadRequest as exc:
             return self._error(422, str(exc))
+        except (BrokenPipeError, ConnectionResetError):
+            self.close_connection = True
         except Exception as exc:
             return self._error(500, str(exc)[:300])
 
@@ -140,6 +145,12 @@ class Handler(BaseHTTPRequestHandler):
                 self.wfile.write(f"event: {ev['type']}\ndata: {json.dumps(ev, ensure_ascii=False)}\n\n".encode())
                 self.wfile.flush()
         except (BrokenPipeError, ConnectionResetError):  # the page started a new question
+            pass
+
+    def handle(self):                                 # a client that disconnects mid-request is not an error
+        try:
+            super().handle()
+        except (BrokenPipeError, ConnectionResetError):
             pass
 
     def _static(self, path: str):

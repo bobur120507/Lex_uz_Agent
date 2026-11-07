@@ -57,6 +57,9 @@ async function askAndWait(p, q = Q) {
   check('book controls visible after answer', await p.locator('.book-ui').isVisible());
   await shot(p, 'desktop-3-answer');
 
+  // the graph glides to its answer layout after the book has landed: wait until the nodes stop moving
+  const nodePos = () => p.evaluate(() => [...document.querySelectorAll('.node')].map((n) => { const b = n.getBoundingClientRect(); return `${Math.round(b.x)},${Math.round(b.y)}`; }).join(' '));
+  for (let i = 0, last = ''; i < 40; i++) { const now = await nodePos(); if (now === last) break; last = now; await p.waitForTimeout(700); }
   for (const id of ['analyze', 'embed', 'vector', 'bm25', 'fuse', 'read', 'generate', 'verify']) {
     await p.click(`.node[data-node="${id}"]`, { force: true });
     await p.waitForSelector('.panel', { timeout: 5000 });
@@ -78,10 +81,17 @@ async function askAndWait(p, q = Q) {
 
   if (await p.locator('.justice-hit').isVisible()) {
     await p.click('.justice-hit', { force: true });
-    await p.waitForSelector('.panel'); await p.waitForTimeout(1800);
-    check('scales show the score', /100|moslik|javob yoʻq|yozilmadi/i.test(await p.locator('.panel').innerText()));
-    await shot(p, 'desktop-insp-scales');
+    await p.waitForTimeout(3200);
+    check('statue comes to the centre (focus mode)', await p.evaluate(() => document.body.classList.contains('is-justice')));
+    check('no 2-D scale window opens', (await p.locator('.panel').count()) === 0);
+    const hudText = await p.locator('.justice-hud').innerText();
+    check('scales caption shows the real score', /\d+\s*\/\s*100|javob yoʻq|Baholanadigan/i.test(hudText), hudText.replace(/\s+/g, ' ').slice(0, 80));
+    await shot(p, 'desktop-justice-focus');
+    await p.click('[data-action="sentences"]'); await p.waitForSelector('.panel'); await p.waitForTimeout(400);
+    check('sentence list opens from the scales', /moslik|tasdiq/i.test(await p.locator('.panel').innerText()));
     await closePanel(p);
+    await p.keyboard.press('Escape'); await p.waitForTimeout(1600);
+    check('Esc leaves focus mode', !(await p.evaluate(() => document.body.classList.contains('is-justice'))));
   } else check('statue visible', false);
 
   await p.click('[data-action="reader"]');

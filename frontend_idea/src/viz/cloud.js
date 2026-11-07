@@ -3,8 +3,8 @@
 import { mini3d, dotTexture } from './mini3d.js';
 import { h } from '../ui/dom.js';
 
-export function pcaCloud(container, data, { onPick } = {}) {
-  const v = mini3d(container, { height: 440, camera: [0, 0, 3.2] });
+export function pcaCloud(container, data, { onPick, height = 520 } = {}) {
+  const v = mini3d(container, { height, camera: [0, 0, 3.2] });
   const { THREE, scene } = v;
   const all = [data.projection.coordinates, ...data.candidates.map((c) => ({ x: c.xyz[0], y: c.xyz[1], z: c.xyz[2] })),
     ...data.reference_cloud.map((r) => ({ x: r.xyz[0], y: r.xyz[1], z: r.xyz[2] }))];

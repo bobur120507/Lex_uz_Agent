@@ -14,13 +14,13 @@ export function closePanel() {
   c.onClose?.();
 }
 
-export function openPanel({ eyebrow = '', title, icon = '', tools = [], body, narrow = false, label, onClose } = {}) {
+export function openPanel({ eyebrow = '', title, icon = '', tools = [], body, narrow = false, wide = false, label, onClose } = {}) {
   const opener = document.activeElement;
   closePanel();
   const cleanup = [];
   const closeBtn = h('button', { type: 'button', class: 'panel__close', 'aria-label': 'Yopish', onclick: () => closePanel() }, '✕');
   const titleId = `panel-${Math.random().toString(36).slice(2, 8)}`;
-  const panel = h('div', { class: `panel${narrow ? ' panel--narrow' : ''}`, role: 'dialog', 'aria-modal': 'true', 'aria-labelledby': titleId, 'aria-label': label },
+  const panel = h('div', { class: `panel${narrow ? ' panel--narrow' : ''}${wide ? ' panel--wide' : ''}`, role: 'dialog', 'aria-modal': 'true', 'aria-labelledby': titleId, 'aria-label': label },
     h('header', { class: 'panel__head' },
       icon ? h('span', { class: 'panel__icon', 'aria-hidden': 'true', html: icon }) : null,
       h('div', { class: 'panel__title' }, eyebrow ? h('div', { class: 'panel__eyebrow' }, eyebrow) : null, h('h2', { id: titleId }, title)),

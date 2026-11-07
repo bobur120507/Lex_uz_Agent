@@ -8,11 +8,11 @@ where py >nul 2>&1 && py -3 -c "import sys; sys.exit(sys.version_info < (3, 10))
 if not defined PY (
   where python >nul 2>&1 && python -c "import sys; sys.exit(sys.version_info < (3, 10))" >nul 2>&1 && set "PY=python"
 )
-if not defined PY if exist "%LOCALAPPDATA%\Programs\Python\Python312\python.exe" set "PY=%LOCALAPPDATA%\Programs\Python\Python312\python.exe"
+if not defined PY if exist "%LOCALAPPDATA%\Programs\Python\Python312\python.exe" set PY="%LOCALAPPDATA%\Programs\Python\Python312\python.exe"
 if not defined PY (
   echo Python topilmadi - Python 3.12 o'rnatilmoqda ^(winget^)...
   winget install --id Python.Python.3.12 -e --scope user --silent --accept-package-agreements --accept-source-agreements
-  if exist "%LOCALAPPDATA%\Programs\Python\Python312\python.exe" set "PY=%LOCALAPPDATA%\Programs\Python\Python312\python.exe"
+  if exist "%LOCALAPPDATA%\Programs\Python\Python312\python.exe" set PY="%LOCALAPPDATA%\Programs\Python\Python312\python.exe"
 )
 if not defined PY (
   echo.

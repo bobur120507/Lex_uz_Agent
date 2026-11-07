@@ -25,7 +25,7 @@
 | Left panel «Tadqiqot jarayoni» with 7 stages | **Removed.** The research stages live in the central graph |
 | Right panel «Javob tayyor! / Javob · Manbalar · Grafda ko‘rish» | **Removed.** The answer is written **inside the book** |
 | Central circular graph: topic/document nodes around a «Soliq majburiyati» core | **Process graph:** the **Mind** (the LLM) in the centre, the real processing stages around it |
-| Lady Justice statue: decoration | **Interactive:** clicking it opens the **answer score on the scales** |
+| Lady Justice statue: decoration | **Interactive:** clicking it brings the statue to the centre; its own 3-D scales compare the **answer score** with **Lex.uz** |
 | Book: closed decoration | **The book is the result:** it searches, opens at the found modda, shows ±5 neighbouring moddas and the answer with references |
 
 Everything else stays as in the image: header, headline, background, platform, query field, topic chips, bottom trust indicators, «Qanday ishlaydi?».
@@ -83,14 +83,23 @@ Node states: waiting (grey), running (gold/cyan pulse), done (emerald), skipped 
 5. **Unknown answer:** left page says «Lex.uz ma’lumotlari asosida ishonchli javob topilmadi.» with a next-step hint; no green state.
 6. **Accessibility:** the same pages exist as real HTML (a reader overlay «Kitobni o‘qish») for screen readers, copying and the no-WebGL mode.
 
-## 0.5 Lady Justice — the scales
+## 0.5 Lady Justice — the scales (v2.2, 2026-11-07)
 
-A golden Lady Justice holding scales stands left of the graph. Model file: `frontend_idea/public/models/lady-justice.glb` (provided by Bobur; until then a clearly simple stand-in figure is used). Hover: soft gold rim light. **Click → the scales inspector:**
+A golden Lady Justice holding scales stands left of the graph, **1.21 ×** the first version (two 10 % steps). Model file: `frontend_idea/src/assets/models/lady-justice.glb` (from Bobur's `3D_Models/Lady Justice.glb`, decimated by `scripts/optimize_model.py`, which also **splits the two scale pans into separate meshes** `pan_0` / `pan_1` so the page can move them). Hover: soft gold rim light.
 
-* Left pan **«Javob»** (the claims the LLM wrote), right pan **«Lex.uz»** (the evidence). The beam tilts by the real score: balanced at 100, tilted towards «Javob» when claims are unsupported.
-* **Score = «Manbaga moslik»** (`scoring.completed`, method `lexical-support-v1`): for every sentence the LLM wrote — is it cited, do its numbers occur in the source, what share of its content words occur in the cited source; score = mean of (overlap if supported else 0) × 100. Rejected sentences count fully against the answer.
-* A table lists each sentence with its source, ✓/✗, the reason and the matched words. The page explains in one line that this is a wording-match measure, not a legal opinion.
-* Before an answer exists the statue shows «Hali javob yo‘q».
+**Click (or «⚖ Tarozi» in the book bar) → focus mode — there is no 2-D scale:**
+
+* The camera flies smoothly (GSAP) to her **upper body** — from just under the scale pans to the top of the scales — placed in the free part of the screen (between the header and the question field), slightly left so the caption fits on the right. The graph and book controls fade out. **Esc** or «Orqaga» flies back.
+* The comparison is shown **on the statue's own scales:** on one pan a gold medallion with the **score** («97 · JAVOB /100»), on the other the **official Lex.uz logo in 3-D** (`src/assets/models/lex_uz.svg`, extruded with its own blue gradient; a PNG/JPG logo goes on a medallion; with no file a «LEX.UZ» medallion).
+* The pans move by the real score: level at 100, the «Javob» pan drops when sentences are unsupported (elastic easing).
+* **The scales burn:** each pan has a **flame-shaped glow exactly as wide as the pan** (noise-driven shader tongues rising from the dish, plus low flames in front), embers rising from the dish, an emissive dish and a flickering light — brighter in focus mode. No round halo.
+* A small caption beside the statue: «97 / 100 manbaga moslik · 2 / 2 gap Lex.uz matni bilan tasdiqlandi · so‘z mosligi 97 %», with «Gaplar» (per-sentence window: source, ✓/✗, reason, matched words) and «Orqaga (Esc)».
+* **Score = «Manbaga moslik»** (`scoring.completed`, method `lexical-support-v1`): for every sentence the LLM wrote — is it cited, do its numbers occur in the source, what share of its content words occur in the cited source; score = mean of (overlap if supported else 0) × 100. It is a wording-match measure, not a legal opinion — the «Gaplar» window says so.
+* Before an answer exists the pans are empty and dark; the caption says «Hali javob yo‘q — savol bering.»
+
+**Rendering quality.** Book pages are drawn at 2× (2048 × 2752 textures on desktop, 1.5× on tablets, 1.25× on phones) with the GPU's maximum anisotropic filtering; the canvas renders at up to 2× the screen's pixels and steps down by 0.25 when the frame rate stays under 40 fps; the answer camera looks down on the pages more steeply so the text is less foreshortened. `?quality=low` turns all of this off.
+
+**Inspector windows.** Every graph opens in a window; the graph is the main element of the window. The Mind window is wide: the 3-D layer stack fills it, facts are one row of tags (model, layers, neurons, heads, parameters, quantisation), layer navigation ‹ › / «Butun model» sits on the graph, one footnote line below.
 
 ## 0.6 Navigation
 

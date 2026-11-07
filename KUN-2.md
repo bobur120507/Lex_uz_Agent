@@ -130,3 +130,15 @@ python -m modda serve                     # FastAPI yoʻq boʻlsa — standart k
 ```
 
 Yangi sayt (v2): `cd frontend_idea && npm install && npm run dev` → http://localhost:5174 — [frontend_idea/README.md](frontend_idea/README.md).
+
+### ✅ 2-kun yopildi (6-noyabr 22:56)
+
+`snapshot-import`: **183 170** nuqta, hammasi dense, 43 s. `eval` (45 savol, k = 5):
+
+| Usul | Recall@5 | MRR | p50 |
+|---|---|---|---|
+| **Gibrid (RRF)** | **0,911** | **0,766** | 0,28 s |
+| Dense | 0,800 | 0,675 | — |
+| BM25 | 0,778 | 0,601 | — |
+
+`serve` (standart kutubxona serveri) + `npm run dev` ishladi. Logdagi `BrokenPipeError` izlari — brauzer soʻrovni bekor qilgani (sahifa yangilandi / `/health` kutish vaqti tugadi), xato emas; endi jim. `npm audit` dagi 3 ogohlantirish faqat dev-serverga tegishli — `npm audit fix --force` **qilmang** (Vite’ni yangi asosiy versiyaga koʻtaradi).

@@ -10,16 +10,30 @@ const SANS = '"Onest", "Inter", system-ui, sans-serif';
 const MONO = '"JetBrains Mono", ui-monospace, monospace';
 const INK = '#1c2621', INK_2 = '#5c645d', INK_3 = '#8a8f85', GOLD_INK = '#8a6a26', EMER = '#1d7a5a';
 
-function canvas(w, h) {
-  const c = document.createElement('canvas');
-  c.width = w; c.height = h;
-  return [c, c.getContext('2d')];
+// Page quality: pages are drawn in the same 1024 × 1376 "page units" as before, on a canvas Q times larger
+// (Q = 2 on desktop → 2048 × 2752 texture), so the text stays sharp when the book fills the screen.
+let Q = 2, ANISO = 8;
+export function setPageQuality({ scale, anisotropy } = {}) {
+  if (scale) Q = scale;
+  if (anisotropy) ANISO = anisotropy;
 }
-export function toTexture(c, { repeat = false } = {}) {
+function canvas(w, h, q = Q) {
+  const c = document.createElement('canvas');
+  c.width = Math.round(w * q); c.height = Math.round(h * q);
+  const ctx = c.getContext('2d');
+  ctx.scale(q, q);
+  ctx.imageSmoothingQuality = 'high';
+  return [c, ctx];
+}
+// Result pages are made often (every page turn, every streaming update): they are tracked and freed on the GPU
+// as soon as the book no longer shows them (Book.sweep → sweepPages).
+const LIVE = new Set();
+export function toTexture(c, { repeat = false, live = false } = {}) {
   const t = new THREE.CanvasTexture(c);
   t.colorSpace = THREE.SRGBColorSpace;
-  t.anisotropy = 8;
+  t.anisotropy = ANISO;
   if (repeat) t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  if (live) { t.userData.live = true; LIVE.add(t); }
   return t;
 }
 /** A mirrored copy for the back of a turning sheet (same canvas, no redraw). */
@@ -27,8 +41,13 @@ export function mirrored(t) {
   const m = t.clone();
   m.wrapS = THREE.RepeatWrapping; m.repeat.x = -1; m.offset.x = 1;
   m.needsUpdate = true;
+  if (t.userData.live) LIVE.add(m);
   return m;
 }
+export function sweepPages(inUse) {
+  for (const t of LIVE) if (!inUse.has(t)) { t.dispose(); LIVE.delete(t); }
+}
+export const livePages = () => LIVE.size;
 function rng(seed) {
   let s = seed >>> 0 || 1;
   return () => ((s = (s * 1664525 + 1013904223) >>> 0) / 4294967296);
@@ -117,7 +136,7 @@ export function coverTexture(onReady) {
 }
 export function clothTexture({ spine = false } = {}) {
   const w = spine ? 256 : 1024, h = 1376;
-  const [c, ctx] = canvas(w, h);
+  const [c, ctx] = canvas(w, h, Math.min(Q, 1.5));
   clothBase(ctx, w, h, spine ? 11 : 3);
   if (spine) {
     ctx.fillStyle = GOLD;
@@ -149,7 +168,7 @@ function paperBase(ctx, w, h, seed, side = 'right') {
 /** A printed-looking page without readable words (used while the pages riffle). */
 export function blankPage(seed = 1, side = 'right') {
   const { w, h } = PX;
-  const [c, ctx] = canvas(w, h);
+  const [c, ctx] = canvas(w, h, 1);                 // only seen while pages fly: 12 of them, keep them light
   paperBase(ctx, w, h, seed, side);
   const rand = rng(seed * 31);
   ctx.fillStyle = 'rgba(40,40,36,0.28)';
@@ -301,7 +320,7 @@ export function answerPage(data) {
   }
   ctx.fillStyle = INK_3; ctx.font = `italic 400 22px ${SERIF}`;
   ctx.fillText(DISCLAIMER, L, h - 64);
-  return { texture: toTexture(c), hits };
+  return { texture: toTexture(c, { live: true }), hits };
 }
 
 // ---------------------------------------------------------------- the source page (right)
@@ -386,7 +405,7 @@ export function sourcePage(src, { n = null, quote = '', total = 0 } = {}) {
   ctx.fillStyle = INK_3; ctx.font = `400 20px ${MONO}`;
   const url = doc.url ? doc.url.replace(/^https?:\/\//, '') : 'lex.uz';
   ctx.fillText(ellipsize(ctx, `${url}${doc.version_date ? ` · ${doc.version_date}` : ''}`, maxW), L, h - 64);
-  return { texture: toTexture(c), hits };
+  return { texture: toTexture(c, { live: true }), hits };
 }
 
 /** Interim left page while the book has found candidates but the answer is not written yet. */
@@ -405,7 +424,7 @@ export function foundPage({ documents = 0, chunks = 0, first = null }) {
   }
   ctx.fillStyle = INK_3; ctx.font = `italic 400 26px ${SERIF}`;
   ctx.fillText('Javob shu sahifada yoziladi…', L, h - 140);
-  return { texture: toTexture(c), hits: [] };
+  return { texture: toTexture(c, { live: true }), hits: [] };
 }
 
 export async function fontsReady(timeoutMs = 2500) {

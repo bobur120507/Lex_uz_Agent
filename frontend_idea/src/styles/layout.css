@@ -90,3 +90,21 @@ body.is-answer:not(.show-graph) .query-title { opacity: 0; }
 .demo-banner { position: fixed; top: calc(var(--topbar-h) - 4px); left: 50%; transform: translateX(-50%); padding: 6px 14px; border-radius: var(--r-pill);
   background: rgba(101, 216, 238, .12); border: 1px solid rgba(101, 216, 238, .45); color: var(--cyan); font-size: 12.5px; }
 body.is-demo .query-title { top: calc(var(--topbar-h) + 30px); }
+
+/* ------------------------------------------------------------------ Lady Justice in focus */
+.justice-hud { position: fixed; z-index: 6; right: clamp(16px, 6vw, 110px); top: 50%; transform: translateY(-50%); width: min(340px, calc(100vw - 32px));
+  padding: 18px 20px; border-radius: var(--r-3); background: rgba(10, 16, 14, .78); border: 1px solid rgba(214, 182, 109, .35); backdrop-filter: blur(8px);
+  box-shadow: var(--shadow), 0 0 40px rgba(214, 182, 109, .12); animation: fade var(--t-med) var(--ease); }
+.justice-hud p { margin: 0; }
+.justice-hud__eyebrow { font: 500 10.5px/1.3 var(--font-mono); letter-spacing: .14em; text-transform: uppercase; color: var(--gold); }
+.justice-hud__score { margin-top: 8px !important; display: flex; align-items: baseline; gap: 10px; }
+.justice-hud__score b { font: 500 56px/1 var(--font-serif); color: var(--gold); text-shadow: 0 0 24px rgba(214, 182, 109, .45); }
+.justice-hud__score span { color: var(--text-2); font-size: 13px; }
+.justice-hud__line { margin-top: 8px !important; color: var(--text); font-size: 14px; line-height: 1.45; }
+.justice-hud__btns { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
+body.is-justice .graph, body.is-justice .book-ui, body.is-justice .query-title, body.is-justice .hero, body.is-justice .justice-hit { opacity: 0; pointer-events: none; }
+.graph, .book-ui, .justice-hit { transition: opacity var(--t-med); }
+@media (max-width: 767px) {
+  .justice-hud { top: auto; bottom: calc(var(--dock-h) + 8px); right: 12px; transform: none; padding: 14px 16px; }
+  .justice-hud__score b { font-size: 42px; }
+}

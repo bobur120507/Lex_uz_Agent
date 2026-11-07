@@ -37,7 +37,7 @@ export async function request(path, { method = 'GET', body, signal, timeout = 20
 export const getJSON = async (path, opts) => (await request(path, opts)).json();
 
 export const api = {
-  health: (opts) => getJSON('/health', { timeout: 8000, ...opts }),
+  health: (opts) => getJSON('/health', { timeout: 15000, ...opts }),
   modelInfo: (opts) => getJSON('/model/info', opts),
   embedding: (rid, opts) => getJSON(`/ask/${encodeURIComponent(rid)}/embedding`, { timeout: 60000, ...opts }),
   trace: (rid, opts) => getJSON(`/ask/${encodeURIComponent(rid)}/trace`, opts),

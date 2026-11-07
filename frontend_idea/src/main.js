@@ -7,11 +7,11 @@ import { createStore } from './core/store.js';
 import { initial, reduce, activeStage, orderedSources } from './core/research.js';
 import { createBackend } from './api/backend.js';
 import { drawBackdrop } from './scene/backdrop.js';
-import { answerPage, sourcePage, foundPage, coverTexture, fontsReady } from './scene/pages.js';
+import { answerPage, sourcePage, foundPage, coverTexture, fontsReady, setPageQuality } from './scene/pages.js';
 import { GraphNodes } from './ui/nodes.js';
 import { openStage } from './ui/inspectors.js';
 import { openMind } from './ui/mind.js';
-import { openScales } from './ui/scales.js';
+import { openSentences, scoreSummary } from './ui/scales.js';
 import { openReader } from './ui/reader.js';
 import { openDocuments } from './ui/documents.js';
 import { openHelp } from './ui/help.js';
@@ -50,7 +50,7 @@ const ctx = {
   get backend() { return backend; },
   context,
   openMind: (which) => openMind(ctx, which),
-  openScales: () => openScales(ctx),
+  openScales: () => focusJustice(),
   openStage: (id) => openStage(id, ctx),
   showSource: (cid) => showSource(cid),
   openArticleInBook: (aid) => openArticleInBook(aid),
@@ -211,6 +211,7 @@ function finishAnswer(id) {
   setBusy(false);
   sourceIndex = 1;
   justice?.setScore(st.score?.score ?? null);
+  updateHud();
   const srcs = orderedSources(st.answer);
   say(st.phase === 'unknown' ? 'Ishonchli javob topilmadi' : `Javob tayyor: ${srcs.length} ta manba. Javob kitobda.`);
   if (!book) { openReader(ctx, 1); return; }
@@ -239,6 +240,7 @@ async function ask(question) {
   const q = String(question || '').trim();
   if (q.length < 2) { textarea.focus(); toast('Savol kamida 2 belgidan iborat boʻlsin.', { tone: 'warn' }); return; }
   if (form.classList.contains('is-busy')) return;
+  unfocusJustice();
   ctl?.abort();
   ctl = new AbortController();
   const id = ++runId;
@@ -271,7 +273,43 @@ async function ask(question) {
   }
 }
 
+// ------------------------------------------------------------------ Lady Justice in focus (her scales show the score)
+const hud = $('.justice-hud');
+let beforeFocus = null;
+function updateHud() {
+  const s = scoreSummary(store.get());
+  hud.querySelector('.justice-hud__score b').textContent = s.score == null ? '—' : String(Math.round(s.score));
+  hud.querySelector('.justice-hud__line').textContent = s.line;
+  hud.querySelector('[data-action="sentences"]').disabled = s.score == null;
+}
+function focusJustice() {
+  if (!stage || !justice) { openSentences(ctx); return; }          // no 3-D: the sentence list only
+  closePanel();
+  if (!body.classList.contains('is-justice')) beforeFocus = stage.shotName === 'custom' ? 'idle' : stage.shotName;
+  body.classList.add('is-justice');
+  justice.group.visible = true;
+  justice.setFocus(true);
+  graph.group.visible = false;                                      // nothing in front of / around her
+  const s = justice.focusShot(stage.layoutKind);
+  stage.flyTo(s.pos, s.look, 1.5);
+  updateHud();
+  hud.hidden = false;
+  say(`Adolat tarozisi. ${hud.querySelector('.justice-hud__line').textContent}`);
+  setTimeout(() => hud.querySelector('[data-action="unfocus"]').focus({ preventScroll: true }), 50);
+}
+function unfocusJustice() {
+  if (!body.classList.contains('is-justice')) return;
+  body.classList.remove('is-justice');
+  hud.hidden = true;
+  justice.setFocus(false);
+  graph.group.visible = true;
+  justice.group.visible = statueShown();
+  stage.setShot(beforeFocus || 'idle', 1.3);
+  $('.justice-hit').focus?.({ preventScroll: true });
+}
+
 function home() {
+  unfocusJustice();
   ctl?.abort();
   runId++;
   closePanel();
@@ -356,7 +394,9 @@ document.addEventListener('click', (e) => {
     case 'documents': setNav('documents'); openDocuments(ctx); break;
     case 'help': openHelp(); break;
     case 'status': openStatus(); break;
-    case 'scales': openScales(ctx); break;
+    case 'scales': focusJustice(); break;
+    case 'unfocus': unfocusJustice(); break;
+    case 'sentences': openSentences(ctx); break;
     case 'page-prev': goToSource(sourceIndex - 1); break;
     case 'page-next': goToSource(sourceIndex + 1); break;
     case 'reader': backToBook(); openReader(ctx, sourceIndex); break;
@@ -365,6 +405,7 @@ document.addEventListener('click', (e) => {
   }
 });
 document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && !isOpen() && body.classList.contains('is-justice')) { unfocusJustice(); return; }
   if (isOpen() || e.target.closest('textarea, input, select')) return;
   if (!['done', 'unknown'].includes(store.get().phase)) return;
   if (e.key === 'ArrowRight') goToSource(sourceIndex + 1);
@@ -374,7 +415,7 @@ document.addEventListener('keydown', (e) => {
 // ------------------------------------------------------------------ scene
 // graph size/position per screen and mode: smaller and higher while the answer is read in the book
 const GRAPH = {
-  desktop: { shape: [1.85, 0.56], normal: { scale: 1, cy: 1.75 }, answer: { scale: 0.8, cy: 1.9 } },
+  desktop: { shape: [1.85, 0.56], normal: { scale: 1, cy: 1.75 }, answer: { scale: 0.72, cy: 1.5 } },
   tablet: { shape: [1.85, 0.75], normal: { scale: 0.75, cy: 2.3 }, answer: { scale: 0.6, cy: 2.3 } },
   mobile: { shape: [1.85, 1.3], normal: { scale: 0.62, cy: 2.45 }, answer: { scale: 0.5, cy: 2.75 } },
 };
@@ -391,16 +432,23 @@ function layoutGraph(duration = 1.1) {
 function setupScene({ Stage, Book, Graph, Justice }) {
   const canvas = $('#scene');
   stage = new Stage(canvas, { reducedMotion: REDUCED });
+  {                                                                   // page texture sharpness (before the book is made)
+    const caps = stage.renderer.capabilities, w = window.innerWidth;
+    const scale = /[?&]quality=low/.test(location.search) ? 1 : w < 768 ? 1.25 : w < 1100 ? 1.5 : caps.maxTextureSize >= 4096 ? 2 : 1.5;
+    setPageQuality({ scale, anisotropy: Math.min(16, caps.getMaxAnisotropy()) });
+  }
   book = new Book(stage.scene, { reducedMotion: REDUCED, envMap: stage.env });
   graph = new Graph(stage.scene, { reducedMotion: REDUCED });
   justice = new Justice(stage.scene, { envMap: stage.env, reducedMotion: REDUCED });
+  justice.camera = stage.camera;
   const pos = {}, tmp = { x: 0, y: 0, visible: false };
   const hit = $('.justice-hit');
   const ids = ['mind', ...STAGES.map((s) => s.id)];
   stage.onResize = () => {
     layoutGraph(0);
-    justice.group.visible = statueShown();
-    body.classList.toggle('no-statue', !justice.group.visible);
+    justice.group.visible = statueShown() || body.classList.contains('is-justice');
+    body.classList.toggle('no-statue', !statueShown());
+    if (body.classList.contains('is-justice')) { const s = justice.focusShot(stage.layoutKind); stage.flyTo(s.pos, s.look, 0.3); }
     drawBackdrop($('#backdrop'));
   };
   stage.onResize();
@@ -408,7 +456,7 @@ function setupScene({ Stage, Book, Graph, Justice }) {
     book.update(dt); graph.update(dt); justice.update(dt, t);
     for (const id of ids) { const p = stage.project(graph.anchor(id), tmp); pos[id] = { x: p.x, y: p.y }; }
     nodes.position(pos);
-    if (justice.group.visible) {
+    if (justice.group.visible && !body.classList.contains('is-justice')) {
       const b = justice.screenBox(stage);
       hit.style.width = `${b.w}px`; hit.style.height = `${b.h}px`;
       hit.style.setProperty('--x', `${(b.x - b.w / 2).toFixed(1)}px`); hit.style.setProperty('--y', `${b.y.toFixed(1)}px`);

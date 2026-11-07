@@ -3,10 +3,10 @@
 // layer feeds the next — a diagram of the structure, not measured activations (Ollama does not expose them).
 import { mini3d, dotTexture } from './mini3d.js';
 
-export function layerStack(container, card, { tokens = null, onLayer } = {}) {
+export function layerStack(container, card, { tokens = null, onLayer, height = 460 } = {}) {
   const L = card.layers;
   const gap = 0.28, depth = (L - 1) * gap;
-  const v = mini3d(container, { height: 460, camera: [5.2, 2.6, depth / 2 + 5.6], target: [0, 0, depth / 2] });
+  const v = mini3d(container, { height, camera: [6.4, 3.2, depth / 2 + 6.8], target: [0, 0, depth / 2] });
   const { THREE, scene } = v;
   const tex = dotTexture();
   const cols = 8, rows = 6;                                          // sample shown per layer (48 dots)
@@ -42,7 +42,7 @@ export function layerStack(container, card, { tokens = null, onLayer } = {}) {
   out.position.set(0, 0, depth + 0.6); out.scale.set(0.32, 0.32, 1); scene.add(out);
 
   let sel = -1;
-  const select = (i) => {
+  const select = (i, fly = true) => {
     sel = Math.max(0, Math.min(L - 1, i));
     plates.forEach((p, k) => {
       const on = k === sel;
@@ -51,7 +51,7 @@ export function layerStack(container, card, { tokens = null, onLayer } = {}) {
       p.edge.material.color.set(on ? '#d6b66d' : '#65d8ee');
       p.pts.material.opacity = on ? 1 : 0.55;
     });
-    v.fly([3.4, 1.4, sel * gap + 2.6], [0, 0, sel * gap]);
+    if (fly) v.fly([3.4, 1.4, sel * gap + 2.6], [0, 0, sel * gap]);
     onLayer?.(sel);
   };
   v.el.addEventListener('click', (e) => { const hit = v.pick(e, plates.map((p) => p.plate)); if (hit) select(hit.object.userData.layer); });

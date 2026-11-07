@@ -13,7 +13,7 @@ from collections import OrderedDict
 
 from . import library, modelinfo, projection
 from .config import ROOT, get_settings
-from .corpus import connect, stats
+from .corpus import connect
 from .llm import Ollama
 from .pipeline import ask, snapshot_date
 from .store import QdrantStore
@@ -111,15 +111,27 @@ def run(question: str, emit=None) -> dict:
         con.close()
 
 
-def health() -> dict:
+HEALTH_TTL = 120          # seconds: the page polls /health; counting 183 k rows every time is wasteful
+
+
+def _counts() -> dict:
+    hit = _cache.get("counts")
+    if hit and time.time() - hit[0] < HEALTH_TTL:
+        return hit[1]
     con = _con()
     try:
-        st = stats(con)
-        out = {"ok": True, "checked_at": _checked_at(con), "articles": st["articles"], "chunks": st["chunks"],
-               "dense_indexed": st["chunks_indexed"], "sparse_only": st.get("chunks_sparse_only", 0),
-               "llm": S.llm_model, "embed": S.embed_model, "reranker": _reranker is not None}
+        one = lambda sql: con.execute(sql).fetchone()[0]
+        c = {"articles": one("SELECT COUNT(*) FROM articles"), "chunks": one("SELECT COUNT(*) FROM chunks"),
+             "dense_indexed": one("SELECT COUNT(*) FROM chunks WHERE indexed = 1"),
+             "sparse_only": one("SELECT COUNT(*) FROM chunks WHERE indexed = 2"), "checked_at": _checked_at(con)}
     finally:
         con.close()
+    _cache["counts"] = (time.time(), c)
+    return c
+
+
+def health() -> dict:
+    out = {"ok": True, **_counts(), "llm": S.llm_model, "embed": S.embed_model, "reranker": _reranker is not None}
     services = {}
     try:
         services["ollama"] = {"ok": True, "version": Ollama(S.ollama_url, timeout=3).version()}

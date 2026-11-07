@@ -12,7 +12,7 @@ Tushunchalar va vositalar jamoa uchun [I_EXPLAIN.md](I_EXPLAIN.md) da tushuntiri
 
 > Har bir qadam tugaganda shu roʻyxat yangilanadi. Belgilar: ✅ bajarildi · 🔄 jarayonda · ⏸️ toʻxtatilgan · ↪️ boshqa yoʻl bilan · ❌ toʻsiq · ⬜ hali boshlanmagan. Batafsil buyruqlar — [KUN-1.md](KUN-1.md).
 >
-> **Oxirgi yangilanish:** 2026-11-06 21:30 (3-kun). **Yangi frontend v2 qurildi** (`frontend_idea/`): Mind atrofida 8 bosqichli jonli graf, javob kitob ichida ±5 modda bilan, Adolat haykali tarozisi — backend’ga 7 ta yangi maʼlumot manbasi qoʻshildi (13-boʻlim). **2-kun yopilishiga bitta narsa qoldi:** Qdrant ishlamayotgan edi → `docker start` qilib `snapshot-import`, `eval` ([KUN-2.md](KUN-2.md), 8-boʻlim). `ingest`, `fix-numbers` (1 540 ta 195¹) va `rss` (118 ta) bajarildi.
+> **Oxirgi yangilanish:** 2026-11-07 (3-kun). **Loyiha GPU noutbukka koʻchiriladi** (RTX 4060 8 GB, 16 GB RAM, Windows): bitta skript `scripts\setup_server.bat` hammasini oʻrnatadi va Bobur’dagi holatga keltiradi — [SERVER-NOUTBUK.md](SERVER-NOUTBUK.md). **Frontend v2.2:** haykal yana 10 % kattaroq; bosilsa — **yuqori qismi** yaqindan; pallalarda **olov shaklidagi nur** (palla kengligida) va uchqunlar; Lex.uz pallasida **rasmiy logotip 3D**; kitob sahifalari **2× aniqroq** (2048 × 2752), ekran piksellari 2× gacha, kamera sahifalarga tikroq. **2-kun yopilgan:** gibrid Recall@5 0,911 · MRR 0,766. **Keyingisi:** noutbukda `setup_server.bat` → `bakeoff` → 6 demo savol.
 
 ### 1-kun — uzoq ishlar va asos
 
@@ -33,7 +33,7 @@ Tushunchalar va vositalar jamoa uchun [I_EXPLAIN.md](I_EXPLAIN.md) da tushuntiri
 | ✅ | Qolgan qadamlar bitta skriptda: `bash scripts/finish_day1.sh --full` | qisman indeksda `eval`/`bakeoff` faqat indekslangan savollarni hisoblaydi (26 test) |
 | ✅ | `bench-embed`: **0,22 boʻlak/s** (CPU) → MVP ≈ 15 soat (bench), amalda 0,5 boʻlak/s ≈ 4,5 soat; butun korpus ≈ 233 soat | rejani oʻzgartirdi (2-kun) |
 | ↪️ | MVP qismini indekslash (`index --mvp`, 12 269 boʻlak) | 4 896 tasi CPU’da qilindi, keyin toʻxtatildi; **hammasi GPU snapshot’ida bor** |
-| ⬜ | Birinchi savol (`ask`) | `snapshot-import` dan keyin (2-kun yakuni) |
+| ✅ | Birinchi savol (`ask`) | 6-noyabr: sayt orqali `/ask/stream` → 200 (API logi) |
 | ⬜ | Modellarni solishtirish (`bakeoff`, 20 savol) → LLM tanlash | CPU’da juda sekin → **GPU kompyuterda** qilish taklif etiladi (3-kun boʻlimi) |
 | ⬜ | 3D kitob kadr/s — oʻz kompyuterda ≥ 45 | `cd web && npm run dev` → `?debug` |
 | ✅ | Tungi indekslash | oʻrniga GPU kompyuterda toʻliq indeks yasaldi (2-kun boʻlimi) |
@@ -53,9 +53,9 @@ Tushunchalar va vositalar jamoa uchun [I_EXPLAIN.md](I_EXPLAIN.md) da tushuntiri
 | ✅ | **Toʻliq dense indeks — jamoadoshning GPU’sida** (`setup_windows.bat`, 2026-11-05 06:37) | **183 170 / 183 170** boʻlak bge-m3 + BM25 (`sparse_only` = 0), Qdrant’da 183 170 nuqta; kod `8248011`, korpus `c69bbd5`, BM25 oʻrtacha uzunlik 303,0 |
 | ✅ | Snapshot Bobur’ga keldi va tekshirildi | `~/Downloads/modda-20261105-0637.snapshot` (1,98 GB) + `.manifest.json.gz` (0,4 MB): takror va ziddiyatli ID yoʻq |
 | ✅ | `ingest` + `fix-numbers` PostgreSQL’da (195¹ raqamlari) | 6-noyabr: 54 173 qator; **1 540** ta yuqori indeksli raqam tiklandi (961 hujjat) |
-| ❌→⬜ | **`snapshot-import`** → `stats`: `chunks_indexed` = 183 170 | 6-noyabr: «Connection refused :6333» — **Qdrant konteyneri ishlamayotgan edi**. `docker start <qdrant>` → qayta import. (`chunk --rebuild` ham qilingan — zarari yoʻq, ID’lar bir xil) |
+| ✅ | **`snapshot-import`** → `stats`: `chunks_indexed` = 183 170 | 6-noyabr 22:50: Qdrant qayta ishga tushirilgach import — **183 170 nuqta, hammasi dense, 43 s** |
 | ✅ | Gibrid qidiruv + RRF — `ask` da standart | |
-| ⬜ | Gibrid / dense / BM25 ni oltin toʻplamda solishtirish (`eval`) — **toʻliq indeksda, 45 savolning hammasi** | natijani shu jadvalga yozamiz: Recall@5, MRR, kechikish |
+| ✅ | Gibrid / dense / BM25 ni oltin toʻplamda solishtirish (`eval`) — **toʻliq indeksda, 45 savolning hammasi** | quyidagi jadval — **gibrid standart qoladi** |
 | ✅ | Reranker moduli (CrossEncoder, ixtiyoriy) | CPU’da sekin — `eval` natijasiga qarab yoqiladi |
 | ✅ | Savol marshrutizatori: «MK 131-modda», «195¹-modda», kirill | |
 | ✅ | **Yuqori indeksli raqamlar** (1951 → 195¹): tiklash qoidasi | 10 sahifada 4 028/4 028 toʻgʻri; `ingest` + `fix-numbers` ni ishga tushirish kerak |
@@ -64,13 +64,23 @@ Tushunchalar va vositalar jamoa uchun [I_EXPLAIN.md](I_EXPLAIN.md) da tushuntiri
 | ✅ | RSS’ni ishga tushirish | 6-noyabr: 118 ta yozuv |
 | ✅ | Oltin toʻplam → 60 savol | 1-kunda |
 | ✅ | FastAPI: `/health`, `/ask`, `/ask/stream` (§12.4 hodisalari) | 3-kundan oldinga surildi |
-| ✅ | `serve` FastAPI’siz ham ishlaydi (standart kutubxona serveri, xuddi shu API) | 6-noyabr: `uv pip install ".[api]"` internet sekinligidan uzildi — endi shart emas |
+| ✅ | `serve` FastAPI’siz ham ishlaydi (standart kutubxona serveri, xuddi shu API) | 6-noyabr: `uv pip install ".[api]"` internet sekinligidan uzildi — endi shart emas. Brauzer soʻrovni bekor qilganda chiqqan `BrokenPipeError` izlari jim qilindi; `/health` sonlari 2 daqiqa keshlanadi (avval har soʻrovda 183 ming qator sanalardi) |
 | ✅ | 3D kitob yangi hodisalarni oʻqiydi (`api.js`) | |
-| ⬜ | Saytda birinchi haqiqiy javob (`serve` + `npm run dev`) | 2-kun yakunlash mezoni |
+| ✅ | Saytda birinchi haqiqiy javob (`serve` + `npm run dev`) | 6-noyabr: `serve` (standart kutubxona serveri) + Vite 5174; javob mazmuni 6 demo savolda tekshiriladi (3-kun) |
 | ✅ | Raqam tekshiruvchi (javobdagi har bir son manbada boʻlishi shart) | 3-kundagi toʻliq tekshiruvchining birinchi qismi |
 | ⬜ | 3D: xatchoʻplar sahifa chetida (hozir HTML yorliqlar) | eski `web/` uchun; yangi frontend’da kerak emas → kesildi |
 
-> **2-kun qachon yopiladi:** `snapshot-import` muvaffaqiyatli, `eval` natijasi yozilgan, saytda kamida bitta haqiqiy manbali javob chiqqan. Kodning hammasi tayyor — qolgani faqat buyruqlarni ishga tushirish.
+**`eval` natijasi (toʻliq indeks, 183 170 boʻlak, 45 savol, k = 5, CPU):**
+
+| Usul | Recall@5 | MRR | p50 kechikish |
+|---|---|---|---|
+| **Gibrid (RRF)** | **0,911** | **0,766** | 0,28 s |
+| Dense (bge-m3) | 0,800 | 0,675 | — |
+| BM25 | 0,778 | 0,601 | — |
+
+Gibrid har ikkalasidan yaxshi → standart sifatida qoladi; reranker hozircha oʻchiq (CPU’da sekin, Recall allaqachon 0,91).
+
+> **2-kun yopildi (6-noyabr 22:56):** `snapshot-import` muvaffaqiyatli, `eval` natijasi yozildi, sayt haqiqiy backend bilan javob berdi.
 >
 > **Zaxira yoʻl (barmoq izi mos kelmasa):** `python -m modda chunk --rebuild`, keyin yana `snapshot-import`. Jamoadoshning korpusi va kodi bilan bir xil boʻlaklar hosil boʻladi.
 
@@ -82,10 +92,12 @@ Tushunchalar va vositalar jamoa uchun [I_EXPLAIN.md](I_EXPLAIN.md) da tushuntiri
 | 🔄 | Iqtibos tekshiruvchi (raqamlar qismi tayyor) |
 | ⬜ | τ kalibrlash |
 | ✅ | `POST /ask/stream` (SSE) — 12.4 dagi hodisalar shartnomasi (2-kunda) |
-| 🔄 | Saytni haqiqiy API’ga ulash (`python -m modda serve` + `npm run dev`) |
+| ✅ | Saytni haqiqiy API’ga ulash (`python -m modda serve` + `npm run dev`) — 6-noyabr ishladi |
 | ⬜ | RSS delta + «oʻzgargan boʻlishi mumkin» belgisi |
-| ⬜ | **LLM tanlash — GPU kompyuterda** `bakeoff` (`qwen3:8b`, `gemma4:e4b`, Llama-3.1-8B-Uz; 20 savol) — jamoadosh snapshot’dagi indeks bilan ishga tushiradi |
-| ⬜ | Javob vaqti: CPU’da `qwen3:8b` ≈ 1–2 daqiqa → demo uchun LLM’ni GPU kompyuterda ishlatish (`OLLAMA_URL=http://<GPU-IP>:11434`, bir xil Wi-Fi) yoki kichikroq model |
+| ✅ | **Server noutbuk uchun bitta skript** `scripts\setup_server.bat` / `setup_server.py` (19 qadam): Git, Python, Ollama + 4 model, korpus, Qdrant, ingest → 195¹ → chunk → RSS, snapshot-import (yoki GPU’da indeks), eval, Node.js, sayt build, Firewall, `start_modda.bat` / `update_modda.bat`, haqiqiy savol bilan tekshiruv; ixtiyoriy SSH (Bobur boshqarishi uchun), avto-start, reranker. Sinov muhitida (Linux, sinov LLM, haqiqiy Qdrant) index/eval/verify/status qadamlari tekshirildi; Windows’ga xos qadamlar — noutbukda |
+| ⬜ | Noutbukda `setup_server.bat` ni ishga tushirish → `server-status.json` (Bobur’dagi 54 173 / 183 170 / 0,911 bilan bir xil boʻlishi kerak) |
+| ⬜ | **LLM tanlash — GPU noutbukda** `bakeoff` (`qwen3:8b`, `gemma4:e4b`, Llama-3.1-8B-Uz; 20 savol) — modellar skript bilan yuklanadi |
+| ↪️ | Javob vaqti: CPU’da `qwen3:8b` ≈ 1–2 daqiqa → **butun loyiha GPU noutbukda ishlaydi**; Bobur saytni `http://<noutbuk-IP>:8080` orqali ochadi ([SERVER-NOUTBUK.md](SERVER-NOUTBUK.md)) |
 | ✅ | Backend: yangi frontend uchun maʼlumotlar (13.4) — Bobur 6-noyabr tasdiqladi, qilindi (44 test) |
 
 ### 4-kun — sozlash va sifat
@@ -122,6 +134,14 @@ Batafsil tekshiruv roʻyxati — [13.5](#135-tekshiruv-roʻyxati-bosqichlar-boʻ
 | ✅ | F3 — Hodisalarga ulash: `/ask/stream`, holat mashinasi (8 unit test), `/ask` zaxirasi, xato va «Bilmayman», `?demo` |
 | ✅ | F4 — Javob **kitob ichida**: chapda javob [1] [2] bilan (LLM yozayotganda jonli), oʻngda manba ±5 modda; havola → varaq; «Kitobni oʻqish», «Hujjatlar» |
 | ✅ | F5 — Inspektorlar: 1024 qiymat (issiqlik xaritasi), PCA 3D, BM25, RRF diagrammasi, LLM hisoblagichlari, tekshiruv; Mind — qatlamlar 3D; **tarozi bahosi** |
+| ✅ | **v2.1 (Bobur, 6-noyabr 22:56):** haykal **10 % kattaroq**; bosilsa kamera silliq uchib haykal **ekran markaziga** keladi (Esc — orqaga) |
+| ✅ | **2D tarozi olib tashlandi** → haykalning **oʻz 3D tarozisi**: bir pallada baho medali («97 · JAVOB»), ikkinchisida **Lex.uz belgisi**; pallalar bahoga qarab ogʻadi (`.glb` da pallalar alohida mesh qilib ajratildi) |
+| ✅ | Tarozi **yaltiraydi**: oltin emissiya, pallalar ostida halo, uchqunlar, nur manbai; markaz rejimida yorqinroq |
+| ✅ | Rasmiy Lex.uz logotipi (Bobur qoʻshdi: `src/assets/models/lex_uz.svg`) → pallada **3D logotip** (SVG’dan ekstruziya, logotipning oʻz koʻk gradienti) |
+| ✅ | **v2.2 (7-noyabr):** haykal yana **10 %** kattaroq (jami 1,21×); bosilganda kamera **yuqori qismini** (pallalardan tepagacha) ekranning boʻsh joyiga joylaydi |
+| ✅ | Tarozi nuri: dumaloq halo oʻrniga **olov tillari** (shader, shovqin bilan miltillaydi) — **eni palla bilan bir xil**; oldida past olov, tepaga uchqunlar koʻtariladi |
+| ✅ | Kitob sifati: sahifa teksturalari **2048 × 2752** (avval 1024 × 1376), anizotropiya GPU maksimumi (16), ekran piksellari **2×** gacha (FPS < 40 boʻlsa oʻzi pasaytiradi), soya xaritasi 2048; javob kamerasi tikroq — matn kamroq qisiladi; eski sahifa teksturalari GPU’dan tozalanadi (xotira oqishi yoʻq). `?quality=low` — kuchsiz kompyuter uchun |
+| ✅ | Hamma graflar oynada; **Mind oynasi**: keng oyna, 3D qatlamlar asosiy, maʼlumot — bitta qator teg + bitta izoh |
 | 🔄 | F6 — Sifat: telefon/planshet, WebGL’siz rejim, qisqartirilgan harakat, klaviatura ✅; kadr/s Bobur’ning noutbukida ⬜ |
 | ✅ | F7 — Brauzer sinovlari va vizual tanqid (Playwright, 5 oʻlcham, WebGL’siz) — sinov muhitida (haqiqiy backend kodi + Qdrant 1.20 + 10 kodeks + sinov LLM) |
 | 🔄 | F8 — Yakuniy tekshiruv: testlar ✅, README va cheklovlar ✅; `npm run build` + haqiqiy `qwen3:8b` bilan 6 demo savol — Bobur’ning kompyuterida ⬜ |
