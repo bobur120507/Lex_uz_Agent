@@ -44,8 +44,17 @@ def best_quote(sentence: str, source: str) -> str:
     return best.rstrip(".;:")
 
 
-def verify(sentence: dict, ctx_by_id: dict[str, Context]) -> tuple[bool, str]:
-    """Day-1 verifier: the sentence must cite a given source, and every number in it must occur there."""
+MIN_OVERLAP = 0.2        # share of a sentence's content words that must occur in the cited source
+
+
+def _words(text: str) -> set[str]:
+    return {t for t in tokenize(text) if len(t) >= 3 and not t.isdigit()}
+
+
+def verify(sentence: dict, ctx_by_id: dict[str, Context], min_overlap: float = MIN_OVERLAP) -> tuple[bool, str]:
+    """Citation checker: the sentence must cite a given source, every number in it must occur there, and at least
+    `min_overlap` of its content words must occur in the cited text (a sentence the source does not talk about —
+    e.g. one an injected instruction asked for — is rejected even when it carries a citation)."""
     ids = [i for i in sentence["chunk_ids"] if i in ctx_by_id]
     if not ids:
         return False, "manba koʻrsatilmagan"
@@ -53,6 +62,11 @@ def verify(sentence: dict, ctx_by_id: dict[str, Context]) -> tuple[bool, str]:
     missing = [n for n in NUM_RE.findall(sentence["text"]) if n not in NUM_RE.findall(src)]
     if missing:
         return False, f"manbada yoʻq son: {', '.join(missing)}"
+    words = _words(sentence["text"])
+    if len(words) >= 4 and min_overlap:
+        share = len(words & _words(src)) / len(words)
+        if share < min_overlap:
+            return False, f"manba matniga mos emas (soʻzlarning {share:.0%} i manbada)"
     return True, "ok"
 
 
@@ -79,6 +93,7 @@ def _stale_fields(stale_ids, m: dict) -> dict:
 
 def ask(con, store, embedder, llm, *, question: str, embed_model: str, llm_model: str, emit=None,
         k: int = 5, candidates: int = 20, reranker=None, rerank_top: int = 10, tau: float | None = None,
+        dense_tau: float | None = None,
         stale_ids: set | None = None, checked_at: str | None = None, trace: dict | None = None,
         diagnostics: bool = False) -> dict:
     """`trace` (optional dict) receives the request's raw data for the inspector endpoints (vector, ranks…);
@@ -129,6 +144,11 @@ def ask(con, store, embedder, llm, *, question: str, embed_model: str, llm_model
         for rank, h in enumerate(store.search_sparse(sq, 40), start=1):
             sparse_rank[h.chunk_id] = (rank, round(h.score, 4))
     fused = {h.chunk_id: h.score for h in hits}
+    if dense_rank:
+        dense_top = max(sc for _, sc in dense_rank.values())
+    else:
+        top1 = store.search_dense(vec, 1) if dense_tau is not None else []
+        dense_top = round(top1[0].score, 4) if top1 else None
     hits = [Hit(cid, 1.0, {}) for cid in exact] + [h for h in hits if h.chunk_id not in exact]
     ctx = fetch_contexts(con, hits[:max(n_cand, len(exact))])
     docs = {c.meta.get("doc_id") for c in ctx}
@@ -147,7 +167,7 @@ def ask(con, store, embedder, llm, *, question: str, embed_model: str, llm_model
     cands = [cand(c) for c in ctx]
     ev("retrieval.completed", {
         "documents_found": len(docs), "chunks_retrieved": len(ctx), "ms": round((time.perf_counter() - t) * 1000),
-        "fusion": "rrf", "candidates": cands,
+        "fusion": "rrf", "candidates": cands, "dense_top": dense_top,
         "dense_list": [{"chunk_id": cid, "rank": rk, "score": sc} for cid, (rk, sc) in dense_rank.items()][:20],
         "sparse_list": [{"chunk_id": cid, "rank": rk, "score": sc} for cid, (rk, sc) in sparse_rank.items()][:20],
     })
@@ -184,8 +204,13 @@ def ask(con, store, embedder, llm, *, question: str, embed_model: str, llm_model
             return finish(unknown)                         # nothing relevant enough: «Bilmayman», no LLM call
     else:
         selected = ctx[:max(k, len(exact))]
+        gate = None if dense_tau is None else {"dense_top": dense_top, "tau": dense_tau,
+                                               "passed": bool(exact) or (dense_top or 0) >= dense_tau}
         ev("ranking.completed", {"reranker": False, "selected": [c.chunk_id for c in selected],
-                                 "rejected": [c.chunk_id for c in ctx if c not in selected]})
+                                 "rejected": [c.chunk_id for c in ctx if c not in selected], "gate": gate})
+        if gate and not gate["passed"]:
+            unknown["reason"] = f"savol hech bir moddaga yaqin emas (oʻxshashlik {dense_top} < τ {dense_tau})"
+            return finish(unknown)                         # «Bilmayman» without an LLM call
     for n, c in enumerate(selected, start=1):
         c.n = n
 

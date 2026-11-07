@@ -226,6 +226,24 @@ function markedWords(text, quote) {
  * data: {question, sentences: [{text, refs: [n]}], sources: [{n, title, article_no}], unknown, streaming, note}
  * Returns {texture, hits: [{x, y, w, h, ref}]}.
  */
+/** A gold seal in the page corner: the answer's score against the Lex.uz text (clicking it shows the scales). */
+function scoreSeal(ctx, cx, cy, { score, supported, total }) {
+  const r = 70;
+  ctx.save();
+  ctx.translate(cx, cy); ctx.rotate(-0.12);
+  ctx.strokeStyle = 'rgba(150,110,30,0.85)'; ctx.lineWidth = 4;
+  ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.stroke();
+  ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(0, 0, r - 9, 0, Math.PI * 2); ctx.stroke();
+  ctx.fillStyle = 'rgba(214,168,70,0.12)'; ctx.beginPath(); ctx.arc(0, 0, r - 10, 0, Math.PI * 2); ctx.fill();
+  ctx.textAlign = 'center'; ctx.fillStyle = GOLD_INK;
+  ctx.font = `600 50px ${SERIF}`; ctx.fillText(String(Math.round(score)), 0, 14);
+  ctx.font = `600 14px ${MONO}`; ctx.fillText('⚖ / 100', 0, -30);
+  ctx.fillText('MANBAGA MOSLIK', 0, 38);
+  if (total) { ctx.font = `500 13px ${MONO}`; ctx.fillText(`${supported}/${total} gap`, 0, 56); }
+  ctx.restore();
+  return { x: cx - r, y: cy - r, w: r * 2, h: r * 2, scales: true };
+}
+
 export function answerPage(data) {
   const { w, h } = PX;
   const [c, ctx] = canvas(w, h);
@@ -237,6 +255,7 @@ export function answerPage(data) {
   ctx.fillStyle = GOLD_INK; ctx.font = `600 24px ${MONO}`;
   ctx.fillText('J A V O B', L, 118);
   ctx.fillStyle = 'rgba(138,106,38,0.5)'; ctx.fillRect(L, 134, 110, 3);
+  if (data.score != null && !data.streaming) hits.push(scoreSeal(ctx, R - 62, 112, data));
 
   let y = 196;
   if (data.question) {

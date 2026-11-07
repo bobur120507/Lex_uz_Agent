@@ -26,6 +26,7 @@ def main():
     ap.add_argument("question")
     ap.add_argument("--api", default="http://localhost:8080")
     ap.add_argument("--note", default="")
+    ap.add_argument("--out", default=str(OUT), help="where to write (default: public/demo/fixture.json)")
     a = ap.parse_args()
     api = a.api.rstrip("/")
     events, last = [], time.time()
@@ -53,9 +54,10 @@ def main():
         "events": events, "contexts": contexts, "documents": docs,
         "document_pages": {d["doc_id"]: get(f"/documents/{quote(d['doc_id'], safe='')}?limit=20") for d in docs[:3]},
     }
-    OUT.parent.mkdir(parents=True, exist_ok=True)
-    OUT.write_text(json.dumps(fx, ensure_ascii=False), encoding="utf-8")
-    print(f"{len(events)} ta hodisa → {OUT} ({OUT.stat().st_size / 1e6:.1f} MB)")
+    out = Path(a.out)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(json.dumps(fx, ensure_ascii=False), encoding="utf-8")
+    print(f"{len(events)} ta hodisa → {out} ({out.stat().st_size / 1e6:.1f} MB)")
 
 
 if __name__ == "__main__":

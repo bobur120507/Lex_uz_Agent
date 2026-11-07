@@ -221,7 +221,7 @@ export class Justice {
     // pan diameter in group units (the dish is round, so its box is the same at any turn of the group)
     for (const p of this.pans) {
       const sz = new THREE.Box3().setFromObject(p.obj).getSize(new THREE.Vector3());
-      p.d = Math.max(sz.x, sz.z) / SIZE || 0.2;
+      p.d = Math.max(sz.x, sz.z) / this.group.scale.x || 0.2;
     }
     this.placeLogo();
   }
@@ -328,12 +328,23 @@ export class Justice {
   }
 
   /** score 0…100 or null. Balanced at 100; the answer pan sinks by how much is not backed by Lex.uz. */
+  /** The verdict: when the answer's score arrives the pans swing to it, the medallion and the logo rise onto
+   *  the pans and the flames flare up, then settle — in place, without moving the camera off the book. */
   setScore(score) {
+    const fresh = score != null && this.score == null;
     this.score = score;
     this.drawScore(score);
     const target = score == null ? 0 : (100 - Math.max(0, Math.min(100, score))) / 100;
     gsap.to(this, { weigh: target, duration: this.reduced ? 0 : 2.2, ease: 'elastic.out(1, 0.45)' });
-    gsap.to(this, { shine: score == null ? 0 : 0.6, duration: 1 });
+    gsap.killTweensOf(this, 'shine');
+    if (fresh && !this.reduced) {
+      gsap.timeline().to(this, { shine: 1.25, duration: 0.5, ease: 'power2.out' }).to(this, { shine: 0.6, duration: 1.6, ease: 'power2.inOut' });
+      this.pop = 0;
+      gsap.to(this, { pop: 1, duration: 0.9, ease: 'back.out(2)' });
+    } else {
+      this.pop = 1;
+      gsap.to(this, { shine: score == null ? 0 : 0.6, duration: 1 });
+    }
     for (const it of [this.scoreItem, this.logoItem]) it.visible = score != null;
   }
 
@@ -342,8 +353,11 @@ export class Justice {
 
   /** Answer mode brings her a little closer to the book so she stays in the frame. */
   setMode(answer, duration = 1.2) {
-    const x = answer ? -2.72 : this.home.x, z = answer ? -0.75 : this.home.z;
-    gsap.to(this.group.position, { x, z, duration: this.reduced ? 0 : duration, ease: 'power2.inOut' });
+    // with the answer the camera is higher: a slightly smaller statue, a little nearer, stays whole in the frame
+    const x = answer ? -2.3 : this.home.x, z = answer ? -0.7 : this.home.z, s = SIZE * (answer ? 0.72 : 1);
+    const d = this.reduced ? 0 : duration;
+    gsap.to(this.group.position, { x, z, duration: d, ease: 'power2.inOut' });
+    gsap.to(this.group.scale, { x: s, y: s, z: s, duration: d, ease: 'power2.inOut' });
   }
 
   update(dt, t) {
@@ -369,7 +383,7 @@ export class Justice {
       const k = item.userData.k || d * 0.8;
       const lift = item.userData.aspect === 1 ? k * 0.52 : 0;            // the medallion stands on its rim, the logo on its base
       item.position.set(c.x, c.y + lift, c.z);
-      item.scale.setScalar(k);
+      item.scale.setScalar(k * (this.pop ?? 1));
       const toCam = new THREE.Vector3(camLocal.x - c.x, 0, camLocal.z - c.z).normalize();
       const facing = Math.atan2(toCam.x, toCam.z);
       item.rotation.y = facing + (this.reduced ? 0 : Math.sin(t * 0.7 + (item === this.logoItem ? 1.3 : 0)) * 0.14);   // face the viewer
@@ -423,7 +437,7 @@ export class Justice {
     const box = this.figure ? new THREE.Box3().setFromObject(this.figure) : new THREE.Box3().setFromObject(this.group);
     const top = box.max.y;
     let low = box.min.y + (top - box.min.y) * 0.45;                      // waist
-    for (const p of this.pans) low = Math.min(low, new THREE.Box3().setFromObject(p.obj).min.y - (p.d || 0.2) * SIZE * 0.35);
+    for (const p of this.pans) low = Math.min(low, new THREE.Box3().setFromObject(p.obj).min.y - (p.d || 0.2) * this.group.scale.x * 0.35);
     const span = (top - low) * 1.06;
     const mid = (top + low) / 2;
     const fov = THREE.MathUtils.degToRad(kind === 'mobile' ? 44 : 36), tan = Math.tan(fov / 2);

@@ -230,6 +230,28 @@ def cmd_eval(s, a):
     print(json.dumps(rep, ensure_ascii=False, indent=2))
 
 
+def cmd_calibrate(s, a):
+    from .calibrate import calibrate, write_env
+    from .config import ROOT
+    from .evaluation import load_golden
+    rep = calibrate(_store(s), _llm(s), s.embed_model, load_golden(s.golden_path), keep=a.keep)
+    s.reports_dir.mkdir(parents=True, exist_ok=True)
+    (s.reports_dir / "calibration.json").write_text(json.dumps(rep, ensure_ascii=False, indent=2), encoding="utf-8")
+    print(json.dumps({k: v for k, v in rep.items() if k != "rows"}, ensure_ascii=False, indent=2))
+    for r in rep["rows"]:
+        print(f"  {'+' if r['positive'] else '−'} {r['dense_top']:.3f}  {r['question'][:90]}")
+    if a.write_env:
+        p = write_env(ROOT, "DENSE_TAU", None if rep["tau"] is None else str(rep["tau"]))
+        print(f"\n{p}: DENSE_TAU={rep['tau'] if rep['tau'] is not None else '(oʻchirildi)'}")
+
+
+def cmd_report(s, a):
+    from .report import build
+    path, text = build(s.reports_dir, s.golden_path)
+    print(text)
+    print(f"\nHisobot: {path}")
+
+
 def cmd_bakeoff(s, a):
     from .evaluation import bakeoff, load_golden, only_indexed, spread
     con = _con(s)
@@ -354,6 +376,10 @@ def main(argv=None):
     x.add_argument("--modes", default="dense,sparse,hybrid"); x.set_defaults(fn=cmd_eval)
     x = sub.add_parser("bakeoff"); x.add_argument("--models", required=True, help="vergul bilan: qwen3:8b,gemma4:e4b")
     x.add_argument("--n", type=int, default=20); x.add_argument("--k", type=int, default=5); x.set_defaults(fn=cmd_bakeoff)
+    x = sub.add_parser("calibrate", help="«Bilmayman» uchun τ (savol ↔ eng yaqin modda oʻxshashligi)")
+    x.add_argument("--keep", type=float, default=0.97); x.add_argument("--write-env", action="store_true")
+    x.set_defaults(fn=cmd_calibrate)
+    sub.add_parser("report", help="toʻliq baholash hisoboti (data/reports → BAHOLASH.md)").set_defaults(fn=cmd_report)
     x = sub.add_parser("sample"); x.add_argument("--n", type=int, default=60); x.add_argument("--mvp", action="store_true")
     x.set_defaults(fn=cmd_sample)
     x = sub.add_parser("find"); x.add_argument("--title"); x.add_argument("--article"); x.set_defaults(fn=cmd_find)

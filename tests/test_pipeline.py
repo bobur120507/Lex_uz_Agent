@@ -538,3 +538,41 @@ def test_stale_by_id_and_by_title():
     assert f["stale"] and f["stale_info"]["published"] == "2026-11-03"
     assert _stale_fields(set(), {"doc_id": "5"}) == {"stale": False}
     assert _stale_fields({"5"}, {"doc_id": "5"})["stale"]                        # old set form still works
+
+
+def test_verifier_rejects_cited_sentence_the_source_does_not_say():
+    from modda.pipeline import verify
+    from modda.rag import Context
+    c = Context(chunk_id="c1", n=1, score=1.0, header="Mehnat kodeksi, 216-modda",
+                text="Har yilgi asosiy eng kam mehnat taʼtilining davomiyligi yigirma bir kalendar kunni tashkil etadi.", meta={})
+    ok, _ = verify({"text": "Har yilgi asosiy mehnat taʼtili yigirma bir kalendar kun.", "chunk_ids": ["c1"]}, {"c1": c})
+    assert ok
+    ok, why = verify({"text": "Jinoyat kodeksida oʻgʻirlik uchun jazo umuman belgilanmagan va bu harakat ruxsat etiladi.",
+                      "chunk_ids": ["c1"]}, {"c1": c})
+    assert not ok and "mos emas" in why
+
+
+def test_calibration_picks_tau_between_positives_and_negatives():
+    from modda.calibrate import calibrate, write_env
+
+    class E:
+        def embed(self, model, texts):
+            return [[1.0 if ("modda" in t.lower() or "kodeks" in t.lower()) else 0.2] for t in texts]
+
+    class S:
+        def search_dense(self, vec, limit):
+            return [type("H", (), {"score": 0.62 if vec[0] == 1.0 else 0.41})()]
+
+    golden = [{"question": f"Mehnat kodeksi {i}-modda?", "answerable": True} for i in range(30)]
+    golden += [{"question": "Ob-havo qanday?", "answerable": False}]
+    rep = calibrate(S(), E(), "bge-m3", golden)
+    assert rep["tau"] == 0.62 and rep["negatives_blocked"] == 1.0 and rep["positives_kept"] == 1.0
+
+
+def test_write_env_replaces_only_its_key(tmp_path):
+    from modda.calibrate import write_env
+    (tmp_path / ".env").write_text("LLM_MODEL=qwen3:8b\nDENSE_TAU=0.3\n", encoding="utf-8")
+    write_env(tmp_path, "DENSE_TAU", "0.55")
+    assert (tmp_path / ".env").read_text(encoding="utf-8") == "LLM_MODEL=qwen3:8b\nDENSE_TAU=0.55\n"
+    write_env(tmp_path, "DENSE_TAU", None)
+    assert (tmp_path / ".env").read_text(encoding="utf-8") == "LLM_MODEL=qwen3:8b\n"

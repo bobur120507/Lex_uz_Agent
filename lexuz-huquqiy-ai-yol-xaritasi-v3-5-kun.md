@@ -12,7 +12,7 @@ Tushunchalar va vositalar jamoa uchun [I_EXPLAIN.md](I_EXPLAIN.md) da tushuntiri
 
 > Har bir qadam tugaganda shu roʻyxat yangilanadi. Belgilar: ✅ bajarildi · 🔄 jarayonda · ⏸️ toʻxtatilgan · ↪️ boshqa yoʻl bilan · ❌ toʻsiq · ⬜ hali boshlanmagan. Batafsil buyruqlar — [KUN-1.md](KUN-1.md).
 >
-> **Oxirgi yangilanish:** 2026-11-07 13:30 (3-kun). **Noutbukda birinchi ishga tushirish tahlil qilindi** ([KUN-3.md](KUN-3.md)): eski skript ishlagan; korpus → 54 173 modda → 183 170 boʻlak → 1 540 ta 195¹ — Bobur’dagi bilan aynan bir xil ✅; lekin bge-m3 **2,6 boʻlak/s** (model GPU’ga toʻliq sigʻmagan) → indeks Bobur’ning **snapshot**’idan yuklanadi. Keyingi qadam bitta fayl: **`scripts\day3.bat`** (GPU tekshiruvi → snapshot → bakeoff → 6 demo savol → bitta hisobot). **Yangi:** RSS «oʻzgargan boʻlishi mumkin» belgisi (id + nom boʻyicha). Frontend v2.2 va `setup_server.bat` — avvalgi yangilanishda.
+> **Oxirgi yangilanish:** 2026-11-07 17:30 (3-kun). Noutbukda `day3.bat` ishlayapti (GPU tekshiruvi → snapshot → bakeoff → 6 demo). Shu vaqtda: **tarozi hukmi** javob bilan birga (haykal joyida + kitobdagi oltin muhr), **iqtibos tekshiruvchi** kuchaytirildi (soʻzlar ≥ 20 % manbada), **τ kalibrlash** (`modda calibrate`), **baholash hisoboti** (`modda report`), **`scripts\day4.bat`** (τ → eval → demo → build → zaxira fixture + video + kadr/s → hisobot), **README** va **I_EXPLAIN §0.1**. Avvalgi: RSS belgisi, frontend v2.2, `setup_server.bat`.
 
 ### 1-kun — uzoq ishlar va asos
 
@@ -88,9 +88,9 @@ Gibrid har ikkalasidan yaxshi → standart sifatida qoladi; reranker hozircha o�
 
 | Holat | Qadam |
 |---|---|
-| ⬜ | JSON strukturali chiqish |
-| 🔄 | Iqtibos tekshiruvchi (raqamlar qismi tayyor) |
-| ⬜ | τ kalibrlash |
+| ↪️ | JSON strukturali chiqish → **[n] havolali oddiy matn + dastur gaplarga ajratadi** (`rag.parse_answer`): kichik/oʻzbekcha modellar JSON’ni buzadi, havola belgilari esa barqaror; maqsad (har gap ↔ manba) shu bilan bajarildi |
+| ✅ | Iqtibos tekshiruvchi: havola + **raqamlar manbada** + **mazmunli soʻzlarning ≥ 20 % i manbada** (manba gapirmagan, lekin havolali gap — masalan injeksiya soʻragan yolgʻon — rad etiladi); test qoʻshildi |
+| 🔄 | τ kalibrlash: `python -m modda calibrate --write-env` — savol ↔ eng yaqin boʻlak kosinusi; javobi bor savollarning ≥ 97 % i oʻtadigan eng katta τ, faqat javobi yoʻqlarning ≥ 50 % ini toʻssa yoziladi (`DENSE_TAU`); aniq havola toʻsilmaydi; «Bilmayman» sahifasida sababi. Haqiqiy indeksda — `day4.bat` |
 | ✅ | `POST /ask/stream` (SSE) — 12.4 dagi hodisalar shartnomasi (2-kunda) |
 | ✅ | Saytni haqiqiy API’ga ulash (`python -m modda serve` + `npm run dev`) — 6-noyabr ishladi |
 | ✅ | RSS delta + «oʻzgargan boʻlishi mumkin» belgisi — 7-noyabr: hujjat id’si **yoki nomi** boʻyicha (tuzatish akti «Mehnat kodeksiga oʻzgartish…» → Mehnat kodeksi; kirill/lotin id farqi ham yopiladi); kitob manba sahifasida sariq lenta + «Kitobni oʻqish»da eʼlonga havola; test qoʻshildi |
@@ -105,9 +105,9 @@ Gibrid har ikkalasidan yaxshi → standart sifatida qoladi; reranker hozircha o�
 
 | Holat | Qadam |
 |---|---|
-| ⬜ | top-k, τ, prompt sozlash; kechikish |
-| 🔄 | Prompt-injection sinovlari — 6-demo savol `day3.bat` da (koʻrsatmaga boʻysunmaslik, tizim prompti chiqmasligi, yolgʻon gap tasdiqlanmasligi) |
-| ⬜ | Toʻliq baholash hisoboti |
+| 🔄 | top-k, τ, prompt sozlash; kechikish — τ `day4.bat` da; top-k = 5 (Recall@5 0,911 yetarli); kechikish `day3/day4` loglarida |
+| 🔄 | Prompt-injection sinovlari — 6-demo savol `day3/day4.bat` da; himoya: tizim prompti + kuchaytirilgan iqtibos tekshiruvchi (manba aytmagan gap oʻtmaydi) |
+| 🔄 | Toʻliq baholash hisoboti: `python -m modda report` → `data/reports/BAHOLASH.md` (qidiruv, bakeoff, τ, demo, muhit — faqat oʻlchov fayllaridan); haqiqiy raqamlar bilan — `day4.bat` |
 | 🔄 | 3D: unumdorlik, zaxira rejim, klaviatura | yangi frontend’da: WebGL’siz rejim, klaviatura, qisqartirilgan harakat tayyor; kadr/s — Bobur’ning noutbukida oʻlchanadi |
 
 ### 5-kun — muzlatish va demo
@@ -115,8 +115,8 @@ Gibrid har ikkalasidan yaxshi → standart sifatida qoladi; reranker hozircha o�
 | Holat | Qadam |
 |---|---|
 | ⬜ | Yakuniy baholash |
-| ⬜ | README, I_EXPLAIN yangilanishi |
-| ⬜ | Demo ssenariysi va mashq, zaxira video |
+| ✅ | README (yangi, ildizda), I_EXPLAIN §0.1 «Rejadan amalga» — qaysi qism qanday qurildi |
+| 🔄 | Demo ssenariysi va mashq, zaxira video — `day4.bat`: haqiqiy javob yozuvi (`fixture.json`, saytning «Namuna rejimi»), 1920×1080 video + haqiqiy kadr/s (`record_video.mjs`); zaxira yoʻl: Windows **Win+Alt+R** bilan ekran yozuvi |
 
 ### Yakuniy bosqich — yangi frontend `frontend_idea/` (12- va 13-boʻlimlar)
 
@@ -143,6 +143,7 @@ Batafsil tekshiruv roʻyxati — [13.5](#135-tekshiruv-roʻyxati-bosqichlar-boʻ
 | ✅ | Tarozi nuri: dumaloq halo oʻrniga **olov tillari** (shader, shovqin bilan miltillaydi) — **eni palla bilan bir xil**; oldida past olov, tepaga uchqunlar koʻtariladi |
 | ✅ | Kitob sifati: sahifa teksturalari **2048 × 2752** (avval 1024 × 1376), anizotropiya GPU maksimumi (16), ekran piksellari **2×** gacha (FPS < 40 boʻlsa oʻzi pasaytiradi), soya xaritasi 2048; javob kamerasi tikroq — matn kamroq qisiladi; eski sahifa teksturalari GPU’dan tozalanadi (xotira oqishi yoʻq). `?quality=low` — kuchsiz kompyuter uchun |
 | ✅ | Hamma graflar oynada; **Mind oynasi**: keng oyna, 3D qatlamlar asosiy, maʼlumot — bitta qator teg + bitta izoh |
+| ✅ | **Hukm lahzasi (7-noyabr):** javob tayyor boʻlganda kamera kitobdan ketmaydi — haykal joyida (javob rejimida toʻliq koʻrinadi) pallalarini bahoga qarab ogʻdiradi, medal va Lex.uz logotipi pallaga «otilib» chiqadi, olov bir lahza kuchayadi; haykal ostida «⚖ 97 / 100 · manbaga moslik»; **kitobning javob sahifasida oltin muhr** (baho, gaplar soni) — bosilsa tarozi markazga keladi |
 | 🔄 | F6 — Sifat: telefon/planshet, WebGL’siz rejim, qisqartirilgan harakat, klaviatura ✅; kadr/s Bobur’ning noutbukida ⬜ |
 | ✅ | F7 — Brauzer sinovlari va vizual tanqid (Playwright, 5 oʻlcham, WebGL’siz) — sinov muhitida (haqiqiy backend kodi + Qdrant 1.20 + 10 kodeks + sinov LLM) |
 | 🔄 | F8 — Yakuniy tekshiruv: testlar ✅, README va cheklovlar ✅; `npm run build` + haqiqiy `qwen3:8b` bilan 6 demo savol — Bobur’ning kompyuterida ⬜ |

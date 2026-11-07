@@ -102,9 +102,11 @@ def run(question: str, emit=None) -> dict:
     try:
         llm = Ollama(S.ollama_url)
         tau = os.environ.get("RERANK_TAU")
+        dense_tau = os.environ.get("DENSE_TAU")             # from `python -m modda calibrate --write-env`
         return ask(con, _store(), llm, llm,
                    question=question, embed_model=S.embed_model, llm_model=S.llm_model, emit=emit, k=S.top_k,
                    reranker=_get_reranker(), tau=float(tau) if tau else None,
+                   dense_tau=float(dense_tau) if dense_tau else None,
                    stale_ids=_stale(con), checked_at=_checked_at(con), trace=trace, diagnostics=True)
     finally:
         _keep_trace(trace)

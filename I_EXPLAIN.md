@@ -75,6 +75,22 @@ Asosiy farqlar oddiy chat-botdan:
 | Bilmasa ham javob beradi | Ishonch past boʻlsa yoki tekshiruvdan oʻtmasa — **«Bilmayman»** |
 | Qonun oʻzgarganini bilmaydi | Lex.uz yangiliklarini **kuzatadi**, javobda tekshirilgan sanani koʻrsatadi |
 
+### 0.1. Rejadan amalga: nima qanday qurildi (7-noyabr holati)
+
+Quyidagi boʻlimlar loyihaning **dastlabki rejasini** tushuntiradi. 5 kunlik ishda baʼzi qismlar soddaroq yoki boshqacha qurildi — kodni oʻqishda shu jadvalga qarang (paket nomi: `src/modda/`, `src/lexai/` emas).
+
+| Rejada (boʻlim) | Amalda | Fayl |
+|---|---|---|
+| Crawler + parser (§4–5) | Asosiy korpus — Hugging Face’dagi Lex.uz nusxasi (qatʼiy versiya, checksum); Lex.uz’dan faqat RSS va sinov sahifalari | `corpus.py`, `lexparse.py`, `rss.py` |
+| SQLite (§8) | SQLite (Windows) yoki PostgreSQL (Bobur’ning kompyuteri) — bir xil kod | `db.py` |
+| Gibrid qidiruv (§9–12) | bge-m3 (Ollama) + BM25, Qdrant’da RRF; toʻliq indeks 183 170 boʻlak; **Recall@5 0,911, MRR 0,766** (45 oltin savol) | `store.py`, `sparse.py`, `indexing.py` |
+| Reranker + τ (§13, §15) | Reranker ixtiyoriy (`RERANKER=on`, CPU’da sekin). «Bilmayman» uchun **τ — savol vektori bilan eng yaqin boʻlak oʻxshashligi**, oltin toʻplamda `python -m modda calibrate` bilan oʻlchanadi (`DENSE_TAU`); aniq havola («… 131-modda») hech qachon toʻsilmaydi | `calibrate.py`, `pipeline.py` |
+| LLM JSON javobi (§17.3) | LLM `[1]`, `[2]` belgili oddiy matn yozadi; dastur gaplarga ajratib, har gapni tekshiradi — kichik modellar uchun JSON’dan ishonchliroq | `rag.py` |
+| Iqtibos tekshiruvchi (§17.3) | Har gap: (1) berilgan manbaga havola, (2) undagi **raqamlar** manbada bor, (3) mazmunli soʻzlarining **≥ 20 %** i manbada bor. Oʻtmagan gap olib tashlanadi | `pipeline.verify` |
+| Yangilanish (§18) | Snapshot sanasi + RSS: manba hujjati snapshot’dan keyin RSS’da id yoki **nomi** boʻyicha uchrasa — «Lex.uz’da oʻzgargan boʻlishi mumkin» belgisi | `rss.StaleIndex` |
+| — (yangi) | **Tarozi bahosi** «manbaga moslik» (`lexical-support-v1`): javob gaplari manba matniga soʻz jihatdan qanchalik yaqin, 0–100 | `scoring.py` |
+| Veb (§21) | `frontend_idea/`: Three.js — Mind atrofidagi jarayon grafi, javob kitob ichida, Adolat haykali tarozisida baho | `frontend_idea/` |
+
 ---
 
 ## 1. Asoslar: LLM, gallyutsinatsiya va RAG

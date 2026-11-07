@@ -87,6 +87,8 @@ Node states: waiting (grey), running (gold/cyan pulse), done (emerald), skipped 
 
 A golden Lady Justice holding scales stands left of the graph, **1.21 ×** the first version (two 10 % steps). Model file: `frontend_idea/src/assets/models/lady-justice.glb` (from Bobur's `3D_Models/Lady Justice.glb`, decimated by `scripts/optimize_model.py`, which also **splits the two scale pans into separate meshes** `pan_0` / `pan_1` so the page can move them). Hover: soft gold rim light.
 
+**When the answer is ready — the verdict, without leaving the book:** the camera stays on the book (the answer is what the person came for). In answer mode the statue stands whole beside the book (a little smaller), and when `scoring.completed` arrives her pans swing to the score, the score medallion and the Lex.uz logo pop onto the pans and the flames flare up for a moment; her label reads «⚖ 97 / 100 · manbaga moslik». The answer page carries a **gold seal** in its corner with the same score and «2/2 gap»; clicking the seal (or the statue) opens the focus mode below. The book is the answer, the scales are its grade — linked, not separate.
+
 **Click (or «⚖ Tarozi» in the book bar) → focus mode — there is no 2-D scale:**
 
 * The camera flies smoothly (GSAP) to her **upper body** — from just under the scale pans to the top of the scales — placed in the free part of the screen (between the header and the question field), slightly left so the caption fits on the right. The graph and book controls fade out. **Esc** or «Orqaga» flies back.

@@ -46,3 +46,31 @@ Faqat bir qismini qayta ishga tushirish: `scripts\day3.bat --only gpu` (yoki `de
 * `scripts/day3.bat` + `day3.py` + `demo_questions.py` — yuqoridagi bitta-fayl hisobot.
 * `setup_server.py`: modellarni sinashdan oldin GPU boʻshatiladi; bge-m3 ning necha foizi GPU’da ekani koʻrsatiladi.
 * **RSS «oʻzgargan boʻlishi mumkin» belgisi:** manba hujjati Lex.uz RSS’da snapshot’dan keyin eʼlon qilingan boʻlsa (id boʻyicha yoki **nomi boʻyicha** — masalan «Mehnat kodeksiga oʻzgartish kiritish toʻgʻrisida» → Mehnat kodeksi), kitobning manba sahifasida sariq lenta: «Lex.uz’da 2026-11-03 da oʻzgargan boʻlishi mumkin — rasmiy matnni tekshiring»; «Kitobni oʻqish» oynasida havola bilan. Test: `test_stale_by_id_and_by_title`.
+
+### 17:30 gacha qoʻshilgani
+
+* **Tarozi hukmi javob bilan birga:** javob kelganda haykal joyida reaksiya qiladi (pallalar bahoga ogʻadi, medal va logotip chiqadi, olov kuchayadi), haykal ostida baho; kitobning javob sahifasida **oltin muhr** — bosilsa tarozi markazga keladi. Kitob — asosiy javob, tarozi — uning bahosi; ikkalasi bogʻlangan.
+* **Iqtibos tekshiruvchi:** havola va raqamlardan tashqari, gapning mazmunli soʻzlaridan kamida 20 % i manbada boʻlishi kerak.
+* **τ kalibrlash:** `python -m modda calibrate --write-env`; τ dan past (hech bir moddaga yaqin emas) savol — LLM’siz «Bilmayman», sababi sahifada.
+* **Baholash hisoboti:** `python -m modda report` → `data/reports/BAHOLASH.md`.
+* **README** (ildizda) va **I_EXPLAIN §0.1**.
+
+## 4. Keyingi skript: `scripts\day4.bat` (day3 logini Bobur koʻrgandan keyin)
+
+```bat
+git pull
+scripts\day4.bat                      :: yoki Bobur tanlagan LLM bilan:  scripts\day4.bat --llm gemma4:e4b
+```
+
+| Qism | Nima |
+|---|---|
+| llm | `--llm` boʻlsa `.env` dagi LLM_MODEL ni oʻzgartiradi |
+| calibrate | τ → `.env` (`DENSE_TAU`) |
+| eval | 45 oltin savol → `data\reports\eval.json` |
+| demo | 6 demo savol yangi sozlamalar bilan |
+| build | `npm run build` |
+| fixture | haqiqiy javob yozuvi → `data\reports\fixture.json` (saytning «Namuna rejimi» uchun; Bobur `frontend_idea/public/demo/` ga qoʻyadi) |
+| video | ekranda Chromium ochiladi, ≈ 2 daqiqa tegmang: 1920×1080 `.webm` + haqiqiy kadr/s (`data\reports\video\`) |
+| report | `data\reports\BAHOLASH.md` (logga ham yoziladi) |
+
+Bobur’ga yuboriladi: `data\reports\day4-<vaqt>.log`, `data\reports\fixture.json`, `data\reports\video\modda-demo-*.webm`. Video chiqmasa — **Win+Alt+R** (Windows’ning oʻz ekran yozuvi) bilan qoʻlda yozib oling.

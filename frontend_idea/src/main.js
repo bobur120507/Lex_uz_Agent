@@ -63,11 +63,13 @@ function answerData(st, { streaming = false } = {}) {
   const srcs = orderedSources(a);
   const num = new Map(srcs.map((s) => [s.chunk_id, s.n]));
   if (streaming) return { question: st.question, sentences: [{ text: st.generation.text, refs: [] }], sources: [], streaming: true };
-  if (!a || a.unknown) return { question: st.question, unknown: true };
+  if (!a || a.unknown) return { question: st.question, unknown: true,          // reason: the τ gate (no LLM call)
+    note: a?.reason ? 'Bu savol Lex.uz’dagi hech bir moddaga yetarlicha yaqin emas — qonunchilik savoliga oʻxshamaydi. Huquqiy savol boʻlsa, hujjat yoki modda nomini qoʻshing.' : undefined };
   return {
     question: st.question,
     sentences: a.answer.map((s) => ({ text: s.text, refs: [...new Set(s.chunk_ids.map((id) => num.get(id)).filter(Boolean))] })),
     sources: srcs.map((s) => ({ n: s.n, title: s.title, article_no: s.article_no })),
+    score: st.score?.score ?? null, supported: st.score?.supported, total: st.score?.total,
   };
 }
 
@@ -211,6 +213,8 @@ function finishAnswer(id) {
   setBusy(false);
   sourceIndex = 1;
   justice?.setScore(st.score?.score ?? null);
+  const tag = $('.justice-hit__tag');
+  if (tag) tag.textContent = st.score?.score != null ? `⚖ ${Math.round(st.score.score)} / 100 · manbaga moslik` : 'Adolat tarozisi';
   updateHud();
   const srcs = orderedSources(st.answer);
   say(st.phase === 'unknown' ? 'Ishonchli javob topilmadi' : `Javob tayyor: ${srcs.length} ta manba. Javob kitobda.`);
@@ -256,6 +260,7 @@ async function ask(question) {
   $('.query-title').hidden = false;
   setBusy(true);
   justice?.setScore(null);
+  { const tag = $('.justice-hit__tag'); if (tag) tag.textContent = 'Adolat tarozisi'; }
   if (book) {
     stage.setShot('research', 1.1);
     queueBook(async () => { if (book.isOpen && book.nLeft > 3) await book.close(); book.beginSearch(); });
@@ -320,6 +325,7 @@ function home() {
   bookUI.hidden = true;
   body.classList.remove('is-reading');
   justice?.setScore(null);
+  { const tag = $('.justice-hit__tag'); if (tag) tag.textContent = 'Adolat tarozisi'; }
   if (book) { stage.setShot('idle', 1.1); queueBook(() => book.close()); }
   textarea.value = ''; autosize();
   setNav('home');
@@ -475,7 +481,8 @@ function setupScene({ Stage, Book, Graph, Justice }) {
   canvas.addEventListener('click', (e) => {
     const p = pickAt(e);
     if (!p) return;
-    if (p.hit?.ref) goToSource(p.hit.ref);
+    if (p.hit?.scales) ctx.openScales();                               // the seal on the answer page → the statue
+    else if (p.hit?.ref) goToSource(p.hit.ref);
     else if (p.hit?.target || (p.side === 'right' && !p.hit && orderedSources(store.get().answer).length)) openReader(ctx, sourceIndex);
     else if (p.hit?.article) openArticleInBook(p.hit.article);
     else if (p.side === 'left' && store.get().answer) openReader(ctx, sourceIndex);
