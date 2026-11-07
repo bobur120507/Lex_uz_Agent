@@ -27,7 +27,7 @@ const bookUI = $('.book-ui'), where = $('.book-ui__where');
 const store = createStore(initial());
 const contexts = new Map();                           // chunk_id → Promise of /chunks/{id}/context
 
-let backend, stage = null, book = null, graph = null, justice = null, nodes;
+let backend, stage = null, book = null, graph = null, justice = null, gavel = null, nodes;
 let ctl = null, runId = 0, bookQueue = Promise.resolve(), sourceIndex = 1, streamTimer = 0;
 
 // ------------------------------------------------------------------ helpers
@@ -212,6 +212,7 @@ function finishAnswer(id) {
   const st = store.get();
   setBusy(false);
   sourceIndex = 1;
+  if (st.score?.score != null && justice && justice.score == null) gavel?.strike();   // the verdict: the gavel falls
   justice?.setScore(st.score?.score ?? null);
   const tag = $('.justice-hit__tag');
   if (tag) tag.textContent = st.score?.score != null ? `⚖ ${Math.round(st.score.score)} / 100 · manbaga moslik` : 'Adolat tarozisi';
@@ -433,9 +434,10 @@ function layoutGraph(duration = 1.1) {
   graph.setShape(...g.shape);
   graph.setLayout({ ...g[answer ? 'answer' : 'normal'], duration });
   justice?.setMode(answer, duration);
+  gavel?.setMode(answer, duration);
 }
 
-function setupScene({ Stage, Book, Graph, Justice }) {
+function setupScene({ Stage, Book, Graph, Justice, Gavel }) {
   const canvas = $('#scene');
   stage = new Stage(canvas, { reducedMotion: REDUCED });
   {                                                                   // page texture sharpness (before the book is made)
@@ -447,19 +449,21 @@ function setupScene({ Stage, Book, Graph, Justice }) {
   graph = new Graph(stage.scene, { reducedMotion: REDUCED });
   justice = new Justice(stage.scene, { envMap: stage.env, reducedMotion: REDUCED });
   justice.camera = stage.camera;
+  gavel = new Gavel(stage.scene, { envMap: stage.env, reducedMotion: REDUCED });
   const pos = {}, tmp = { x: 0, y: 0, visible: false };
   const hit = $('.justice-hit');
   const ids = ['mind', ...STAGES.map((s) => s.id)];
   stage.onResize = () => {
     layoutGraph(0);
     justice.group.visible = statueShown() || body.classList.contains('is-justice');
+    gavel.group.visible = statueShown();
     body.classList.toggle('no-statue', !statueShown());
     if (body.classList.contains('is-justice')) { const s = justice.focusShot(stage.layoutKind); stage.flyTo(s.pos, s.look, 0.3); }
     drawBackdrop($('#backdrop'));
   };
   stage.onResize();
   stage.onFrame.push((dt, t) => {
-    book.update(dt); graph.update(dt); justice.update(dt, t);
+    book.update(dt); graph.update(dt); justice.update(dt, t); gavel.update(dt, t);
     for (const id of ids) { const p = stage.project(graph.anchor(id), tmp); pos[id] = { x: p.x, y: p.y }; }
     nodes.position(pos);
     if (justice.group.visible && !body.classList.contains('is-justice')) {
@@ -477,9 +481,13 @@ function setupScene({ Stage, Book, Graph, Justice }) {
     ray.setFromCamera(m, stage.camera);
     return book.pick(ray);
   };
-  canvas.addEventListener('pointermove', (e) => { const p = pickAt(e); canvas.style.cursor = p?.hit ? 'pointer' : ''; });
+  canvas.addEventListener('pointermove', (e) => {
+    const p = pickAt(e);
+    canvas.style.cursor = p?.hit || gavel.pick(ray) ? 'pointer' : '';
+  });
   canvas.addEventListener('click', (e) => {
     const p = pickAt(e);
+    if (!p?.hit && gavel.pick(ray)) { gavel.strike(); return; }
     if (!p) return;
     if (p.hit?.scales) ctx.openScales();                               // the seal on the answer page → the statue
     else if (p.hit?.ref) goToSource(p.hit.ref);
@@ -514,12 +522,12 @@ async function start() {
   await fontsReady();
   const { hasWebGL, Stage } = await import('./scene/stage.js');
   if (hasWebGL() && !new URLSearchParams(location.search).has('nowebgl')) {
-    const [{ Book }, { Graph }, { Justice }] = await Promise.all([import('./scene/book.js'), import('./scene/graph.js'), import('./scene/justice.js')]);
-    try { setupScene({ Stage, Book, Graph, Justice }); } catch (err) { console.warn('WebGL scene failed, using the plain layout', err); stage = book = graph = justice = null; setupFallback(); }
+    const [{ Book }, { Graph }, { Justice }, { Gavel }] = await Promise.all([import('./scene/book.js'), import('./scene/graph.js'), import('./scene/justice.js'), import('./scene/gavel.js')]);
+    try { setupScene({ Stage, Book, Graph, Justice, Gavel }); } catch (err) { console.warn('WebGL scene failed, using the plain layout', err); stage = book = graph = justice = gavel = null; setupFallback(); }
   } else setupFallback();
   refreshHealth();
   setInterval(refreshHealth, 60000);
-  window.__modda = { store, get state() { return store.get(); }, ask, goToSource, get sourceIndex() { return sourceIndex; } };
+  window.__modda = { store, get state() { return store.get(); }, ask, goToSource, get sourceIndex() { return sourceIndex; }, get gavel() { return gavel; } };
   body.classList.add('is-ready');
 }
 start();

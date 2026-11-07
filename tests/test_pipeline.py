@@ -576,3 +576,17 @@ def test_write_env_replaces_only_its_key(tmp_path):
     assert (tmp_path / ".env").read_text(encoding="utf-8") == "LLM_MODEL=qwen3:8b\nDENSE_TAU=0.55\n"
     write_env(tmp_path, "DENSE_TAU", None)
     assert (tmp_path / ".env").read_text(encoding="utf-8") == "LLM_MODEL=qwen3:8b\n"
+
+
+def test_numbers_written_as_words_count_as_numbers():
+    from modda.pipeline import verify
+    from modda.rag import Context
+    from modda.textnorm import number_words
+    assert number_words("yigirma bir kalendar kundan kam boʻlmagan") == {"21"}
+    assert number_words("ikki ming yigirma oltinchi yil") == {"2026"}
+    assert "15" in number_words("oʻn besh foiz")
+    c = Context(chunk_id="a218", n=1, score=1.0, header="Mehnat kodeksi, 218-modda",
+                text="Xodimlarga yigirma bir kalendar kundan kam boʻlmagan muddatga yillik asosiy mehnat taʼtili beriladi.", meta={})
+    assert verify({"text": "Yillik asosiy mehnat taʼtili 21 kalendar kundan kam boʻlmaydi.", "chunk_ids": ["a218"]}, {"a218": c})[0]
+    ok, why = verify({"text": "Yillik asosiy mehnat taʼtili 15 ish kuni.", "chunk_ids": ["a218"]}, {"a218": c})
+    assert not ok and "15" in why                                   # the old code's figure is still caught

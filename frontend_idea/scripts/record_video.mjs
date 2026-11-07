@@ -13,7 +13,7 @@ fs.mkdirSync(out, { recursive: true });
 
 const headless = process.env.HEADLESS === '1';                     // only for testing without a screen
 const browser = await chromium.launch({ headless, args: headless ? ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader']
-  : ['--ignore-gpu-blocklist', '--enable-gpu-rasterization', '--window-size=1920,1120'] });
+  : ['--ignore-gpu-blocklist', '--enable-gpu-rasterization', '--force_high_performance_gpu', '--window-size=1920,1120'] });
 const ctx = await browser.newContext({ viewport: { width: 1920, height: 1080 }, recordVideo: { dir: out, size: { width: 1920, height: 1080 } } });
 const page = await ctx.newPage();
 const errors = [];

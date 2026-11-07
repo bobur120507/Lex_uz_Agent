@@ -36,7 +36,7 @@ Everything else stays as in the image: header, headline, background, platform, q
 ┌──────────────────────────────────────────────────────────────────────────┐
 │ Modda | Qonunchilikdan aniq javob    Bosh sahifa  Graf  Hujjatlar  Yordam  ● Onlayn │
 │                 Qonunchilikdan aniq javob —                              │
-│                 har bir gapning manbasi bilan                            │
+│                 isbot manbadan                                           │
 │   ⚖ Lady Justice      ╭──── process graph ────╮                          │
 │   (clickable,         │  stages around MIND   │                          │
 │    left side)         ╰───────────┬───────────╯                          │
@@ -86,6 +86,8 @@ Node states: waiting (grey), running (gold/cyan pulse), done (emerald), skipped 
 ## 0.5 Lady Justice — the scales (v2.2, 2026-11-07)
 
 A golden Lady Justice holding scales stands left of the graph, **1.21 ×** the first version (two 10 % steps). Model file: `frontend_idea/src/assets/models/lady-justice.glb` (from Bobur's `3D_Models/Lady Justice.glb`, decimated by `scripts/optimize_model.py`, which also **splits the two scale pans into separate meshes** `pan_0` / `pan_1` so the page can move them). Hover: soft gold rim light.
+
+**The judge's gavel (right of the book).** The statue's pair on the right: a gavel on its block, on a low plinth in the pedestal's style (model `src/assets/models/judges-gavel.glb`, from Bobur's `3D_Models/judges_gavel.glb`, textures shrunk by `scripts/shrink_textures.py`). It turns about the handle's end; when the verdict arrives it strikes the block once (a ring of light, a warm flash), and again when clicked. Hidden where the statue is hidden (phones, portrait tablets).
 
 **When the answer is ready — the verdict, without leaving the book:** the camera stays on the book (the answer is what the person came for). In answer mode the statue stands whole beside the book (a little smaller), and when `scoring.completed` arrives her pans swing to the score, the score medallion and the Lex.uz logo pop onto the pans and the flames flare up for a moment; her label reads «⚖ 97 / 100 · manbaga moslik». The answer page carries a **gold seal** in its corner with the same score and «2/2 gap»; clicking the seal (or the statue) opens the focus mode below. The book is the answer, the scales are its grade — linked, not separate.
 
@@ -339,7 +341,7 @@ Position the headline near the upper-center region.
 Exact Uzbek copy:
 
 **Qonunchilikdan aniq javob —
-har bir gapning manbasi bilan**
+isbot manbadan** *(7-noyabr: «Javob qonundan — isbot manbadan»)*
 
 Use Literata, approximately 44–54px.
 

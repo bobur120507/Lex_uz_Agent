@@ -1,0 +1,460 @@
+21:55:09 ✓ Skript ishlayotganda kompyuter uyquga ketmaydi
+21:55:09 $ C:\Program Files\Git\mingw64\bin\git.exe -C C:\Users\anaso\Lex_uz_Agent log -1 --format=%h %ad %s --date=short
+21:55:09     0794cc8 2026-11-07 Add calibration and reporting commands: implement cmd_calibrate for τ threshold and cmd_report for evaluation reports
+21:55:09   (chiqish kodi 0, 0s)
+21:55:09 Kod versiyasi: 0794cc8 2026-11-07 Add calibration and reporting commands: implement cmd_calibrate for τ threshold and cmd_report for evaluation reports  |  Hisobot: C:\Users\anaso\Lex_uz_Agent\data\reports\day4-20261107-215509.log
+21:55:09 $ C:\Users\anaso\Lex_uz_Agent\.venv\Scripts\python.exe -m modda stats
+21:55:10     
+21:55:10     
+21:55:10     
+21:55:10     
+21:55:10     
+21:55:10     
+21:55:10     
+21:55:10     
+21:55:10     
+21:55:10     
+21:55:10     
+21:55:10     
+21:55:10     
+21:55:10     
+21:55:10     
+21:55:10     
+21:55:10     
+21:55:10     
+21:55:10     
+21:55:10     
+21:55:10     
+21:55:10     
+21:55:10     
+21:55:10     
+21:55:10     
+21:55:10     
+21:55:10     
+21:55:10     
+21:55:10     
+21:55:10     
+21:55:10     
+21:55:10     
+21:55:10     
+21:55:10     
+21:55:10     
+21:55:10     
+21:55:10     
+21:55:10     
+21:55:10     
+21:55:10     
+21:55:10     
+21:55:10     
+21:55:10     
+21:55:10     
+21:55:10     
+21:55:10     
+21:55:10     
+21:55:10     
+21:55:10     
+21:55:10     
+21:55:10     
+21:55:10     
+21:55:10     
+21:55:10     
+21:55:10     
+21:55:10     
+21:55:10     
+21:55:10     
+21:55:10     
+21:55:10     
+21:55:10     
+21:55:10     
+21:55:10     
+21:55:10     
+21:55:10     
+21:55:10     
+21:55:10     
+21:55:10     
+21:55:10     
+21:55:10     
+21:55:10     
+21:55:10     
+21:55:10     
+21:55:10     
+21:55:10     
+21:55:10     
+21:55:10     
+21:55:10     
+21:55:10     
+21:55:10     
+21:55:10     
+21:55:10     
+21:55:10     
+21:55:10     
+21:55:10     
+21:55:10     
+21:55:10     
+21:55:10     
+21:55:10     
+21:55:10     
+21:55:10     
+21:55:10     
+21:55:10     
+21:55:10     
+21:55:10     
+21:55:10     
+21:55:10     
+21:55:10     
+21:55:10     
+21:55:10     
+21:55:10   (chiqish kodi 0, 1s)
+21:55:10 ══ [1/8] llm ══
+21:55:10 LLM oʻzgartirilmaydi: qwen3:8b
+21:55:10 ✓ llm tugadi (0s)
+21:55:10 ══ [2/8] calibrate ══
+21:55:10 $ C:\Users\anaso\Lex_uz_Agent\.venv\Scripts\python.exe -m modda calibrate --write-env
+21:55:37     
+21:55:37     
+21:55:37     
+21:55:37     
+21:55:37     
+21:55:37     
+21:55:37     
+21:55:37     
+21:55:37     
+21:55:37     
+21:55:37     
+21:55:37     
+21:55:37     
+21:55:37     
+21:55:37     
+21:55:37     
+21:55:37     
+21:55:37     
+21:55:37     
+21:55:37     
+21:55:37     
+21:55:37     
+21:55:37     
+21:55:37     
+21:55:37     
+21:55:37     
+21:55:37     
+21:55:37     
+21:55:37     
+21:55:37     
+21:55:37     
+21:55:37     
+21:55:37     
+21:55:37     
+21:55:37     
+21:55:37     
+21:55:37     
+21:55:37     
+21:55:37     
+21:55:37     
+21:55:37     
+21:55:37     
+21:55:37     
+21:55:37     
+21:55:37     
+21:55:37     
+21:55:37     
+21:55:37     
+21:55:37     
+21:55:37     
+21:55:37     
+21:55:37     
+21:55:37     
+21:55:37     
+21:55:37     
+21:55:37     
+21:55:37     
+21:55:37     
+21:55:37     
+21:55:37     
+21:55:37     
+21:55:37     
+21:55:37     
+21:55:37     
+21:55:37     
+21:55:37     
+21:55:37     
+21:55:37     
+21:55:37     
+21:55:37     
+21:55:37     
+21:55:37     
+21:55:37     
+21:55:37     
+21:55:37     
+21:55:37     
+21:55:37     
+21:55:37     
+21:55:37     
+21:55:37     
+21:55:37     
+21:55:37     
+21:55:37     
+21:55:37     
+21:55:37     
+21:55:37     
+21:55:37     
+21:55:37     
+21:55:37     
+21:55:37     
+21:55:37     
+21:55:37     
+21:55:37     
+21:55:37     
+21:55:37     
+21:55:37     
+21:55:37     
+21:55:37     
+21:55:37     
+21:55:37     
+21:55:37     
+21:55:37     
+21:55:37     
+21:55:37   (chiqish kodi 0, 26s)
+21:55:37 ✓ DENSE_TAU=0.58 — javobi bor savollarning 98% i oʻtadi, javobi yoʻqlarning 54% i LLM’siz «Bilmayman» oladi
+21:55:37 ✓ calibrate tugadi (26s)
+21:55:37 ══ [3/8] eval ══
+21:55:37 $ C:\Users\anaso\Lex_uz_Agent\.venv\Scripts\python.exe -m modda eval
+21:55:53     
+21:55:53     
+21:55:53     
+21:55:53     
+21:55:53     
+21:55:53     
+21:55:53     
+21:55:53     
+21:55:53     
+21:55:53     
+21:55:53     
+21:55:53     
+21:55:53     
+21:55:53     
+21:55:53     
+21:55:53     
+21:55:53     
+21:55:53     
+21:55:53     
+21:55:53     
+21:55:53     
+21:55:53     
+21:55:53     
+21:55:53   (chiqish kodi 0, 15s)
+21:55:53   dense    Recall@5 0.8   MRR 0.675
+21:55:53   sparse   Recall@5 0.778   MRR 0.601
+21:55:53   hybrid   Recall@5 0.911   MRR 0.773
+21:55:53 ✓ eval tugadi (15s)
+21:55:53 ══ [4/8] demo ══
+21:55:53 $ C:\Users\anaso\Lex_uz_Agent\.venv\Scripts\python.exe C:\Users\anaso\Lex_uz_Agent\scripts\demo_questions.py C:\Users\anaso\Lex_uz_Agent\data\reports\demo-20261107-215553.json
+21:55:53     
+21:55:53     
+21:56:11     
+21:56:11     
+21:56:11     
+21:56:11     
+21:56:11     
+21:56:11     
+21:56:29     
+21:56:29     
+21:56:29     
+21:56:29     
+21:56:29     
+21:56:57     
+21:56:57     
+21:56:57     
+21:56:57     
+21:56:57     
+21:56:57     
+21:57:15     
+21:57:15     
+21:57:15     
+21:57:15     
+21:57:15     
+21:57:15     
+21:57:43     
+21:57:43     
+21:57:43     
+21:57:43     
+21:57:43     
+21:57:43     
+21:57:43     
+21:57:43     
+21:57:49     
+21:57:49     
+21:57:49     
+21:57:49     
+21:57:49     
+21:57:49   (chiqish kodi 0, 1m56s)
+21:57:49 ✓ 6 demo savol tugadi
+21:57:49 ✓ demo tugadi (1m56s)
+21:57:49 ══ [5/8] build ══
+21:57:49 $ C:\Program Files\nodejs\node.exe C:\Program Files\nodejs\node_modules\npm\bin\npm-cli.js run build
+21:57:50     
+21:57:50     > modda-frontend-idea@0.2.0 build
+21:57:50     > vite build
+21:57:50     
+21:57:51     vite v5.4.10 building for production...
+21:57:51     transforming...
+21:57:52     ✓ 43 modules transformed.
+21:57:53     rendering chunks...
+21:57:54     [plugin:vite:reporter] [plugin vite:reporter] 
+21:57:54     (!) C:/Users/anaso/Lex_uz_Agent/frontend_idea/src/ui/reader.js is dynamically imported by C:/Users/anaso/Lex_uz_Agent/frontend_idea/src/main.js but also statically imported by C:/Users/anaso/Lex_uz_Agent/frontend_idea/src/main.js, C:/Users/anaso/Lex_uz_Agent/frontend_idea/src/ui/documents.js, dynamic import will not move module into another chunk.
+21:57:54     
+21:57:54     computing gzip size...
+21:57:54     dist/assets/lex_uz-aJid6CBc.svg            7.21 kB │ gzip:   3.54 kB
+21:57:54     dist/index.html                            7.46 kB │ gzip:   2.62 kB
+21:57:54     dist/assets/lady-justice-BjxgZ7uF.glb  3,630.62 kB
+21:57:54     dist/assets/index-BzIlXPT6.css            26.83 kB │ gzip:   6.88 kB
+21:57:54     dist/assets/emblem-CpHLQFOz.js             5.79 kB │ gzip:   2.28 kB
+21:57:54     dist/assets/stage-B7MdVJWJ.js              6.60 kB │ gzip:   2.82 kB
+21:57:54     dist/assets/graph-CJ_ORBmp.js              7.48 kB │ gzip:   2.88 kB
+21:57:54     dist/assets/book-DnbYzKEL.js               7.76 kB │ gzip:   2.84 kB
+21:57:54     dist/assets/justice-BuPX8yqI.js           16.13 kB │ gzip:   6.53 kB
+21:57:54     dist/assets/SVGLoader-CWqJBWu0.js         22.57 kB │ gzip:   8.15 kB
+21:57:54     dist/assets/GLTFLoader-DyBFWXRA.js        46.08 kB │ gzip:  13.68 kB
+21:57:54     dist/assets/index-CtVO6JBG.js            859.43 kB │ gzip: 240.95 kB
+21:57:54     ✓ built in 3.33s
+21:57:54   (chiqish kodi 0, 5s)
+21:57:54 ✓ Sayt yigʻildi: C:\Users\anaso\Lex_uz_Agent\frontend_idea\dist
+21:57:54 ✓ build tugadi (5s)
+21:57:54 ══ [6/8] fixture ══
+21:57:55 $ C:\Users\anaso\Lex_uz_Agent\.venv\Scripts\python.exe -m modda serve --host 127.0.0.1 --port 8080  (fon rejimida, log: C:\Users\anaso\Lex_uz_Agent\data\reports\day4-serve.log)
+21:58:01 $ C:\Users\anaso\Lex_uz_Agent\.venv\Scripts\python.exe C:\Users\anaso\Lex_uz_Agent\frontend_idea\scripts\record_demo.py Har yilgi mehnat taʼtili necha kun? --api http://127.0.0.1:8080 --note GPU noutbuk, 2026-11-07 --out C:\Users\anaso\Lex_uz_Agent\data\reports\fixture.json
+21:58:29     
+21:58:29   (chiqish kodi 0, 28s)
+21:58:29 ✓ Zaxira namuna: C:\Users\anaso\Lex_uz_Agent\data\reports\fixture.json (0.3 MB) — Bobur’ga yuboring
+21:58:29 ✓ fixture tugadi (35s)
+21:58:29 ══ [7/8] video ══
+21:58:29 $ C:\Program Files\nodejs\node.exe --version
+21:58:30     
+21:58:30   (chiqish kodi 0, 0s)
+21:58:30 Chromium (Playwright) tayyorlanmoqda — birinchi marta ≈ 150 MB yuklanadi…
+21:58:30 $ C:\Program Files\nodejs\node.exe C:\Users\anaso\Lex_uz_Agent\frontend_idea\node_modules\playwright\cli.js install chromium
+21:58:31     Downloading Chromium 131.0.6778.33 (playwright build v1148) from https://playwright.azureedge.net/builds/chromium/1148/chromium-win64.zip
+21:58:32     |                                                                                |   0% of 136.9 MiB
+21:58:33     |■■■■■■■■                                                                        |  10% of 136.9 MiB
+21:58:33     |■■■■■■■■■■■■■■■■                                                                |  20% of 136.9 MiB
+21:58:33     |■■■■■■■■■■■■■■■■■■■■■■■■                                                        |  30% of 136.9 MiB
+21:58:33     |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                                                |  40% of 136.9 MiB
+21:58:34     |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                                        |  50% of 136.9 MiB
+21:58:34     |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                                |  60% of 136.9 MiB
+21:58:34     |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                        |  70% of 136.9 MiB
+21:58:34     |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                |  80% of 136.9 MiB
+21:58:35     |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■        |  90% of 136.9 MiB
+21:58:35     |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■| 100% of 136.9 MiB
+21:58:37     Chromium 131.0.6778.33 (playwright build v1148) downloaded to C:\Users\anaso\AppData\Local\ms-playwright\chromium-1148
+21:58:37     Downloading FFMPEG playwright build v1010 from https://playwright.azureedge.net/builds/ffmpeg/1010/ffmpeg-win64.zip
+21:58:38     |                                                                                |   0% of 1.3 MiB
+21:58:38     |■■■■■■■■                                                                        |  10% of 1.3 MiB
+21:58:38     |■■■■■■■■■■■■■■■■                                                                |  20% of 1.3 MiB
+21:58:38     |■■■■■■■■■■■■■■■■■■■■■■■■                                                        |  31% of 1.3 MiB
+21:58:38     |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                                                |  40% of 1.3 MiB
+21:58:38     |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                                        |  50% of 1.3 MiB
+21:58:38     |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                                |  60% of 1.3 MiB
+21:58:38     |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                        |  70% of 1.3 MiB
+21:58:38     |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                |  80% of 1.3 MiB
+21:58:38     |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■        |  90% of 1.3 MiB
+21:58:38     |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■| 100% of 1.3 MiB
+21:58:38     FFMPEG playwright build v1010 downloaded to C:\Users\anaso\AppData\Local\ms-playwright\ffmpeg-1010
+21:58:38     Downloading Chromium Headless Shell 131.0.6778.33 (playwright build v1148) from https://playwright.azureedge.net/builds/chromium/1148/chromium-headless-shell-win64.zip
+21:58:39     |                                                                                |   0% of 87.7 MiB
+21:58:40     |■■■■■■■■                                                                        |  10% of 87.7 MiB
+21:58:40     |■■■■■■■■■■■■■■■■                                                                |  20% of 87.7 MiB
+21:58:40     |■■■■■■■■■■■■■■■■■■■■■■■■                                                        |  30% of 87.7 MiB
+21:58:40     |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                                                |  40% of 87.7 MiB
+21:58:40     |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                                        |  50% of 87.7 MiB
+21:58:41     |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                                |  60% of 87.7 MiB
+21:58:41     |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                        |  70% of 87.7 MiB
+21:58:41     |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                |  80% of 87.7 MiB
+21:58:41     |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■        |  90% of 87.7 MiB
+21:58:41     |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■| 100% of 87.7 MiB
+21:58:43     Chromium Headless Shell 131.0.6778.33 (playwright build v1148) downloaded to C:\Users\anaso\AppData\Local\ms-playwright\chromium_headless_shell-1148
+21:58:44   (chiqish kodi 0, 14s)
+21:58:44 Video yozilmoqda: ekranda oyna ochiladi — ≈ 2 daqiqa sichqoncha va klaviaturaga tegmang.
+21:58:45 $ C:\Users\anaso\Lex_uz_Agent\.venv\Scripts\python.exe -m modda serve --host 127.0.0.1 --port 8080  (fon rejimida, log: C:\Users\anaso\Lex_uz_Agent\data\reports\day4-serve.log)
+21:58:48 $ C:\Program Files\nodejs\node.exe C:\Users\anaso\Lex_uz_Agent\frontend_idea\scripts\record_video.mjs http://127.0.0.1:8080/ C:\Users\anaso\Lex_uz_Agent\data\reports\video Har yilgi mehnat taʼtili necha kun?
+21:58:49     
+21:58:49     
+21:58:49     
+21:58:49     
+21:58:49     
+21:58:49     
+21:58:49     
+21:58:49     
+21:58:49     
+21:58:49     
+21:58:49     
+21:58:49     
+21:58:49     
+21:58:49     
+21:58:49   (chiqish kodi 1, 1s)
+21:58:49 ✗ video: video yozilmadi — yuqoridagi xabarga qarang
+21:58:49 ══ [8/8] report ══
+21:58:49 $ C:\Users\anaso\Lex_uz_Agent\.venv\Scripts\python.exe -m modda report
+21:58:49     
+21:58:49     
+21:58:49     
+21:58:49     
+21:58:49     
+21:58:49     
+21:58:49     
+21:58:49     
+21:58:49     
+21:58:49     
+21:58:49     
+21:58:49     
+21:58:49     
+21:58:49     
+21:58:49     
+21:58:49     
+21:58:49     
+21:58:49     
+21:58:49     
+21:58:49     
+21:58:49     
+21:58:49     
+21:58:49     
+21:58:49     
+21:58:49     
+21:58:49     
+21:58:49     
+21:58:49     
+21:58:49     
+21:58:49     
+21:58:49     
+21:58:49     
+21:58:49     
+21:58:49     
+21:58:49     
+21:58:49     
+21:58:49     
+21:58:49     
+21:58:49     
+21:58:49     
+21:58:49     
+21:58:49     
+21:58:49     
+21:58:49     
+21:58:49     
+21:58:49     
+21:58:49     
+21:58:49     
+21:58:49     
+21:58:49     
+21:58:49     
+21:58:49     
+21:58:49     
+21:58:49     
+21:58:49     
+21:58:49     
+21:58:49     
+21:58:49     
+21:58:49     
+21:58:49     
+21:58:49     
+21:58:49   (chiqish kodi 0, 0s)
+21:58:49 ✓ Hisobot: C:\Users\anaso\Lex_uz_Agent\data\reports\BAHOLASH.md
+21:58:49 ✓ report tugadi (0s)
+21:58:49 Tamom. Bobur’ga yuboring: C:\Users\anaso\Lex_uz_Agent\data\reports\day4-20261107-215509.log, C:\Users\anaso\Lex_uz_Agent\data\reports\fixture.json

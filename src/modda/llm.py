@@ -70,11 +70,11 @@ class Ollama:
         return self._post("/api/show", {"model": model})
 
     def chat(self, model: str, messages: list[dict], *, temperature: float = 0.0, num_ctx: int = 8192,
-             json_mode: bool = False, on_token=None) -> tuple[str, float]:
+             json_mode: bool = False, on_token=None, num_predict: int = 700) -> tuple[str, float]:
         """Returns (text, seconds). With `on_token`, the answer is streamed and each piece is passed to it."""
         payload: dict = {
             "model": model, "messages": messages, "stream": on_token is not None, "keep_alive": self.keep_alive,
-            "options": {"temperature": temperature, "num_ctx": num_ctx},
+            "options": {"temperature": temperature, "num_ctx": num_ctx, "num_predict": num_predict},
         }
         if model.startswith(("qwen3", "deepseek-r1", "gpt-oss")):
             payload["think"] = False             # reasoning models: no hidden chain, faster

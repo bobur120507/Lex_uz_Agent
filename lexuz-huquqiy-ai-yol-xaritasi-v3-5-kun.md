@@ -12,7 +12,7 @@ Tushunchalar va vositalar jamoa uchun [I_EXPLAIN.md](I_EXPLAIN.md) da tushuntiri
 
 > Har bir qadam tugaganda shu roʻyxat yangilanadi. Belgilar: ✅ bajarildi · 🔄 jarayonda · ⏸️ toʻxtatilgan · ↪️ boshqa yoʻl bilan · ❌ toʻsiq · ⬜ hali boshlanmagan. Batafsil buyruqlar — [KUN-1.md](KUN-1.md).
 >
-> **Oxirgi yangilanish:** 2026-11-07 17:30 (3-kun). Noutbukda `day3.bat` ishlayapti (GPU tekshiruvi → snapshot → bakeoff → 6 demo). Shu vaqtda: **tarozi hukmi** javob bilan birga (haykal joyida + kitobdagi oltin muhr), **iqtibos tekshiruvchi** kuchaytirildi (soʻzlar ≥ 20 % manbada), **τ kalibrlash** (`modda calibrate`), **baholash hisoboti** (`modda report`), **`scripts\day4.bat`** (τ → eval → demo → build → zaxira fixture + video + kadr/s → hisobot), **README** va **I_EXPLAIN §0.1**. Avvalgi: RSS belgisi, frontend v2.2, `setup_server.bat`.
+> **Oxirgi yangilanish:** 2026-11-07 23:15 (4-kun). **GPU noutbuk Bobur’dagi holatga yetdi** (54 173 / 183 170 / Recall@5 0,911). **LLM: gemma4:e4b** (bakeoff: 0 yolgʻon javob, 5/5 «Bilmayman»). τ = 0,58. Demo: 1, 3, 6 ✅; 2 (raqam soʻz bilan) va 5 (ob-havo) — **tuzatildi**; kadr/s 27 — brauzer Intel GPU’da edi → tuzatish. **Sayt:** hakam bolgʻachasi (kitob oʻngida, hukm bilan uradi), sarlavha «Javob qonundan — isbot manbadan». Keyingi: `day4 --llm gemma4:e4b …` ([KUN-4.md](KUN-4.md)).
 
 ### 1-kun — uzoq ishlar va asos
 
@@ -90,14 +90,14 @@ Gibrid har ikkalasidan yaxshi → standart sifatida qoladi; reranker hozircha o�
 |---|---|
 | ↪️ | JSON strukturali chiqish → **[n] havolali oddiy matn + dastur gaplarga ajratadi** (`rag.parse_answer`): kichik/oʻzbekcha modellar JSON’ni buzadi, havola belgilari esa barqaror; maqsad (har gap ↔ manba) shu bilan bajarildi |
 | ✅ | Iqtibos tekshiruvchi: havola + **raqamlar manbada** + **mazmunli soʻzlarning ≥ 20 % i manbada** (manba gapirmagan, lekin havolali gap — masalan injeksiya soʻragan yolgʻon — rad etiladi); test qoʻshildi |
-| 🔄 | τ kalibrlash: `python -m modda calibrate --write-env` — savol ↔ eng yaqin boʻlak kosinusi; javobi bor savollarning ≥ 97 % i oʻtadigan eng katta τ, faqat javobi yoʻqlarning ≥ 50 % ini toʻssa yoziladi (`DENSE_TAU`); aniq havola toʻsilmaydi; «Bilmayman» sahifasida sababi. Haqiqiy indeksda — `day4.bat` |
+| ✅ | τ kalibrlash — GPU noutbukda: **`DENSE_TAU=0.58`** (javobi borlarning 98 % i oʻtadi, javobi yoʻqlarning 54 % i LLM’siz «Bilmayman»); `modda calibrate --write-env` |
 | ✅ | `POST /ask/stream` (SSE) — 12.4 dagi hodisalar shartnomasi (2-kunda) |
 | ✅ | Saytni haqiqiy API’ga ulash (`python -m modda serve` + `npm run dev`) — 6-noyabr ishladi |
 | ✅ | RSS delta + «oʻzgargan boʻlishi mumkin» belgisi — 7-noyabr: hujjat id’si **yoki nomi** boʻyicha (tuzatish akti «Mehnat kodeksiga oʻzgartish…» → Mehnat kodeksi; kirill/lotin id farqi ham yopiladi); kitob manba sahifasida sariq lenta + «Kitobni oʻqish»da eʼlonga havola; test qoʻshildi |
 | ✅ | **Server noutbuk uchun bitta skript** `scripts\setup_server.bat` / `setup_server.py` (19 qadam): Git, Python, Ollama + 4 model, korpus, Qdrant, ingest → 195¹ → chunk → RSS, snapshot-import (yoki GPU’da indeks), eval, Node.js, sayt build, Firewall, `start_modda.bat` / `update_modda.bat`, haqiqiy savol bilan tekshiruv; ixtiyoriy SSH (Bobur boshqarishi uchun), avto-start, reranker. Sinov muhitida (Linux, sinov LLM, haqiqiy Qdrant) index/eval/verify/status qadamlari tekshirildi; Windows’ga xos qadamlar — noutbukda |
-| 🔄 | Noutbukda oʻrnatish — 7-noyabr 11:16: (eski) skript korpus/boʻlaklarni Bobur’dagi bilan aynan bir xil qildi (54 173 / 183 170 / 1 540); bge-m3 2,6 boʻlak/s (GPU’ga toʻliq sigʻmadi) → **`scripts\day3.bat`**: GPU tekshiruvi + snapshot-import + qolgan qadamlar |
+| ✅ | Noutbukda oʻrnatish — Bobur’dagi bilan **aynan bir xil**: 54 173 / 183 170 / 183 170 dense (snapshot 1,5 daq), Recall@5 0,911; sayt `http://10.50.3.9:8080` ([KUN-4.md](KUN-4.md)) |
 | ✅ | `scripts\day3.bat` (`day3.py`, `demo_questions.py`): GPU diagnostikasi (nvidia-smi, zaryadlovchi, VRAM’dagi dasturlar, GPU ulushi, boʻlak/s, token/s) → setup_server → bakeoff → 6 demo savol → bitta `day3-*.log` hisobot. Sinov muhitida toʻliq oʻtdi |
-| 🔄 | **LLM tanlash — GPU noutbukda** `bakeoff` (`qwen3:8b`, `gemma4:e4b`, Llama-3.1-8B-Uz; 20 savol) — `day3.bat` ichida; natija `day3-*.log` da |
+| ✅ | **LLM tanlash** (`bakeoff`, 20 savol): qwen3:8b 12/15 manba, 2 yolgʻon, 6,5 s · **gemma4:e4b 12/15, 0 yolgʻon, 5/5 «Bilmayman», 15,4 s** · Llama-3.1-8B-Uz 7/14, 22 s → qoida boʻyicha **gemma4:e4b** |
 | ↪️ | Javob vaqti: CPU’da `qwen3:8b` ≈ 1–2 daqiqa → **butun loyiha GPU noutbukda ishlaydi**; Bobur saytni `http://<noutbuk-IP>:8080` orqali ochadi ([SERVER-NOUTBUK.md](SERVER-NOUTBUK.md)) |
 | ✅ | Backend: yangi frontend uchun maʼlumotlar (13.4) — Bobur 6-noyabr tasdiqladi, qilindi (44 test) |
 
@@ -105,9 +105,9 @@ Gibrid har ikkalasidan yaxshi → standart sifatida qoladi; reranker hozircha o�
 
 | Holat | Qadam |
 |---|---|
-| 🔄 | top-k, τ, prompt sozlash; kechikish — τ `day4.bat` da; top-k = 5 (Recall@5 0,911 yetarli); kechikish `day3/day4` loglarida |
-| 🔄 | Prompt-injection sinovlari — 6-demo savol `day3/day4.bat` da; himoya: tizim prompti + kuchaytirilgan iqtibos tekshiruvchi (manba aytmagan gap oʻtmaydi) |
-| 🔄 | Toʻliq baholash hisoboti: `python -m modda report` → `data/reports/BAHOLASH.md` (qidiruv, bakeoff, τ, demo, muhit — faqat oʻlchov fayllaridan); haqiqiy raqamlar bilan — `day4.bat` |
+| ✅ | top-k = 5, τ = 0,58, prompt: raqamni manbadagidek yozish, qonunchilikdan tashqari savolga BILMAYMAN; javob ≤ 700 token. Tekshiruvchi raqamni soʻz bilan ham taniydi («yigirma bir» = 21) |
+| ✅ | Prompt-injection — demo 6-savol: «Bilmayman», koʻrsatmaga boʻysunmadi, tizim prompti chiqmadi (qwen3:8b, 6,6 s) |
+| ✅ | Toʻliq baholash hisoboti — [docs/BAHOLASH.md](docs/BAHOLASH.md) (GPU noutbuk, 7-noyabr 22:09: qidiruv, bakeoff, τ, 6 demo). gemma4 bilan yangilanadi |
 | 🔄 | 3D: unumdorlik, zaxira rejim, klaviatura | yangi frontend’da: WebGL’siz rejim, klaviatura, qisqartirilgan harakat tayyor; kadr/s — Bobur’ning noutbukida oʻlchanadi |
 
 ### 5-kun — muzlatish va demo
@@ -116,7 +116,7 @@ Gibrid har ikkalasidan yaxshi → standart sifatida qoladi; reranker hozircha o�
 |---|---|
 | ⬜ | Yakuniy baholash |
 | ✅ | README (yangi, ildizda), I_EXPLAIN §0.1 «Rejadan amalga» — qaysi qism qanday qurildi |
-| 🔄 | Demo ssenariysi va mashq, zaxira video — `day4.bat`: haqiqiy javob yozuvi (`fixture.json`, saytning «Namuna rejimi»), 1920×1080 video + haqiqiy kadr/s (`record_video.mjs`); zaxira yoʻl: Windows **Win+Alt+R** bilan ekran yozuvi |
+| 🔄 | Demo ssenariysi, zaxira video — `fixture.json` va video yozildi (qwen3); kadr/s 27 — brauzer **Intel Iris Xe** da chizgan → `day4 --only …browser…` (RTX 4060) bilan qayta yoziladi |
 
 ### Yakuniy bosqich — yangi frontend `frontend_idea/` (12- va 13-boʻlimlar)
 
@@ -143,10 +143,11 @@ Batafsil tekshiruv roʻyxati — [13.5](#135-tekshiruv-roʻyxati-bosqichlar-boʻ
 | ✅ | Tarozi nuri: dumaloq halo oʻrniga **olov tillari** (shader, shovqin bilan miltillaydi) — **eni palla bilan bir xil**; oldida past olov, tepaga uchqunlar koʻtariladi |
 | ✅ | Kitob sifati: sahifa teksturalari **2048 × 2752** (avval 1024 × 1376), anizotropiya GPU maksimumi (16), ekran piksellari **2×** gacha (FPS < 40 boʻlsa oʻzi pasaytiradi), soya xaritasi 2048; javob kamerasi tikroq — matn kamroq qisiladi; eski sahifa teksturalari GPU’dan tozalanadi (xotira oqishi yoʻq). `?quality=low` — kuchsiz kompyuter uchun |
 | ✅ | Hamma graflar oynada; **Mind oynasi**: keng oyna, 3D qatlamlar asosiy, maʼlumot — bitta qator teg + bitta izoh |
+| ✅ | **Hakam bolgʻachasi (7-noyabr 23:00):** kitobning oʻng tomonida (haykalning juftligi), Bobur’ning modeli (teksturalar 1024 px, 5,2 → 1,0 MB); hukm kelganda bir marta uradi (yorugʻlik halqasi), bosilsa yana; sarlavha «Javob qonundan — isbot manbadan» |
 | ✅ | **Hukm lahzasi (7-noyabr):** javob tayyor boʻlganda kamera kitobdan ketmaydi — haykal joyida (javob rejimida toʻliq koʻrinadi) pallalarini bahoga qarab ogʻdiradi, medal va Lex.uz logotipi pallaga «otilib» chiqadi, olov bir lahza kuchayadi; haykal ostida «⚖ 97 / 100 · manbaga moslik»; **kitobning javob sahifasida oltin muhr** (baho, gaplar soni) — bosilsa tarozi markazga keladi |
-| 🔄 | F6 — Sifat: telefon/planshet, WebGL’siz rejim, qisqartirilgan harakat, klaviatura ✅; kadr/s Bobur’ning noutbukida ⬜ |
+| 🔄 | F6 — Sifat: telefon/planshet, WebGL’siz rejim, qisqartirilgan harakat, klaviatura ✅; kadr/s: Iris Xe’da 27 (median) → RTX 4060 bilan qayta oʻlchash ⬜ |
 | ✅ | F7 — Brauzer sinovlari va vizual tanqid (Playwright, 5 oʻlcham, WebGL’siz) — sinov muhitida (haqiqiy backend kodi + Qdrant 1.20 + 10 kodeks + sinov LLM) |
-| 🔄 | F8 — Yakuniy tekshiruv: testlar ✅, README va cheklovlar ✅; `npm run build` + haqiqiy `qwen3:8b` bilan 6 demo savol — Bobur’ning kompyuterida ⬜ |
+| 🔄 | F8 — Yakuniy tekshiruv: testlar ✅, README ✅, `npm run build` noutbukda ✅, 6 demo haqiqiy LLM bilan ✅ (qwen3) → gemma4 bilan qayta ⬜ |
 
 ---
 

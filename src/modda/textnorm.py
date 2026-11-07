@@ -90,6 +90,46 @@ def stem(token: str) -> str:
     return token
 
 
+_UNITS = {"bir": 1, "ikki": 2, "uch": 3, "toʻrt": 4, "besh": 5, "olti": 6, "yetti": 7, "sakkiz": 8, "toʻqqiz": 9}
+_TENS = {"oʻn": 10, "yigirma": 20, "oʻttiz": 30, "qirq": 40, "ellik": 50, "oltmish": 60, "yetmish": 70, "sakson": 80,
+         "toʻqson": 90}
+_NUMWORD = re.compile(r"[a-zʻ]+")
+_ORDER = sorted([*_UNITS, *_TENS, "yuz", "ming"], key=len, reverse=True)
+_SUFFIX = {"", "inchi", "nchi", "ta", "tasi", "dan", "ga", "da", "ni", "ning", "lik", "ta", "talik", "inchisi", "nchisi"}
+
+
+def number_words(text: str) -> set[str]:
+    """Numbers written as words in a legal text, as digits: «yigirma bir kalendar kun» → {"21"},
+    «oʻn besh foiz» → {"15"}, «uch yuz» → {"300"}, «ikki ming» → {"2000"}. Laws write durations and rates in words;
+    an answer that writes them in digits is still saying what the law says."""
+    out: set[str] = set()
+    words = _NUMWORD.findall(normalize_uz(text).lower().replace("'", "ʻ").replace("ʼ", "ʻ"))
+    total = cur = 0
+    seen = False
+
+    def flush():
+        nonlocal total, cur, seen
+        if seen:
+            out.add(str(total + cur))
+        total = cur = 0
+        seen = False
+
+    for w in words:
+        base = next((nw for nw in _ORDER if w.startswith(nw) and w[len(nw):] in _SUFFIX), w)
+        if base in _UNITS:
+            cur += _UNITS[base]; seen = True
+        elif base in _TENS:
+            cur += _TENS[base]; seen = True
+        elif base == "yuz" and seen:
+            cur = max(cur, 1) * 100
+        elif base == "ming" and seen:
+            total += max(cur, 1) * 1000; cur = 0
+        else:
+            flush()
+    flush()
+    return out
+
+
 def tokenize(text: str) -> list[str]:
     """Lowercased, normalized, apostrophes kept inside words, stop words removed, light stemming."""
     text = to_query_form(text).lower()

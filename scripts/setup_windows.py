@@ -179,7 +179,7 @@ def run(cmd, *, check=True, timeout=None, quiet=False, cwd=ROOT, env=None) -> tu
                 break
             buf += ch
             while True:
-                m = re.search(rb"[\r\n]", buf)
+                m = re.search(rb"\r\n|\r(?!$)|\n", buf)    # Windows CRLF is one line end (not a progress \r)
                 if not m:
                     break
                 line, sep, buf = buf[:m.start()], buf[m.start():m.end()], buf[m.end():]
@@ -196,7 +196,7 @@ def run(cmd, *, check=True, timeout=None, quiet=False, cwd=ROOT, env=None) -> tu
                     log("    " + text)
                     out.append(text)
         if buf:
-            text = buf.decode("utf-8", errors="replace")
+            text = buf.decode("utf-8", errors="replace").rstrip("\r")
             if not quiet:
                 print("    " + text)
             log("    " + text)

@@ -40,6 +40,7 @@ import setup_server as srv                            # noqa: E402
 from setup_windows import C, IS_WIN, REPORTS, ROOT, VPY, StepFailed, bad, ok, run, say, warn  # noqa: E402
 
 PARTS = ["llm", "calibrate", "eval", "demo", "build", "fixture", "video", "report"]
+OPTIONAL = ["browser"]
 QUESTION = "Har yilgi mehnat taʼtili necha kun?"
 FIXTURE = REPORTS / "fixture.json"             # not public/demo/ directly: a changed tracked file would block `git pull`
 
@@ -61,6 +62,21 @@ def part_llm(model: str | None):
     set_env("LLM_MODEL", model)
     base.LLM_MODEL = model
     ok(f".env: LLM_MODEL={model}")
+    srv.ensure_services()
+    srv.unload_all(quiet=True)
+    try:
+        r = base.http_json(f"{base.OLLAMA}/api/generate", {"model": model, "stream": False, "keep_alive": "10m",
+                                                             "prompt": "Mehnat shartnomasi nima? 4 gap bilan tushuntiring.",
+                                                             "options": {"num_predict": 160}}, timeout=900)
+        tps = r.get("eval_count", 0) / max(1e-9, r.get("eval_duration", 1) / 1e9)
+        base.http_json(f"{base.OLLAMA}/api/embed", {"model": base.EMBED_MODEL, "input": ["sinov"], "keep_alive": "10m"}, timeout=300)
+        shares = ", ".join(f"{m['name']} {m.get('size_vram', 0) / max(1, m.get('size', 1)) * 100:.0f} % GPU’da ({base.fmt_mb(m.get('size', 0))})"
+                           for m in srv.loaded_models())
+        ok(f"{model}: {tps:.1f} token/s · birga: {shares}")
+        if any(m.get("size_vram", 0) < 0.97 * m.get("size", 1) for m in srv.loaded_models()):
+            warn("Model GPU’ga toʻliq sigʻmadi — javob sekinroq boʻladi (zaryadlovchi ulanganmi? boshqa dasturlar yopiqmi?)")
+    except Exception as exc:
+        warn(f"{model} sinovi oʻtmadi: {exc}")
 
 
 def part_calibrate():
@@ -149,6 +165,35 @@ def part_video(question: str):
     base.mark_done("day4_video", **{k: r.get(k) for k in ("fps_median", "fps_min", "answer_s", "video", "gpu")})
 
 
+BROWSERS = [r"%ProgramFiles%\Google\Chrome\Application\chrome.exe", r"%ProgramFiles(x86)%\Google\Chrome\Application\chrome.exe",
+            r"%LOCALAPPDATA%\Google\Chrome\Application\chrome.exe", r"%ProgramFiles(x86)%\Microsoft\Edge\Application\msedge.exe",
+            r"%ProgramFiles%\Microsoft\Edge\Application\msedge.exe"]
+
+
+def part_browser():
+    """Windows «Graphics settings → High performance» for Chrome / Edge / Playwright’s Chromium: on a laptop with
+    two GPUs the browser otherwise draws the 3-D site on the integrated Intel GPU (day4: 27 kadr/s on Iris Xe)."""
+    if not IS_WIN:
+        return warn("Faqat Windows uchun")
+    import glob
+    import os
+    exes = [os.path.expandvars(p) for p in BROWSERS]
+    exes += glob.glob(os.path.expandvars(r"%LOCALAPPDATA%\ms-playwright\chromium-*\chrome-win\chrome.exe"))
+    exes = [e for e in exes if Path(e).exists()]
+    if not exes:
+        return warn("Chrome / Edge topilmadi")
+    lines = "\n".join(f"Set-ItemProperty -Path $k -Name '{e}' -Value 'GpuPreference=2;'" for e in exes)
+    code, out = srv.ps(rf"""$k = 'HKCU:\Software\Microsoft\DirectX\UserGpuPreferences'
+if (-not (Test-Path $k)) {{ New-Item -Path $k -Force | Out-Null }}
+{lines}
+Write-Output 'gpu-pref-ok'""")
+    if "gpu-pref-ok" not in out:
+        raise StepFailed("sozlama yozilmadi — qoʻlda: Sozlamalar → Tizim → Displey → Grafika → brauzer → «Yuqori unumdorlik»")
+    for e in exes:
+        ok(f"Yuqori unumdorlik GPU: {e}")
+    warn("Brauzer ochiq boʻlsa — yopib, qayta oching (sozlama keyingi ishga tushirishda kuchga kiradi).")
+
+
 def part_report():
     code, out = base.modda("report", check=False, timeout=600)
     if code != 0:
@@ -158,11 +203,12 @@ def part_report():
 
 def main():
     ap = argparse.ArgumentParser(description="Modda — 4-kun: τ, baholash, zaxira demo, hisobot")
-    ap.add_argument("--only", help="vergul bilan: " + ",".join(PARTS))
+    ap.add_argument("--only", help="vergul bilan: " + ",".join(PARTS + OPTIONAL))
     ap.add_argument("--llm", help="LLM_MODEL ni shu modelga oʻzgartirish (masalan qwen3:8b)")
     ap.add_argument("--question", default=QUESTION)
     a = ap.parse_args()
-    parts = [p for p in PARTS if not a.only or p in a.only.split(",")]
+    order = ["llm", "browser", *PARTS[1:]]                            # the GPU setting before the video
+    parts = [p for p in order if (p in a.only.split(",") if a.only else p in PARTS)]
     if IS_WIN:
         base.keep_awake()
     git = srv.find_git()
@@ -173,7 +219,7 @@ def main():
         warn("Indeks toʻliq emas — natijalar Bobur’dagidan farq qiladi (avval scripts\\day3.bat)")
     fns = {"llm": lambda: part_llm(a.llm), "calibrate": part_calibrate, "eval": part_eval, "demo": part_demo,
            "build": part_build, "fixture": lambda: part_fixture(a.question), "video": lambda: part_video(a.question),
-           "report": part_report}
+           "report": part_report, "browser": part_browser}
     for i, name in enumerate(parts, 1):
         print()
         say(f"══ [{i}/{len(parts)}] {name} ══", "b")

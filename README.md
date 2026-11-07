@@ -1,6 +1,6 @@
-# Modda — Lex.uz qonunchiligidan aniq javob
+# Modda — javob qonundan, isbot manbadan
 
-Oʻzbek tilidagi huquqiy savolga **Lex.uz moddalariga tayangan**, har bir gapi manba bilan tekshirilgan qisqa javob beradigan lokal AI-agent. Ishonchli manba topilmasa — **«Bilmayman»**. Javob 3D kitob ichida (chapda javob, oʻngda manba moddasi ±5 qoʻshni modda bilan), javobning manbaga mosligi — Adolat haykali tarozisida.
+Oʻzbek tilidagi huquqiy savolga **Lex.uz moddalariga tayangan**, har bir gapi manba bilan tekshirilgan qisqa javob beradigan lokal AI-agent. Ishonchli manba topilmasa — **«Bilmayman»**. Javob 3D kitob ichida (chapda javob, oʻngda manba moddasi ±5 qoʻshni modda bilan), javobning manbaga mosligi — Adolat haykali tarozisida; hukm kelganda oʻng tomondagi hakam bolgʻachasi uradi.
 
 > Yuridik maslahat emas. Rasmiy matn — [lex.uz](https://lex.uz).
 
@@ -20,12 +20,12 @@ Har bosqich saytda jonli koʻrinadi (SSE hodisalari): Mind atrofidagi graf tugun
 |---|---|
 | Korpus | Hugging Face’dagi Lex.uz nusxasi (qatʼiy versiya): 24 267 hujjat, 54 173 modda → 183 170 boʻlak |
 | Qidiruv | bge-m3 (1024 oʻlcham) + BM25, Qdrant 1.20, RRF |
-| LLM | Ollama: `qwen3:8b` (bakeoff: `gemma4:e4b`, Llama-3.1-8B-Uz) |
+| LLM | Ollama: **`gemma4:e4b`** (bakeoff gʻolibi: 0 yolgʻon javob) yoki `qwen3:8b` (2× tezroq) |
 | Baza | SQLite yoki PostgreSQL |
 | API | FastAPI (yoki standart kutubxona serveri) — `src/modda/api.py`, `service.py` |
 | Sayt | `frontend_idea/` — Vite, Three.js, GSAP |
 
-**Sifat (45 oltin savol, toʻliq indeks):** gibrid Recall@5 **0,911**, MRR **0,766**, p50 0,28 s (dense 0,800 / BM25 0,778). Toʻliq hisobot: `python -m modda report`.
+**Sifat (45 oltin savol, toʻliq indeks):** gibrid Recall@5 **0,911**, MRR **0,77**, p50 0,28 s (dense 0,800 / BM25 0,778); τ = 0,58. Toʻliq hisobot: [docs/BAHOLASH.md](docs/BAHOLASH.md).
 
 ## Ishga tushirish
 
@@ -59,7 +59,7 @@ Testlar: `pytest` (backend), `cd frontend_idea && npm test` (unit), `node tests/
 * [lexuz-huquqiy-ai-yol-xaritasi-v3-5-kun.md](lexuz-huquqiy-ai-yol-xaritasi-v3-5-kun.md) — 5 kunlik reja va checklist
 * [I_EXPLAIN.md](I_EXPLAIN.md) — loyihani noldan tushuntirish (§0.1 — rejadan amalga)
 * [frontend_idea.md](frontend_idea.md) — sayt konsepsiyasi · [frontend_idea/README.md](frontend_idea/README.md)
-* [KUN-1.md](KUN-1.md), [KUN-2.md](KUN-2.md), [KUN-3.md](KUN-3.md) — kunlik ishlar
+* [KUN-1.md](KUN-1.md) … [KUN-4.md](KUN-4.md) — kunlik ishlar · [docs/BAHOLASH.md](docs/BAHOLASH.md) — baholash
 
 ## Cheklovlar
 

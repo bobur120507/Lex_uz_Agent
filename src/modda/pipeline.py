@@ -18,7 +18,7 @@ from .rag import Context, build_messages, fetch_contexts, parse_answer
 from .router import lookup, route
 from .scoring import score_answer
 from .store import Hit
-from .textnorm import normalize_uz, to_query_form, tokenize
+from .textnorm import number_words, normalize_uz, to_query_form, tokenize
 
 NUM_RE = re.compile(r"\d+")
 
@@ -59,7 +59,8 @@ def verify(sentence: dict, ctx_by_id: dict[str, Context], min_overlap: float = M
     if not ids:
         return False, "manba koʻrsatilmagan"
     src = " ".join(f"{ctx_by_id[i].header} {ctx_by_id[i].text}" for i in ids)
-    missing = [n for n in NUM_RE.findall(sentence["text"]) if n not in NUM_RE.findall(src)]
+    in_src = set(NUM_RE.findall(src)) | number_words(src)          # laws write «yigirma bir kun»: 21 is in the source
+    missing = [n for n in NUM_RE.findall(sentence["text"]) if n not in in_src]
     if missing:
         return False, f"manbada yoʻq son: {', '.join(missing)}"
     words = _words(sentence["text"])
