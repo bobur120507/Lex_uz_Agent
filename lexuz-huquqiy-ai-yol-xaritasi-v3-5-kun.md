@@ -12,7 +12,7 @@ Tushunchalar va vositalar jamoa uchun [I_EXPLAIN.md](I_EXPLAIN.md) da tushuntiri
 
 > Har bir qadam tugaganda shu roʻyxat yangilanadi. Belgilar: ✅ bajarildi · 🔄 jarayonda · ⏸️ toʻxtatilgan · ↪️ boshqa yoʻl bilan · ❌ toʻsiq · ⬜ hali boshlanmagan. Batafsil buyruqlar — [KUN-1.md](KUN-1.md).
 >
-> **Oxirgi yangilanish:** 2026-11-07 (3-kun). **Loyiha GPU noutbukka koʻchiriladi** (RTX 4060 8 GB, 16 GB RAM, Windows): bitta skript `scripts\setup_server.bat` hammasini oʻrnatadi va Bobur’dagi holatga keltiradi — [SERVER-NOUTBUK.md](SERVER-NOUTBUK.md). **Frontend v2.2:** haykal yana 10 % kattaroq; bosilsa — **yuqori qismi** yaqindan; pallalarda **olov shaklidagi nur** (palla kengligida) va uchqunlar; Lex.uz pallasida **rasmiy logotip 3D**; kitob sahifalari **2× aniqroq** (2048 × 2752), ekran piksellari 2× gacha, kamera sahifalarga tikroq. **2-kun yopilgan:** gibrid Recall@5 0,911 · MRR 0,766. **Keyingisi:** noutbukda `setup_server.bat` → `bakeoff` → 6 demo savol.
+> **Oxirgi yangilanish:** 2026-11-07 13:30 (3-kun). **Noutbukda birinchi ishga tushirish tahlil qilindi** ([KUN-3.md](KUN-3.md)): eski skript ishlagan; korpus → 54 173 modda → 183 170 boʻlak → 1 540 ta 195¹ — Bobur’dagi bilan aynan bir xil ✅; lekin bge-m3 **2,6 boʻlak/s** (model GPU’ga toʻliq sigʻmagan) → indeks Bobur’ning **snapshot**’idan yuklanadi. Keyingi qadam bitta fayl: **`scripts\day3.bat`** (GPU tekshiruvi → snapshot → bakeoff → 6 demo savol → bitta hisobot). **Yangi:** RSS «oʻzgargan boʻlishi mumkin» belgisi (id + nom boʻyicha). Frontend v2.2 va `setup_server.bat` — avvalgi yangilanishda.
 
 ### 1-kun — uzoq ishlar va asos
 
@@ -93,10 +93,11 @@ Gibrid har ikkalasidan yaxshi → standart sifatida qoladi; reranker hozircha o�
 | ⬜ | τ kalibrlash |
 | ✅ | `POST /ask/stream` (SSE) — 12.4 dagi hodisalar shartnomasi (2-kunda) |
 | ✅ | Saytni haqiqiy API’ga ulash (`python -m modda serve` + `npm run dev`) — 6-noyabr ishladi |
-| ⬜ | RSS delta + «oʻzgargan boʻlishi mumkin» belgisi |
+| ✅ | RSS delta + «oʻzgargan boʻlishi mumkin» belgisi — 7-noyabr: hujjat id’si **yoki nomi** boʻyicha (tuzatish akti «Mehnat kodeksiga oʻzgartish…» → Mehnat kodeksi; kirill/lotin id farqi ham yopiladi); kitob manba sahifasida sariq lenta + «Kitobni oʻqish»da eʼlonga havola; test qoʻshildi |
 | ✅ | **Server noutbuk uchun bitta skript** `scripts\setup_server.bat` / `setup_server.py` (19 qadam): Git, Python, Ollama + 4 model, korpus, Qdrant, ingest → 195¹ → chunk → RSS, snapshot-import (yoki GPU’da indeks), eval, Node.js, sayt build, Firewall, `start_modda.bat` / `update_modda.bat`, haqiqiy savol bilan tekshiruv; ixtiyoriy SSH (Bobur boshqarishi uchun), avto-start, reranker. Sinov muhitida (Linux, sinov LLM, haqiqiy Qdrant) index/eval/verify/status qadamlari tekshirildi; Windows’ga xos qadamlar — noutbukda |
-| ⬜ | Noutbukda `setup_server.bat` ni ishga tushirish → `server-status.json` (Bobur’dagi 54 173 / 183 170 / 0,911 bilan bir xil boʻlishi kerak) |
-| ⬜ | **LLM tanlash — GPU noutbukda** `bakeoff` (`qwen3:8b`, `gemma4:e4b`, Llama-3.1-8B-Uz; 20 savol) — modellar skript bilan yuklanadi |
+| 🔄 | Noutbukda oʻrnatish — 7-noyabr 11:16: (eski) skript korpus/boʻlaklarni Bobur’dagi bilan aynan bir xil qildi (54 173 / 183 170 / 1 540); bge-m3 2,6 boʻlak/s (GPU’ga toʻliq sigʻmadi) → **`scripts\day3.bat`**: GPU tekshiruvi + snapshot-import + qolgan qadamlar |
+| ✅ | `scripts\day3.bat` (`day3.py`, `demo_questions.py`): GPU diagnostikasi (nvidia-smi, zaryadlovchi, VRAM’dagi dasturlar, GPU ulushi, boʻlak/s, token/s) → setup_server → bakeoff → 6 demo savol → bitta `day3-*.log` hisobot. Sinov muhitida toʻliq oʻtdi |
+| 🔄 | **LLM tanlash — GPU noutbukda** `bakeoff` (`qwen3:8b`, `gemma4:e4b`, Llama-3.1-8B-Uz; 20 savol) — `day3.bat` ichida; natija `day3-*.log` da |
 | ↪️ | Javob vaqti: CPU’da `qwen3:8b` ≈ 1–2 daqiqa → **butun loyiha GPU noutbukda ishlaydi**; Bobur saytni `http://<noutbuk-IP>:8080` orqali ochadi ([SERVER-NOUTBUK.md](SERVER-NOUTBUK.md)) |
 | ✅ | Backend: yangi frontend uchun maʼlumotlar (13.4) — Bobur 6-noyabr tasdiqladi, qilindi (44 test) |
 
@@ -105,7 +106,7 @@ Gibrid har ikkalasidan yaxshi → standart sifatida qoladi; reranker hozircha o�
 | Holat | Qadam |
 |---|---|
 | ⬜ | top-k, τ, prompt sozlash; kechikish |
-| ⬜ | Prompt-injection sinovlari |
+| 🔄 | Prompt-injection sinovlari — 6-demo savol `day3.bat` da (koʻrsatmaga boʻysunmaslik, tizim prompti chiqmasligi, yolgʻon gap tasdiqlanmasligi) |
 | ⬜ | Toʻliq baholash hisoboti |
 | 🔄 | 3D: unumdorlik, zaxira rejim, klaviatura | yangi frontend’da: WebGL’siz rejim, klaviatura, qisqartirilgan harakat tayyor; kadr/s — Bobur’ning noutbukida oʻlchanadi |
 

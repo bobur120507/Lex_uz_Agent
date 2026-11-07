@@ -78,10 +78,15 @@ scripts\setup_server.bat --no-bakeoff-models                       :: faqat bge-
    VS Code’dagi **Remote – SSH** kengaytmasi bilan noutbukdagi fayllarni bevosita tahrirlash ham mumkin.
 4. **Bobur’ning backend’i jamoadoshning GPU’sidagi LLM bilan** (kerak boʻlsa): bu skript Ollama’ni tarmoqqa **ochmaydi** (xavfsizlik uchun). Kerak boʻlsa noutbukda `setx OLLAMA_HOST 0.0.0.0:11434`, Ollama’ni qayta ishga tushirish va 11434 portiga Firewall ruxsati; Bobur’da `OLLAMA_URL=http://<IP>:11434`.
 
-## 5. Muammolar
+## 5. 3-kun: `scripts\day3.bat`
+
+GPU tekshiruvi → (snapshot bilan) oʻrnatish → bakeoff → 6 demo savol, hammasi bitta hisobotga: `data\reports\day3-<vaqt>.log`. Batafsil: [KUN-3.md](KUN-3.md).
+
+## 6. Muammolar
 
 | Belgi | Sabab va yechim |
 |---|---|
+| bge-m3 sekin (< 25 boʻlak/s) yoki «… % GPU’da» 100 dan kam | Zaryadlovchini ulang; VRAM’dagi boshqa dasturlarni yoping (roʻyxat `day3.bat --only gpu` da); Ollama’ni qayta ishga tushiring (lama belgisi → Quit, qayta oching) |
 | `models`: «GPU ishlatilmayapti» | NVIDIA drayverini yangilang, kompyuterni qayta yoqing, `scripts\setup_server.bat --only models,verify` |
 | `index`: snapshot import oʻtmadi | Skript oʻzi `chunk --rebuild` qilib qayta urinadi, boʻlmasa GPU’da yasaydi. Fayllar toʻliq koʻchirilganini tekshiring (`.snapshot` ≈ 1,98 GB) |
 | Boshqa kompyuterdan sayt ochilmaydi | Tarmoq *Public* — *Private* qiling; `scripts\setup_server.bat --only lan`; ikkala kompyuter bir tarmoqdami |

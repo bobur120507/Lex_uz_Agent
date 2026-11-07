@@ -214,6 +214,41 @@ def step_git():
 
 # --------------------------------------------------------------------------- 5. models
 
+def loaded_models() -> list[dict]:
+    try:
+        return http_json(f"{OLLAMA}/api/ps", timeout=10).get("models", [])
+    except Exception:
+        return []
+
+
+def unload_all(quiet=False) -> list[str]:
+    """Frees the GPU: other models held in VRAM push bge-m3 / qwen3 partly onto the CPU (10–50× slower)."""
+    names = [m["name"] for m in loaded_models()]
+    for name in names:
+        for ep, body in (("generate", {"model": name, "keep_alive": 0}), ("embed", {"model": name, "input": "x", "keep_alive": 0})):
+            try:
+                http_json(f"{OLLAMA}/api/{ep}", body, timeout=120)
+                break
+            except Exception:
+                continue
+    for _ in range(20):
+        if not loaded_models():
+            break
+        time.sleep(0.5)
+    if names and not quiet:
+        say(f"GPU boʻshatildi: {', '.join(names)} xotiradan chiqarildi")
+    return names
+
+
+def gpu_share(model: str) -> tuple[float, int, int] | None:
+    """(share on GPU 0…1, size, size_vram) of a loaded model."""
+    for m in loaded_models():
+        if m["name"] == model or m["name"].startswith(model.split(":")[0] + ":") or m["name"] == model + ":latest":
+            size, vram = m.get("size") or 0, m.get("size_vram") or 0
+            return (vram / size if size else 0.0), size, vram
+    return None
+
+
 def gpu_of(model: str) -> int:
     try:
         for m in http_json(f"{OLLAMA}/api/ps")["models"]:
@@ -225,7 +260,12 @@ def gpu_of(model: str) -> int:
 
 
 def step_models(bakeoff: bool):
+    unload_all()                                       # a model left in VRAM would push bge-m3 partly onto the CPU
     base.step_models(skip_llm=False)                  # bge-m3 + qwen3:8b, embedding on the GPU checked
+    sh = gpu_share(base.EMBED_MODEL)
+    if sh:
+        (ok if sh[0] > 0.97 else warn)(f"bge-m3: {sh[0] * 100:.0f} % GPU’da ({fmt_mb(sh[2])} / {fmt_mb(sh[1])})"
+                                       + ("" if sh[0] > 0.97 else " — qolgani CPU’da, sekin! scripts\\day3.bat GPU tekshiruvini koʻring"))
     if not base.have_model(base.LLM_MODEL):
         raise StepFailed(f"{base.LLM_MODEL} yuklanmadi — javob yozish uchun kerak. Internetni tekshirib, qayta ishga tushiring.")
     say(f"{base.LLM_MODEL} sinab koʻrilmoqda (birinchi chaqiruv modelni GPU’ga yuklaydi)…")

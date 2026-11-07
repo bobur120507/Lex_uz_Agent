@@ -65,8 +65,16 @@ def source_payload(c: Context, stale_ids: set) -> dict:
         "adoption_date": _iso(m.get("doc_date")), "url": m.get("source_url"),
         "article_no": None if flat else label_display(label or ""), "article_title": m.get("article_title"),
         "chapter": m.get("chapter"), "text": c.text, "amendment_note": m.get("amendment_note"),
-        "stale": str(m.get("doc_id")) in stale_ids,
+        **_stale_fields(stale_ids, m),
     }
+
+
+def _stale_fields(stale_ids, m: dict) -> dict:
+    hit = stale_ids.lookup(m.get("doc_id"), m.get("doc_title")) if hasattr(stale_ids, "lookup") else (
+        {"match": "id"} if str(m.get("doc_id")) in (stale_ids or set()) else None)
+    if not hit:
+        return {"stale": False}
+    return {"stale": True, "stale_info": {k: hit.get(k) for k in ("title", "published", "link", "match") if hit.get(k)}}
 
 
 def ask(con, store, embedder, llm, *, question: str, embed_model: str, llm_model: str, emit=None,

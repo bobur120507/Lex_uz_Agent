@@ -45,7 +45,8 @@ export function answerPageHTML(state, onRef) {
     page.append(h('h3', { style: { marginTop: '22px' } }, 'Manbalar'),
       h('ol', { class: 'reader__src' }, srcs.map((s) => h('li', {}, h('button', { type: 'button', class: 'ref', onclick: () => onRef(s.n) }, `[${s.n}]`), ' ',
         `${s.title}${s.article_no ? `, ${s.article_no}-modda` : ''}`, s.url ? [' · ', h('a', { href: s.url, target: '_blank', rel: 'noopener' }, 'Lex.uz ↗')] : null,
-        s.stale ? h('span', { style: { color: '#a06a1e' } }, ' · oʻzgargan boʻlishi mumkin') : null))));
+        s.stale ? h('span', { style: { color: '#a06a1e' } }, ` · ⚠ Lex.uz’da ${s.stale_info?.published ? `${s.stale_info.published} da ` : ''}oʻzgargan boʻlishi mumkin`,
+          s.stale_info?.link ? [' (', h('a', { href: s.stale_info.link, target: '_blank', rel: 'noopener' }, 'eʼlon ↗'), ')'] : null) : null))));
   }
   page.append(h('p', { class: 'reader__disc' }, DISCLAIMER));
   return page;

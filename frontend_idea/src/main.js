@@ -80,10 +80,10 @@ async function spreadFor(st, n) {
   if (cid) {
     try {
       const quote = st.answer?.answer?.find((x) => x.chunk_ids.includes(cid))?.quote;
-      right = sourcePage(await context(cid), { n: s ? n : null, quote, total: srcs.length });
+      right = sourcePage(await context(cid), { n: s ? n : null, quote, total: srcs.length, stale: s?.stale ? (s.stale_info || {}) : null });
     } catch { right = null; }
   }
-  if (!right) right = sourcePage({ document: { title: s?.title || 'Manba' }, articles: s ? [{ label: s.article_no, title: s.article_title, text: s.text, is_target: true }] : [] }, { n });
+  if (!right) right = sourcePage({ document: { title: s?.title || 'Manba' }, articles: s ? [{ label: s.article_no, title: s.article_title, text: s.text, is_target: true }] : [] }, { n, stale: s?.stale ? (s.stale_info || {}) : null });
   return { left: left.texture, right: right.texture, leftHits: left.hits, rightHits: right.hits };
 }
 

@@ -519,3 +519,22 @@ def test_ollama_stats_from_nanoseconds():
     from modda.llm import _stats
     s = _stats({"prompt_eval_count": 100, "eval_count": 50, "eval_duration": 2_000_000_000, "total_duration": 3_500_000_000})
     assert s == {"prompt_tokens": 100, "output_tokens": 50, "gen_ms": 2000.0, "total_ms": 3500.0, "tokens_per_s": 25.0}
+
+
+def test_stale_by_id_and_by_title():
+    from modda.pipeline import _stale_fields
+    from modda.rss import StaleIndex
+    ix = StaleIndex([
+        {"doc_id": "7000001", "title": "Oʻzbekiston Respublikasining Mehnat kodeksiga oʻzgartish va qoʻshimchalar "
+         "kiritish toʻgʻrisida", "link": "https://lex.uz/docs/7000001", "published": "2026-11-03"},
+        {"doc_id": "7000002", "title": "Oʻzbekiston Respublikasi Prezidentining Qarori, 02.11.2026 yildagi PQ-412-son. "
+         "Qishloq xoʻjaligini rivojlantirish chora-tadbirlari toʻgʻrisida", "link": "x", "published": "2026-11-02"}])
+    assert ix.lookup("1", "Oʻzbekiston Respublikasining Mehnat kodeksi")["match"] == "title"
+    assert ix.lookup("1", "Меҳнат кодекси")["match"] == "title"                  # Cyrillic title, same act
+    assert ix.lookup("1", "Oʻzbekiston Respublikasining Soliq kodeksi") is None    # another code
+    assert ix.lookup("1", "Oʻzbekiston Respublikasining Qonuni") is None           # only generic words
+    assert ix.lookup("7000002", "")["match"] == "id" and "7000002" in ix
+    f = _stale_fields(ix, {"doc_id": "5", "doc_title": "Oʻzbekiston Respublikasining Mehnat kodeksi"})
+    assert f["stale"] and f["stale_info"]["published"] == "2026-11-03"
+    assert _stale_fields(set(), {"doc_id": "5"}) == {"stale": False}
+    assert _stale_fields({"5"}, {"doc_id": "5"})["stale"]                        # old set form still works

@@ -326,9 +326,10 @@ export function answerPage(data) {
 // ---------------------------------------------------------------- the source page (right)
 /**
  * ctx: response of GET /chunks/{id}/context — {document, articles: [{article_id, label, title, text, is_target}]}
- * opts: {n (reference number), quote, total}
+ * opts: {n (reference number), quote, total, stale: {published, title, match} when the Lex.uz RSS feed announced a
+ *        change to this act after the snapshot (backend rss.StaleIndex)}
  */
-export function sourcePage(src, { n = null, quote = '', total = 0 } = {}) {
+export function sourcePage(src, { n = null, quote = '', total = 0, stale = null } = {}) {
   const { w, h } = PX;
   const [c, ctx] = canvas(w, h);
   paperBase(ctx, w, h, 17 + (n || 0), 'right');
@@ -346,6 +347,17 @@ export function sourcePage(src, { n = null, quote = '', total = 0 } = {}) {
   for (const ln of wrap(ctx, doc.title || '', maxW).slice(0, 2)) { ctx.fillText(ln, L, y); y += 38; }
   ctx.fillStyle = 'rgba(60,45,20,0.22)'; ctx.fillRect(L, y - 8, maxW, 2);
   y += 30;
+  if (stale) {                                              // amber ribbon: the act may have changed since the snapshot
+    const msg = `Lex.uz’da ${stale.published ? `${stale.published} da ` : 'yaqinda '}oʻzgargan boʻlishi mumkin — rasmiy matnni tekshiring`;
+    ctx.font = `600 22px ${MONO}`;
+    const lines = wrap(ctx, `⚠ ${msg}`, maxW - 32).slice(0, 2);
+    const bh = 18 + lines.length * 30;
+    ctx.fillStyle = 'rgba(214,140,40,0.18)'; ctx.fillRect(L - 4, y - 24, maxW + 8, bh);
+    ctx.fillStyle = '#c07a1e'; ctx.fillRect(L - 4, y - 24, 5, bh);
+    ctx.fillStyle = '#8a4f0c';
+    lines.forEach((ln, i) => ctx.fillText(ln, L + 16, y + 4 + i * 30));
+    y += bh + 18;
+  }
 
   const arts = src.articles || [];
   const ti = Math.max(0, arts.findIndex((a) => a.is_target));
