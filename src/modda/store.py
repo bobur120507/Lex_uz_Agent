@@ -127,7 +127,12 @@ class QdrantStore:
         if f:
             for p in pre:
                 p["filter"] = f
-        return self._points({"prefetch": pre, "query": {"fusion": "rrf"}, "limit": limit, "with_payload": True})
+        # RRF gives exactly equal scores to swapped ranks (1st/2nd and 2nd/1st); Qdrant orders such ties arbitrarily, so the
+        # same question could list the same sources in another order (API /v1: «same question → same sources»). A few extra
+        # candidates, then a stable order: score, then chunk id.
+        hits = self._points({"prefetch": pre, "query": {"fusion": "rrf"}, "limit": limit + 10, "with_payload": True})
+        hits.sort(key=lambda h: (-round(h.score, 9), h.chunk_id))
+        return hits[:limit]
 
     def vectors(self, chunk_ids: list[str]) -> dict[str, list[float]]:
         """Stored bge-m3 vectors of these chunks (chunks without a dense vector are left out)."""
@@ -238,5 +243,5 @@ class MemoryStore:
             for rank, h in enumerate(hits, start=1):
                 scores[h.chunk_id] = scores.get(h.chunk_id, 0.0) + 1.0 / (60 + rank)   # RRF with k=60
                 payloads[h.chunk_id] = h.payload
-        best = sorted(scores.items(), key=lambda kv: -kv[1])[:limit]
+        best = sorted(scores.items(), key=lambda kv: (-round(kv[1], 9), kv[0]))[:limit]
         return [Hit(cid, s, payloads[cid]) for cid, s in best]

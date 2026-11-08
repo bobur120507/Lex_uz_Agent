@@ -14,7 +14,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, unquote, urlparse
 
-from . import service
+from . import service, v1
 from .service import BadRequest, NotFound
 
 
@@ -41,10 +41,12 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Access-Control-Allow-Headers", "*")
         self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
 
-    def _json(self, obj, status=200):
+    def _json(self, obj, status=200, headers=None):
         body = json.dumps(obj, ensure_ascii=False).encode()
         try:
             self.send_response(status)
+            for k, v in (headers or {}).items():
+                self.send_header(k, v)
             self.send_header("Content-Type", "application/json; charset=utf-8")
             self.send_header("Content-Length", str(len(body)))
             self._cors()
@@ -72,10 +74,47 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Content-Length", "0")
         self.end_headers()
 
+    def _v1(self, method: str, parts: list[str]):
+        """API /v1 (v1.py) — the same routes and rules as api.py."""
+        auth = self.headers.get("Authorization")
+        try:
+            if method == "GET" and parts == ["v1", "health"]:
+                out = v1.health()
+                return self._json(out, 200 if out["status"] == "ok" else 503)
+            v1.check_auth(auth)
+            if method == "GET" and parts == ["v1", "meta"]:
+                return self._json(v1.meta())
+            if method == "GET" and len(parts) == 4 and parts[:3] == ["v1", "rag", "batch"]:
+                return self._json(*v1.get_batch(parts[3])[::-1])
+            if method == "POST" and parts == ["v1", "rag", "batch"]:
+                v1.rate_limit(auth)
+                status, out = v1.submit_batch(self._v1_body())
+                return self._json(out, status)
+            if method == "POST" and parts == ["v1", "rag", "query"]:
+                return self._json(v1.query(self._v1_body()))
+            return self._json({"error": {"code": "NOT_FOUND", "message": "Not Found"}}, 404)
+        except v1.ApiError as e:
+            return self._json(e.body(), e.status, e.headers)
+        except (BrokenPipeError, ConnectionResetError):
+            self.close_connection = True
+        except Exception as exc:
+            return self._json({"error": {"code": "INTERNAL", "message": str(exc)[:300]}}, 500)
+
+    def _v1_body(self):
+        n = int(self.headers.get("Content-Length") or 0)
+        if n > 1_000_000:
+            raise v1.ApiError(400, "BAD_REQUEST", "soʻrov juda katta")
+        try:
+            return json.loads((self.rfile.read(n) or b"").decode("utf-8"))
+        except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+            raise v1.ApiError(400, "BAD_REQUEST", f"JSON oʻqilmadi: {exc}") from None
+
     def do_GET(self):
         u = urlparse(self.path)
         qs = parse_qs(u.query)
         parts = [unquote(p) for p in u.path.strip("/").split("/") if p]
+        if parts[:1] == ["v1"]:
+            return self._v1("GET", parts)
         try:
             if parts == ["health"]:
                 return self._json(service.health())
@@ -107,6 +146,8 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         path = urlparse(self.path).path.rstrip("/")
+        if path.startswith("/v1/"):
+            return self._v1("POST", [unquote(p) for p in path.strip("/").split("/") if p])
         try:
             body = self._body()
             q = service.check_question(body.get("question"))

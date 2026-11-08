@@ -97,15 +97,18 @@ def check_question(question) -> str:
 
 # --------------------------------------------------------------------------- endpoints
 
-def run(question: str, emit=None) -> dict:
+def run(question: str, emit=None, *, k: int | None = None, options: dict | None = None,
+        llm_timeout: float | None = None) -> dict:
+    """options: Ollama generation options for this request (API /v1: temperature, seed)."""
     con = _con()
     trace: dict = {}
     try:
-        llm = Ollama(S.ollama_url, keep_alive=KEEP_ALIVE)
+        llm = Ollama(S.ollama_url, keep_alive=KEEP_ALIVE, options=dict(options or {}),
+                     **({"timeout": llm_timeout} if llm_timeout else {}))
         tau = os.environ.get("RERANK_TAU")
         dense_tau = os.environ.get("DENSE_TAU")             # from `python -m modda calibrate --write-env`
         return ask(con, _store(), llm, llm,
-                   question=question, embed_model=S.embed_model, llm_model=S.llm_model, emit=emit, k=S.top_k,
+                   question=question, embed_model=S.embed_model, llm_model=S.llm_model, emit=emit, k=k or S.top_k,
                    reranker=_get_reranker(), tau=float(tau) if tau else None,
                    dense_tau=float(dense_tau) if dense_tau else None,
                    authority=os.environ.get("AUTHORITY_PRIOR", "off").lower() in ("on", "1", "true"),

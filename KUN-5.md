@@ -148,3 +148,26 @@ Qolgani: Bobur push → (ixtiyoriy) jamoadosh `git pull` + `scripts\day4.bat --o
 **Oʻzgarishlar (Bobur soʻrovi):**
 1. **Tarozi olovining ovozi.** Olov faqat hukm paytida (javob kelganda) chalinardi — gavel zarbasi va qoʻngʻiroq bilan bir vaqtda, eshitilmay qolardi; haykal bosilib tarozi markazga kelganda (olov eng yorqin) esa umuman ovoz yoʻq edi. Endi tarozi koʻrinishida: olov alangalanadi (`flame.mp3` boshidan), keyin sokin yonib turadi (faylning barqaror qismi 0,4–2,4 s takrorlanadi), Esc/orqaga — 0,5 s da soʻnadi. e2e: «scales view: the flames are heard», «fire stops when the scales view closes».
 2. **Mind — qatlamli neyron tarmogʻi (v4)**, Bobur namunasi boʻyicha: ustunlar chapdan oʻngga — KIRISH (soʻrov tokenlari) → EMBEDDING (2 560) → ATTENTION (8 bosh, 2 KV guruh — 2 rang) → FFN (10 240 — eng keng) → QOLDIQ OQIM (2 560) → CHIQISH (tokenlar); har neyron keyingi ustunning har neyroniga ulangan; ostida nom va haqiqiy son, transformer bloki ostida qavs «TRANSFORMER BLOKI × 42» va 42 belgi (har biri bitta qatlam, ‹ › bilan tanlanadi), ustida «42 marta takrorlanadi» yoyi. 3D: soyali sharlar, perspektiva, sekin chayqalish, sichqoncha bilan aylantirish; sharni bosing — ustun izohi. Impulslar — shu javobning chiqish tokenlari, oʻlchangan tok/s bilan. Sharlar soni — namuna (kenglikning √ ga mutanosib: FFN 4× keng → 2× shar), haqiqiy son yozilgan. Telefonda tarmoq yuqoridan pastga, yozuvlar chapda. Eski minora (`viz/layers.js`) olib tashlandi.
+
+## 11. Yakuniy bosqich — «RAG API — test spetsifikatsiyasi» (@jurabek) va 100 savol
+
+Spetsifikatsiya ikki narsani talab qiladi: (1) testchi chaqiradigan **API /v1**, (2) 100 savol bilan qidiruv va generatsiyani alohida
+baholash. Ikkalasi tayyor; batafsil — [docs/API-V1.md](docs/API-V1.md).
+
+| Qism | Fayl | Holat |
+|---|---|---|
+| API /v1: batch (1–10), batch natijasi, query, meta, health; Bearer kalit, 400/401/403/409/429, idempotentlik, savol darajasidagi xato, 202 + polling | `src/modda/v1.py`, `api.py`, `devserver.py` | ✅ 18 unit test; sinov muhitida checklist 21/21 |
+| 100 savollik test toʻplami (§6 tarkibi, har batch’da 6–7 kategoriya) | `data/testset/test100.csv`, `scripts/build_testset.py` | ✅ |
+| Test skripti: checklist §7 → 10 batch → metrikalar §6 → hisobot (100 savol va javob) | `scripts/rag_api_test.py` | ✅ sinov muhitida toʻliq oʻtdi |
+| Jamoadosh uchun bitta skript: kod, xizmatlar, kalit, server, test, papka | `scripts/day6.bat` / `day6.py` | 🔄 GPU noutbukda |
+
+**Tillar.** Korpus oʻzbek lotin: javob har doim oʻzbekcha yoziladi va manba bilan tekshiriladi; kirill savolga — transliteratsiya,
+rus savoliga — savol tarjimasi bilan qidiruv va tekshirilgan javobning tarjimasi (`debug.answer_uz` — asli).
+
+**Baholash.** Correctness 0/1/2 — LLM-hakam (noutbukda `qwen3:8b` boʻlsa, u — tekshirilayotgan gemma4 emas) va test toʻplamidagi
+kalit faktlar; faithfulness va citation accuracy — deterministik (har son va mazmunli soʻzlarning ≥ 50% i oʻzi havola qilgan
+kontekstda); toʻqilgan / eskirgan manba — lokal korpus va `versions.py` bilan. Har notoʻgʻri javob bitta sababga yoziladi:
+retrieval / generatsiya / manba.
+
+**Sinov muhitidagi natija** (sinov LLM har savolga javob beradi, embedding — xesh, korpus 10 kodeks): API checklist 21/21 ✅,
+100/100 javob, xato 0 %, p50 2,6 s. Sifat raqamlari maʼnosiz — haqiqiysi `day6.bat` dan keyin.

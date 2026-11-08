@@ -141,3 +141,33 @@ def tokenize(text: str) -> list[str]:
             continue
         tokens.append(stem(tok))
     return tokens
+
+
+_LAT2 = {"oʻ": "ў", "gʻ": "ғ", "sh": "ш", "ch": "ч", "yo": "ё", "yu": "ю", "ya": "я", "ye": "е", "ts": "ц"}
+_LAT1 = {"a": "а", "b": "б", "d": "д", "e": "е", "f": "ф", "g": "г", "h": "ҳ", "i": "и", "j": "ж", "k": "к", "l": "л",
+         "m": "м", "n": "н", "o": "о", "p": "п", "q": "қ", "r": "р", "s": "с", "t": "т", "u": "у", "v": "в", "x": "х",
+         "y": "й", "z": "з", TUTUQ: "ъ"}
+
+
+def lat_to_cyr(text: str) -> str:
+    """Uzbek Latin → Cyrillic (for answers to questions asked in Cyrillic). 'e' at the start of a word is 'э'."""
+    t = re.sub(f"([oOgG])[{re.escape(APOSTROPHES)}]", lambda m: m.group(1) + OKINA, text or "")
+    out, i = [], 0
+    while i < len(t):
+        two, ch = t[i:i + 2], t[i]
+        if two.lower() in _LAT2:
+            cyr = _LAT2[two.lower()]
+            out.append(cyr.upper() if two[0].isupper() else cyr)
+            i += 2
+            continue
+        low = ch.lower()
+        if low == "e" and (i == 0 or not t[i - 1].isalpha()):
+            cyr = "э"
+        else:
+            cyr = _LAT1.get(low)
+        if cyr is None:
+            out.append(ch)
+        else:
+            out.append(cyr.upper() if ch.isupper() else cyr)
+        i += 1
+    return "".join(out)

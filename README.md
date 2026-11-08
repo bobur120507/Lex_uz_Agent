@@ -53,11 +53,13 @@ cd frontend_idea && npm ci && npm run dev             # sayt :5174
 | `python -m modda report` | `data/reports/BAHOLASH.md` |
 | `scripts\day3.bat`, `scripts\day4.bat` | GPU noutbukda: tekshiruv, bakeoff, demo savollar, τ, baholash, zaxira video |
 | `scripts\day5.bat` | demo oldidan yakuniy tekshiruv → `data\reports\TAYYORLIK.md` («TAYYOR / TAYYOR EMAS») |
+| `scripts\day6.bat` | **yakuniy test**: API /v1 + 100 savol (spetsifikatsiya) → `HISOBOT.html/.docx` (metrikalar, 100 savol va javob) |
 
 Testlar: `pytest` (backend), `cd frontend_idea && npm test` (unit), `node tests/e2e.mjs http://localhost:8080 out/` (brauzer).
 
 ## Hujjatlar
 
+* [docs/API-V1.md](docs/API-V1.md) — API /v1 testchi uchun: endpointlar, kalit, javob maydonlari, 100 savollik test
 * [lexuz-huquqiy-ai-yol-xaritasi-v3-5-kun.md](lexuz-huquqiy-ai-yol-xaritasi-v3-5-kun.md) — 5 kunlik reja va checklist
 * [I_EXPLAIN.md](I_EXPLAIN.md) — loyihani noldan tushuntirish (§0.1 — rejadan amalga)
 * [frontend_idea.md](frontend_idea.md) — sayt konsepsiyasi · [frontend_idea/README.md](frontend_idea/README.md)

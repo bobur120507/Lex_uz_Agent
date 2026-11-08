@@ -24,6 +24,7 @@ web/dist/
 /update_modda.bat
 /status_modda.bat
 data/import/
+data/v1/
 
 # result folders the teammate sends (logs, videos) — kept locally, not in git
 Bobur_uchun*/

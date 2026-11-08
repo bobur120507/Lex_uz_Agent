@@ -13,6 +13,9 @@ Inspector endpoints (frontend_idea/, read-only, real data only):
   GET  /documents?q=                 document list for «Hujjatlar»;  GET /documents/{doc_id}  its articles
 Request traces live in memory for 30 minutes (last 50 requests); nothing is written to disk.
 
+API /v1 («RAG API — test spetsifikatsiyasi», v1.py): POST /v1/rag/batch, GET /v1/rag/batch/{id}, POST /v1/rag/query,
+GET /v1/meta, GET /v1/health — Bearer key from MODDA_API_KEY; batch results are saved in data/v1/batches/.
+
 Run: python -m modda serve        (http://localhost:8080; the Vite dev servers proxy these paths)
 Without FastAPI installed, `serve` falls back to `devserver.py` (standard library) with the same routes.
 Optional reranker: RERANKER=on (needs `.[rerank]`; slow on CPU), RERANK_TAU=0.3 for «Bilmayman».
@@ -118,6 +121,75 @@ def documents(q: str = "", limit: int = Query(20, ge=1, le=100), doc_type: str |
 @app.get("/documents/{doc_id}")
 def document(doc_id: str, offset: int = Query(0, ge=0), limit: int = Query(20, ge=1, le=100)):
     return _nf(service.document, doc_id, offset, limit)
+
+
+# --------------------------------------------------------------------------- API /v1 (test spetsifikatsiyasi)
+# logic in v1.py; here only HTTP: auth → rate limit → JSON → work in a thread (the LLM blocks)
+
+from fastapi import Request                                 # noqa: E402
+from fastapi.responses import JSONResponse                  # noqa: E402
+from starlette.concurrency import run_in_threadpool        # noqa: E402
+
+from . import v1                                            # noqa: E402
+
+UTF8 = "application/json; charset=utf-8"
+
+
+def _v1_error(e: "v1.ApiError") -> JSONResponse:
+    return JSONResponse(e.body(), status_code=e.status, headers=e.headers, media_type=UTF8)
+
+
+async def _v1_json(request: Request):
+    try:
+        return json.loads((await request.body()).decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise v1.ApiError(400, "BAD_REQUEST", f"JSON oʻqilmadi: {exc}") from None
+
+
+@app.post("/v1/rag/batch")
+async def v1_batch(request: Request):
+    auth = request.headers.get("authorization")
+    try:
+        v1.check_auth(auth)
+        v1.rate_limit(auth)
+        status, out = await run_in_threadpool(v1.submit_batch, await _v1_json(request))
+        return JSONResponse(out, status_code=status, media_type=UTF8)
+    except v1.ApiError as e:
+        return _v1_error(e)
+
+
+@app.get("/v1/rag/batch/{batch_id}")
+async def v1_batch_get(batch_id: str, request: Request):
+    try:
+        v1.check_auth(request.headers.get("authorization"))
+        status, out = await run_in_threadpool(v1.get_batch, batch_id)
+        return JSONResponse(out, status_code=status, media_type=UTF8)
+    except v1.ApiError as e:
+        return _v1_error(e)
+
+
+@app.post("/v1/rag/query")
+async def v1_query(request: Request):
+    try:
+        v1.check_auth(request.headers.get("authorization"))
+        return JSONResponse(await run_in_threadpool(v1.query, await _v1_json(request)), media_type=UTF8)
+    except v1.ApiError as e:
+        return _v1_error(e)
+
+
+@app.get("/v1/meta")
+async def v1_meta(request: Request):
+    try:
+        v1.check_auth(request.headers.get("authorization"))
+        return JSONResponse(await run_in_threadpool(v1.meta), media_type=UTF8)
+    except v1.ApiError as e:
+        return _v1_error(e)
+
+
+@app.get("/v1/health")
+async def v1_health():
+    out = await run_in_threadpool(v1.health)
+    return JSONResponse(out, status_code=200 if out["status"] == "ok" else 503, media_type=UTF8)
 
 
 _dist = service.web_dist()                             # MODDA_WEB_DIST=frontend_idea/dist for the new site

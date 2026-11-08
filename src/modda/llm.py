@@ -23,6 +23,7 @@ class Ollama:
     keep_alive: str = "30m"          # keep models in memory between batches (no reload every few minutes)
     last_embed: dict = field(default_factory=dict)   # Ollama's own counters for the latest call (shown on the site)
     last_chat: dict = field(default_factory=dict)
+    options: dict = field(default_factory=dict)      # per-request generation options (API /v1: temperature, seed)
 
     def _post(self, path: str, payload: dict) -> dict:
         try:
@@ -79,7 +80,7 @@ class Ollama:
         refuses it gets the request again without it."""
         payload: dict = {
             "model": model, "messages": messages, "stream": on_token is not None, "keep_alive": self.keep_alive,
-            "options": {"temperature": temperature, "num_ctx": num_ctx, "num_predict": num_predict},
+            "options": {"temperature": temperature, "num_ctx": num_ctx, "num_predict": num_predict, **self.options},
             "think": False,
         }
         if json_mode:
