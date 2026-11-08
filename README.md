@@ -52,6 +52,7 @@ cd frontend_idea && npm ci && npm run dev             # sayt :5174
 | `python -m modda versions` | bir aktning eski nusxalari (qidiruvdan chiqariladi) |
 | `python -m modda report` | `data/reports/BAHOLASH.md` |
 | `scripts\day3.bat`, `scripts\day4.bat` | GPU noutbukda: tekshiruv, bakeoff, demo savollar, τ, baholash, zaxira video |
+| `scripts\day5.bat` | demo oldidan yakuniy tekshiruv → `data\reports\TAYYORLIK.md` («TAYYOR / TAYYOR EMAS») |
 
 Testlar: `pytest` (backend), `cd frontend_idea && npm test` (unit), `node tests/e2e.mjs http://localhost:8080 out/` (brauzer).
 

@@ -6,6 +6,7 @@ Demo GPU noutbukda (RTX 4060) ishlaydi; Bobur saytni oʻz brauzerida ochadi. Ham
 
 | ✓ | Nima | Qanday |
 |---|---|---|
+| ☐ | **Avtomatik tekshiruv** | `scripts\day5.bat` (≈ 5 daqiqa) → oxirida «✅ TAYYOR» chiqishi kerak; «❌» boʻlsa — `TAYYORLIK.md` da nima tuzatish kerakligi yozilgan |
 | ☐ | Noutbuk zaryadlovchida, qopqoq ochiq | batareyada GPU sekinlashadi (16,7 → 2,6 boʻlak/s boʻlgan) |
 | ☐ | Bitta tarmoq | ikkala kompyuter bir Wi-Fi’da (Private) yoki telefon hotspot’i |
 | ☐ | Server | noutbukda `start_modda.bat` → oynada IP. Oynada **«Modellar GPU’ga yuklandi»** chiqishini kuting (isitish: 1-savol ham 2–5 s boʻladi, 20 s emas) |

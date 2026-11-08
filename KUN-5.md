@@ -93,3 +93,13 @@ Ovoz brauzer qoidasiga koʻra birinchi bosish/tugmadan keyin yoqiladi. Yuqori o�
 2. **«Eng past 9 kadr/s»:** endi brauzerning haqiqiy kadr tezligi oʻlchanadi (hamma canvas), shuning uchun oyna ochilishidagi bir martalik toʻxtash koʻrinib qoldi — 3D oyna (Mind, PCA) birinchi marta ochilganda shader’lar kompilyatsiya qilinadi (~1 s). Tuzatish: oyna shader’larini **parallel** kompilyatsiya qiladi (`compileAsync`, `KHR_parallel_shader_compile` — RTX’da bor) va tayyor boʻlgach koʻrsatadi; sahifa qotmaydi. Yozuvchi endi eng past kadr/s ni bosqichlar boʻyicha ham chiqaradi (`idle`, `answer`, `scales`, `mind`) — keyingi safar qayerda ekani aniq koʻrinadi.
 
 Qolgani: Bobur push → (ixtiyoriy) jamoadosh `git pull` + `scripts\day4.bat --only video` (≈ 1 daqiqa, build oʻzi qilinadi) → mashq.
+
+## 8. Yakuniy qadamlar (8-noyabr 12:00 dan)
+
+| Kim | Nima | Buyruq |
+|---|---|---|
+| Jamoadosh (GPU noutbuk) | demo oldidan yakuniy tekshiruv — **demo kuni ertalab ham** | `git pull` → `scripts\day5.bat` → `data\reports\Bobur_uchun-…` papkasini Bobur’ga |
+| Bobur (internetli kompyuter) | shriftlarni mahalliy qilish (internetsiz zalda ham shrift toʻgʻri) | `node frontend_idea/scripts/fetch_fonts.mjs` → `git add frontend_idea/public/fonts frontend_idea/index.html` → commit → push |
+| Jamoa | mashq — 2 marta, soat bilan | [DEMO.md](DEMO.md) |
+
+`day5.bat` nimani tekshiradi: zaryadlovchi va GPU · Ollama/Qdrant, `gemma4:e4b` va `bge-m3`, indeks toʻliq · `.env` (LLM, τ, ierarxiya) · sayt yigʻmasi yangi (eski boʻlsa yigʻadi) · server tayyor boʻlish va isitish vaqti · sayt, ovozlar, `?demo` fayllari · **6 demo savol** API orqali, har biri avtomatik: 2-savolda «yigirma bir» bor, «15 ish» yoʻq; 4-savolda «12 foiz» bor, boshqa foizlar yoʻq; 5–6 — «Bilmayman»; manba, baho ≥ 80, vaqt < 15 s · tarmoq «Private», firewall, LAN manzili · video va kadr/s bosqichlar boʻyicha. Natija — `TAYYORLIK.md`: hammasi ✅ boʻlsa «TAYYOR», aks holda ❌ lar roʻyxati.
