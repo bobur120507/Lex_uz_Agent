@@ -1,9 +1,9 @@
-// The Mind window: the model as a 3-D tower of its real layers (viz/layers.js) is the main element; around it only
+// The Mind window: the model as a 3-D layered network of its real sizes (viz/network.js) is the main element; around it only
 // one line of facts (Ollama's model card) and the request's counters. Activations are not available and not drawn.
 import { ICONS } from '../config.js';
 import { openPanel } from './overlay.js';
 import { h, unavailable, fmtMs, fmtNum, fmtBig } from './dom.js';
-import { layerStack } from '../viz/layers.js';
+import { layerNetwork } from '../viz/network.js';
 import { modelInfo } from './inspectors.js';
 
 export function openMind(ctx, which = 'llm') {
@@ -44,10 +44,13 @@ export function openMind(ctx, which = 'llm') {
     body.replaceChildren(viz,
       h('p', { class: 'note mind-view__foot' },
         run.filter(Boolean).length ? `Shu soʻrov: ${run.filter(Boolean).join(' · ')}. ` : '', replay,
-        `Har halqa — bitta qatlam: tashqi yoyi ${c.attention_heads ?? '—'} ta attention boshi${c.kv_heads && c.kv_heads < c.attention_heads ? ` (bir rangdagilar — ${c.kv_heads} ta umumiy KV guruh)` : ''}, ichkisi — FFN (${fmtNum(c.ffn_size)}); markaziy nur — qoldiq oqim. `,
-        'Faollashuvlar chizilmaydi — Ollama ularni bermaydi; halqa faqat impuls oʻtayotganda yonadi.'));
+        `Chapdan oʻngga: kirish tokenlari → embedding (${fmtNum(c.hidden_size)}) → bitta transformer bloki: attention (${c.attention_heads ?? '—'} bosh${c.kv_heads && c.kv_heads < c.attention_heads ? `, bir rangdagilar — ${c.kv_heads} ta umumiy KV guruh` : ''}), FFN (${fmtNum(c.ffn_size)}), qoldiq oqim → ${kind === 'llm' ? 'chiqish tokenlari' : 'savol vektori'}. `,
+        `Blok ${c.layers} marta takrorlanadi (pastdagi ${c.layers} belgi — har biri bitta qatlam; ‹ › bilan tanlang). `,
+        'Ustundagi sharlar soni — namuna (kenglikning kvadrat ildiziga mutanosib), haqiqiy son ostida yozilgan; sharni bosing — izoh. ',
+        'Faollashuvlar chizilmaydi — Ollama ularni bermaydi; shar faqat impuls oʻtayotganda yonadi.'));
     const height = Math.max(380, Math.min(window.innerHeight - 250, 740));
-    view = layerStack(viz, c, { tokens, run: stats, kind, height, onLayer: (i) => { where.textContent = `${i + 1} / ${c.layers}-qatlam`; } });
+    view = layerNetwork(viz, c, { tokens, run: stats, kind, height, onLayer: (i) => { where.textContent = `${i + 1} / ${c.layers}-qatlam`; } });
+    viz.network = view;                                               // tests reach the view through the element
     where.textContent = `${c.layers} qatlam`;
   };
   for (const [kind, label] of [['llm', 'LLM'], ['embedding', 'Embedding']]) {

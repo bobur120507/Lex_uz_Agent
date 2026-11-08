@@ -26,7 +26,7 @@ Belgilar: ✅ bajarildi · ⚠️ izoh bilan · ❌ yoʻq.
 | Haqiqiy SSE hodisalari bosqichlarni yangilaydi | ✅ | e2e: «every stage has a final status» |
 | Bosqich tugunlari bosiladi | ✅ | e2e: 8 inspektor ochiladi |
 | Topilgan hujjatlar bosiladi | ✅ | v2: kitob manba sahifasi (±5 modda), inspektorlardagi havolalar → «Kitobda ochish»; «Hujjatlar» roʻyxati |
-| Markaziy model tuguni model inspektorini ochadi | ✅ | e2e: Mind — haqiqiy qatlam soni; LLM ↔ Embedding |
+| Markaziy model tuguni model inspektorini ochadi | ✅ | e2e: Mind — qatlamli neyron tarmogʻi (v4), ustunlar va haqiqiy sonlar, qatlamlar ‹ › bilan; LLM ↔ Embedding |
 | Embedding inspektori haqiqiy maʼlumotni koʻrsatadi | ✅ | 1024 qiymat (3D ustunlar + roʻyxat + JSON), PCA — haqiqiy proeksiya |
 | Graf kamerasi boshqaruvi | ⚠️ | bosh sahifa kamerasi ataylab belgilangan (kitob/haykal kompozitsiyasi); aylantirish/zoom/«Kamera» qaytarish — inspektorlarning 3D koʻrinishlarida |
 | Javob `/ask` natijasini koʻrsatadi | ✅ | kitob chap sahifasi, [n] havolalar, tasdiqlangan gaplargina |

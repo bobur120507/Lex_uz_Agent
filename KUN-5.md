@@ -130,3 +130,21 @@ Qolgani: Bobur push → (ixtiyoriy) jamoadosh `git pull` + `scripts\day4.bat --o
 3. **Tarmoq** — ish/universitet Wi-Fi’ida profilni oʻzgartirish ruxsat etilmasligi va mijozlar bir-biridan ajratilgan boʻlishi mumkin. Ishonchli yoʻl: **telefon hotspot’i** (Private) yoki **noutbukni proyektorga ulab `http://localhost:8080`** (tarmoq umuman kerak emas).
 4. **«idle 11 kadr/s»** — yozuvchi sahifa tayyor boʻlgan zahoti birinchi soniyani oʻlchagan (modellar va teksturalar GPU’ga bir marta yuklanadi). Demoda sahifa daqiqalar oldin ochiladi. Endi bu soniya alohida **«load»** bosqichi sifatida koʻrsatiladi va baholanmaydi, `idle` 2 s keyin oʻlchanadi. Mind 28 — oyna ochilishidagi birinchi soniya; batareyada ham. Keyingi `day5.bat` (zaryadlovchida) aniq koʻrsatadi.
 5. Kichik tuzatishlar: indeks bir marta tekshiriladi (`stats` 3 marta chaqirilardi, −4 s), batareya foizi xabarda.
+
+## 10. Ikkinchi tekshiruv (12:34) va oʻzgarishlar
+
+**25 ✅ · 2 ⚠️ · 2 ❌** — dasturiy qism yana toʻliq ✅: 6/6 demo savol (0,4–5,6 s, baho 95,9–100), server 6 s, isitish 2,4 s.
+
+| | 12:06 | 12:34 |
+|---|---|---|
+| batareya | 30 % | **14 %** |
+| sayt kadr/s, median | 59 | **30** |
+| render koeff. | 1,5 | **1,0** |
+| eng past (load / idle / answer / scales / mind) | — / 11 / 37 / 52 / 28 | 8 / 30 / 17 / 30 / 17 |
+| tarmoq | Public | Public |
+
+**Xulosa:** median kadr/s **aniq 30** ga tushdi — bu Windows’ning batareya tejash rejimi (20 % dan past) ekran va brauzerni 30 kadr/s ga cheklaganining belgisi; DPR boshqaruvchisi buni sekinlik deb render koeffitsientini 1,0 ga tushirgan. 12:06 da (30 %) xuddi shu sahna 59 kadr/s edi. Kod oʻzgarmagan → sabab — **quvvat**. Demo faqat zaryadlovchida. Yangi «load» bosqichi ishladi: yuklanishdagi birinchi soniya (8) endi baholanmaydi, `idle` alohida koʻrinadi.
+
+**Oʻzgarishlar (Bobur soʻrovi):**
+1. **Tarozi olovining ovozi.** Olov faqat hukm paytida (javob kelganda) chalinardi — gavel zarbasi va qoʻngʻiroq bilan bir vaqtda, eshitilmay qolardi; haykal bosilib tarozi markazga kelganda (olov eng yorqin) esa umuman ovoz yoʻq edi. Endi tarozi koʻrinishida: olov alangalanadi (`flame.mp3` boshidan), keyin sokin yonib turadi (faylning barqaror qismi 0,4–2,4 s takrorlanadi), Esc/orqaga — 0,5 s da soʻnadi. e2e: «scales view: the flames are heard», «fire stops when the scales view closes».
+2. **Mind — qatlamli neyron tarmogʻi (v4)**, Bobur namunasi boʻyicha: ustunlar chapdan oʻngga — KIRISH (soʻrov tokenlari) → EMBEDDING (2 560) → ATTENTION (8 bosh, 2 KV guruh — 2 rang) → FFN (10 240 — eng keng) → QOLDIQ OQIM (2 560) → CHIQISH (tokenlar); har neyron keyingi ustunning har neyroniga ulangan; ostida nom va haqiqiy son, transformer bloki ostida qavs «TRANSFORMER BLOKI × 42» va 42 belgi (har biri bitta qatlam, ‹ › bilan tanlanadi), ustida «42 marta takrorlanadi» yoyi. 3D: soyali sharlar, perspektiva, sekin chayqalish, sichqoncha bilan aylantirish; sharni bosing — ustun izohi. Impulslar — shu javobning chiqish tokenlari, oʻlchangan tok/s bilan. Sharlar soni — namuna (kenglikning √ ga mutanosib: FFN 4× keng → 2× shar), haqiqiy son yozilgan. Telefonda tarmoq yuqoridan pastga, yozuvlar chapda. Eski minora (`viz/layers.js`) olib tashlandi.

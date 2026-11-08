@@ -45,7 +45,7 @@ src/scene/                 stage.js (renderer, kamera, yorugʻlik), book.js, pag
 src/ui/                    nodes.js, inspectors.js (8 bosqich), mind.js, scales.js, reader.js, documents.js, help.js, overlay.js
 src/audio/sfx.js           ovozlar: bolgʻacha, olov (public/sounds, Pixabay), tarozi, varaq, muqova (Web Audio sintezi)
 src/viz/                   v3: mini3d (HDR, ACES, bloom, avto-aylanish), fx (yorqin nuqtalar, oqimli chiziqlar, matn yorliqlari),
-                           layers (Mind minorasi), vecfield (1024 qiymat — 3D ustunlar), cloud (PCA tumanligi), rankflow (RRF),
+                           network (Mind — qatlamli neyron tarmogʻi), vecfield (1024 qiymat — 3D ustunlar), cloud (PCA tumanligi), rankflow (RRF),
                            heatmap (WebGL’siz 2D zaxira)
 src/styles/                tokens.css (frontend_idea.md §2.2), layout, components, inspector, responsive
 src/assets/models/         lady-justice.glb (95 MB → 3.6 MB: scripts/optimize_model.py)
@@ -69,7 +69,7 @@ tests/                     research.test.js (unit), e2e.mjs (Playwright)
 
 ## Cheklovlar (halol)
 
-* **Neyron faollashuvlari va attention** koʻrsatilmaydi — Ollama ularni bermaydi. Mind oynasi (v3, 8-noyabr) modelni *haqiqiy tuzilishi* boʻyicha minora qilib chizadi: har qatlam — halqa, tashqi yoyi attention boshlariga boʻlingan (bir rangdagilar — umumiy KV guruh), ichki halqa — FFN, markaziy nur — qoldiq oqim; chapda kirish tokenlari, oʻngda chiqish tokenlari. Impulslar — shu soʻrovning chiqish tokenlari, oʻlchangan token/s tezlikda **qayta oʻynaladi**; halqa faqat impuls oʻtganda yonadi — bu oʻlchov emas, sahifada shunday yozilgan.
+* **Neyron faollashuvlari va attention** koʻrsatilmaydi — Ollama ularni bermaydi. Mind oynasi (v4, 8-noyabr, Bobur namunasi boʻyicha) modelni *haqiqiy oʻlchamlari* bilan **qatlamli neyron tarmogʻi** qilib chizadi: ustunlar chapdan oʻngga — kirish tokenlari → embedding (hidden_size) → transformer bloki: attention (boshlar; bir rangdagilar — umumiy KV guruh), FFN (ffn_size), qoldiq oqim → chiqish tokenlari; har ustundagi har neyron keyingi ustunning har neyroniga ulangan; blok `layers` marta takrorlanadi (ustidagi yoy, qavs ostida har qatlamga bitta belgi). Sharlar soni — namuna (kenglikning √ ga mutanosib), haqiqiy son ustun ostida yozilgan. Impulslar — shu soʻrovning chiqish tokenlari, oʻlchangan token/s tezlikda **qayta oʻynaladi**; shar faqat impuls oʻtganda yonadi — bu oʻlchov emas, sahifada shunday yozilgan.
 * **Vizualizatsiyalar v3** (8-noyabr): 1024 qiymat — 32 × 32 nurli ustunlar maydoni (oltin yuqoriga — musbat, moviy pastga — manfiy, bosilsa qiymat ochiladi); PCA — savol markazidagi tumanlik (indeks namunasi savolgacha boʻlgan haqiqiy masofasiga qarab yorqin, nomzodlar — kosinusga qarab katta, nurlar savolga oqadi); RRF — gradient lentalar, tanlanganlarda harakatlanuvchi yorugʻlik; bosh sahifadagi Mind — shader neyronlar, sinapslar va soʻrov vaqtida tezlashadigan uchqunlar. `?quality=low` — bloom va harakatsiz.
 * **Tokenlar roʻyxati** yoʻq (faqat soni) — Ollama embedding uchun tokenizer bermaydi.
 * **Tarozi bahosi** — soʻz mosligi oʻlchovi (`lexical-support-v1`), yuridik xulosa emas; usuli «Gaplar» oynasida yozilgan.

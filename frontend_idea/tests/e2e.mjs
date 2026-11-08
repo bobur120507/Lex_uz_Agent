@@ -82,6 +82,12 @@ async function askAndWait(p, q = Q) {
   await p.click('.mind', { force: true });
   await p.waitForSelector('.panel'); await p.waitForTimeout(3000);
   check('Mind shows real layer count', /qatlam/.test(await p.locator('.panel').innerText()));
+  {                                                                  // v4: the layered network — click a column, step a layer
+    const net = await p.evaluate(() => { const n = document.querySelector('.mind-view__viz')?.network; return n ? { cols: n.columns, at: n.screenOf('ffn') } : null; });
+    check('Mind network has its columns', !!net && ['in', 'attn', 'ffn', 'out'].every((k) => net.cols.includes(k)), JSON.stringify(net?.cols));
+    await p.click('.mind-view__nav button[aria-label="Keyingi qatlam"]'); await p.waitForTimeout(400);
+    check('Mind steps through the real layers', /1 \/ \d+-qatlam/.test(await p.locator('.mind-view__layer').innerText()));
+  }
   await shot(p, 'desktop-insp-mind');
   await p.click('.seg button[data-kind="embedding"]'); await p.waitForTimeout(2500);
   check('Mind switches to the embedding model', /bge-m3|bert/i.test(await p.locator('.panel').innerText()));
@@ -91,6 +97,8 @@ async function askAndWait(p, q = Q) {
     await p.click('.justice-hit', { force: true });
     await p.waitForTimeout(3200);
     check('statue comes to the centre (focus mode)', await p.evaluate(() => document.body.classList.contains('is-justice')));
+    const fire = await p.evaluate(() => window.__modda.sfx.state());
+    check('scales view: the flames are heard', fire.burning || !fire.loaded.includes('flame'), JSON.stringify(fire));
     check('no 2-D scale window opens', (await p.locator('.panel').count()) === 0);
     const hudText = await p.locator('.justice-hud').innerText();
     check('scales caption shows the real score', /\d+\s*\/\s*100|javob yoʻq|Baholanadigan/i.test(hudText), hudText.replace(/\s+/g, ' ').slice(0, 80));
@@ -100,6 +108,7 @@ async function askAndWait(p, q = Q) {
     await closePanel(p);
     await p.keyboard.press('Escape'); await p.waitForTimeout(1600);
     check('Esc leaves focus mode', !(await p.evaluate(() => document.body.classList.contains('is-justice'))));
+    check('fire stops when the scales view closes', !(await p.evaluate(() => window.__modda.sfx.state().burning)));
   } else check('statue visible', false);
 
   await p.click('[data-action="reader"]');

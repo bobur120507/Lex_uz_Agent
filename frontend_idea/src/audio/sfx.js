@@ -74,6 +74,33 @@ export function gavel() { sample('gavel', { offset: 0.036, gain: 0.9 }); }
 /** Flames flaring on the scales. */
 export function flame() { sample('flame', { gain: 0.45 }); }
 
+// The scales view (the statue in the centre, flames burning brightest): the flare, then the fire keeps burning
+// quietly — the middle of flame.mp3 (0.4–2.4 s, its steady part) looped — until the view closes.
+let burning = null;
+/** on: flare + steady fire; off: the fire fades out. */
+export function flameLoop(on) {
+  if (!on) {
+    if (!burning) return;
+    const { src, g } = burning; burning = null;
+    g.gain.cancelScheduledValues(ctx.currentTime);
+    g.gain.setTargetAtTime(0.0001, ctx.currentTime, 0.18);
+    src.stop(ctx.currentTime + 1);
+    return;
+  }
+  if (burning || !ready() || !buffers.flame) return;
+  played.flame++;
+  const t = ctx.currentTime;
+  const src = ctx.createBufferSource(); src.buffer = buffers.flame;
+  src.loop = true; src.loopStart = 0.4; src.loopEnd = 2.4;
+  const g = ctx.createGain();
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(0.5, t + 0.25);              // the flare as the camera arrives
+  g.gain.setTargetAtTime(0.16, t + 1.6, 0.6);                       // then a quiet, steady fire
+  src.connect(g).connect(master);
+  src.start(t, 0);
+  burning = { src, g };
+}
+
 /** One sheet turning. soft: riffling (quiet, varied, at most 3 at a time). */
 export function page({ soft = false, duration = 0.5 } = {}) {
   if (!ready() || (soft && active >= 3)) return;
@@ -129,6 +156,6 @@ export function scales() {
   }
 }
 
-export const state = () => ({ context: ctx?.state ?? 'none', muted, loaded: Object.keys(buffers) });
+export const state = () => ({ context: ctx?.state ?? 'none', muted, loaded: Object.keys(buffers), burning: !!burning });
 /** Debug/recording only: the context and the master bus (e.g. to record what the page plays). */
 export const tap = () => (ensure(), { ctx, master: limiter });

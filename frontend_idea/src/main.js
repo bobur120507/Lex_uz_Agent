@@ -299,6 +299,7 @@ function focusJustice() {
   body.classList.add('is-justice');
   justice.group.visible = true;
   justice.setFocus(true);
+  sfx.flameLoop(true);                                              // the flames burn brightest here — and are heard
   graph.group.visible = false;                                      // nothing in front of / around her
   const s = justice.focusShot(stage.layoutKind);
   stage.flyTo(s.pos, s.look, 1.5);
@@ -312,6 +313,7 @@ function unfocusJustice() {
   body.classList.remove('is-justice');
   hud.hidden = true;
   justice.setFocus(false);
+  sfx.flameLoop(false);
   graph.group.visible = true;
   justice.group.visible = statueShown();
   stage.setShot(beforeFocus || 'idle', 1.3);
