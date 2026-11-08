@@ -60,6 +60,7 @@ export function mini3d(container, {
   const resizers = [];
   const ro = new ResizeObserver(size); ro.observe(container);
   const clock = new THREE.Clock();
+  let compiled = false;
   const loop = () => {
     if (!alive) return;
     raf = requestAnimationFrame(loop);
@@ -67,10 +68,19 @@ export function mini3d(container, {
     const dt = Math.min(clock.getDelta(), 0.05);
     controls.update();
     for (const fn of ticks) fn(dt, clock.elapsedTime);
+    // first frame: compile the scene's shaders in parallel (KHR_parallel_shader_compile) instead of freezing the
+    // page for ~1 s while the window opens (GPU run 8-noyabr: one 9 fps second); the view appears when ready
+    if (compiled !== true) {
+      if (compiled === false && renderer.compileAsync && renderer.extensions.has('KHR_parallel_shader_compile')) {
+        compiled = renderer.compileAsync(scene, cam).catch(() => {}).then(() => { compiled = true; });
+        return;
+      }
+      if (compiled !== false) return;
+    }
     if (composer) composer.render(); else renderer.render(scene, cam);
   };
   size();
-  loop();
+  raf = requestAnimationFrame(loop);              // first frame after the caller has built its scene
   return {
     THREE, scene, camera: cam, controls, renderer, el: renderer.domElement, bloom: bloomPass,
     get pixelRatio() { return renderer.getPixelRatio(); },

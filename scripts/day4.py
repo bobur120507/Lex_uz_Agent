@@ -176,6 +176,13 @@ def part_video(question: str):
     if not node:
         raise StepFailed("Node.js topilmadi (setup_server node qadami)")
     front = ROOT / "frontend_idea"
+    # the server shows frontend_idea/dist: an old build means an old site in the video (8-noyabr 10:37 run)
+    built = (srv.DIST / "index.html").stat().st_mtime if (srv.DIST / "index.html").exists() else 0
+    newest = max([f.stat().st_mtime for d in (front / "src", front / "public") for f in d.rglob("*") if f.is_file()]
+                 + [(front / "index.html").stat().st_mtime])
+    if newest > built:
+        say("Sayt yigʻmasi eski yoki yoʻq — avval npm run build…")
+        part_build()
     say("Chromium (Playwright) tayyorlanmoqda — birinchi marta ≈ 150 MB yuklanadi…")
     run([node, front / "node_modules" / "playwright" / "cli.js", "install", "chromium"], check=False, timeout=1800)
     say("Video yozilmoqda: ekranda oyna ochiladi — ≈ 2 daqiqa sichqoncha va klaviaturaga tegmang.", "y")
@@ -186,6 +193,10 @@ def part_video(question: str):
         r = json.loads(out[out.find("{"):])
     except Exception:
         raise StepFailed("video yozilmadi — yuqoridagi xabarga qarang")
+    if r.get("error"):
+        raise StepFailed(f"{r['error']} · sahifa: {r.get('page')} · xatolar: {(r.get('errors') or [])[:3]}")
+    if r.get("fps_by_phase"):
+        say("  eng past kadr/s bosqichlar boʻyicha: " + ", ".join(f"{k} {v}" for k, v in r["fps_by_phase"].items()))
     (ok if (r.get("fps_median") or 0) >= 45 else warn)(
         f"Kadr/s: median {r.get('fps_median')}, eng past {r.get('fps_min')} (maqsad ≥ 45) · render koeff. {r.get('render_scale')} · GPU: {r.get('gpu')}")
     ok(f"Javob {r.get('answer_s')} s da keldi · video: {r.get('video')}")

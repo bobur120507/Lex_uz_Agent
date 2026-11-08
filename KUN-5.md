@@ -78,3 +78,18 @@ Ovoz brauzer qoidasiga koʻra birinchi bosish/tugmadan keyin yoqiladi. Yuqori o�
 * Bobur: oxirgi tuzatishlarni push qilish (Fuqarolik kodeksi, kadr/s oʻlchovi, namuna fixture, banner).
 * Jamoadosh (ixtiyoriy, ≈ 3 daqiqa): `git pull` → `scripts\day4.bat --only versions,video` — eski nusxalar roʻyxatida Fuqarolik kodeksi 1-qismi yoʻqligini va haqiqiy kadr/s ni tasdiqlash.
 * Mashq: [DEMO.md](DEMO.md) boʻyicha 2 marta.
+
+## 7. Oltinchi GPU ishga tushirish (10:37 va 10:56, kod `8e48c94`)
+
+| Qism | Natija |
+|---|---|
+| versions | **63 ta eski hujjat (3 877 boʻlak)** — avval 70 edi. **Fuqarolik kodeksi 1-qismi endi qidiruvda** ✅; yana 6 juftlik ham ajratildi (modda raqamlari < 50 % mos — boshqa-boshqa aktlar, saqlash xavfsizroq). Konstitutsiya, Mehnat, Soliq, FPK… eski nusxalari avvalgidek chiqariladi |
+| video, 10:37 | ❌ sahifa 120 s ichida tayyor boʻlmadi, jarayon 18 daqiqa osilib qoldi. Sabab: bu ishga tushirishda `build` yoʻq edi — server eski `dist` ni koʻrsatdi (yangi kod bilan mos emas) |
+| video, 10:56 (`build` bilan) | ✅ RTX 4060: javob **1,7 s**, median **59** kadr/s, render koeff. **1,5** (DPR endi tushmaydi — oʻlchov tuzatilgani ishladi); eng past **9** — bitta soniya |
+
+**Fikrim:** natijalar yaxshi. Ikki saboq kodga aylantirildi:
+
+1. **Video oldidan avtomatik `build`:** `day4` endi `frontend_idea/src`, `public` yoki `index.html` `dist` dan yangiroq boʻlsa, videodan oldin oʻzi `npm run build` qiladi. `record_video.mjs` sahifa tayyor boʻlmasa — 18 daqiqa kutish oʻrniga — sabab bilan (konsol xatolari, sahifa holati) darhol chiqadi.
+2. **«Eng past 9 kadr/s»:** endi brauzerning haqiqiy kadr tezligi oʻlchanadi (hamma canvas), shuning uchun oyna ochilishidagi bir martalik toʻxtash koʻrinib qoldi — 3D oyna (Mind, PCA) birinchi marta ochilganda shader’lar kompilyatsiya qilinadi (~1 s). Tuzatish: oyna shader’larini **parallel** kompilyatsiya qiladi (`compileAsync`, `KHR_parallel_shader_compile` — RTX’da bor) va tayyor boʻlgach koʻrsatadi; sahifa qotmaydi. Yozuvchi endi eng past kadr/s ni bosqichlar boʻyicha ham chiqaradi (`idle`, `answer`, `scales`, `mind`) — keyingi safar qayerda ekani aniq koʻrinadi.
+
+Qolgani: Bobur push → (ixtiyoriy) jamoadosh `git pull` + `scripts\day4.bat --only video` (≈ 1 daqiqa, build oʻzi qilinadi) → mashq.

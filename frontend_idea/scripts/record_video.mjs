@@ -26,16 +26,24 @@ const rafFps = () => page.evaluate(() => new Promise((res) => {
   const f = () => { n++; const dt = performance.now() - t0; if (dt < 1000) requestAnimationFrame(f); else res(Math.round((n * 1000) / dt)); };
   requestAnimationFrame(f);
 }));
-const sample = async (n) => { for (let i = 0; i < n; i++) fps.push(await rafFps()); };
+const phases = {};                                                // fps per moment, to find a slow one
+const sample = async (n, phase) => { for (let i = 0; i < n; i++) { const f = await rafFps(); fps.push(f); (phases[phase] ||= []).push(f); } };
 
-await page.goto(url);
-await page.waitForFunction(() => document.body.classList.contains('is-ready'), null, { timeout: 120000 });
+page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text().slice(0, 300)); });
+await page.goto(url, { timeout: 60000 });
+try {
+  await page.waitForFunction(() => document.body.classList.contains('is-ready'), null, { timeout: 120000 });
+} catch (e) {                                                     // say why, instead of a bare timeout
+  const why = await page.evaluate(() => ({ title: document.title, body: document.body.className, scripts: [...document.scripts].map((x) => x.src) })).catch(() => null);
+  console.log(JSON.stringify({ error: 'sahifa 120 s ichida tayyor boʻlmadi (is-ready yoʻq)', page: why, errors }, null, 2));
+  await browser.close(); process.exit(1);
+}
 const gpu = await page.evaluate(() => {
   const gl = document.createElement('canvas').getContext('webgl2') || document.createElement('canvas').getContext('webgl');
   const ext = gl && gl.getExtension('WEBGL_debug_renderer_info');
   return ext ? gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) : gl ? gl.getParameter(gl.RENDERER) : 'no WebGL';
 });
-await sample(4);                                                  // idle scene
+await sample(4, 'idle');                                          // idle scene
 await page.fill('#question', '');
 await page.type('#question', question, { delay: 45 });
 await wait(400);
@@ -43,16 +51,16 @@ await page.keyboard.press('Enter');
 const t0 = Date.now();
 await page.waitForFunction(() => ['done', 'unknown', 'error'].includes(window.__modda?.state?.phase), null, { timeout: 600000 });
 const answerS = (Date.now() - t0) / 1000;
-await sample(8);                                                  // the book lands, pages turn
+await sample(8, 'answer');                                        // the book lands, pages turn
 await page.click('.justice-hit', { force: true }).catch(() => {});
-await sample(6);                                                  // the statue's scales
+await sample(6, 'scales');                                        // the statue's scales
 await page.keyboard.press('Escape');
 await wait(2500);
 await page.click('.node[data-node="generate"]', { force: true }).catch(() => {});
 await wait(2500);
 await page.keyboard.press('Escape'); await wait(800);
 await page.click('.mind[data-node="mind"]', { force: true, timeout: 3000 }).catch(() => {});
-await sample(5);
+await sample(5, 'mind');
 await page.keyboard.press('Escape');
 await wait(1500);
 const dpr = await page.evaluate(() => window.__moddaDpr || window.devicePixelRatio);
@@ -68,4 +76,4 @@ if (raw) {
 await browser.close();
 const s = [...fps].filter((x) => x > 0).sort((a, b) => a - b);
 console.log(JSON.stringify({ gpu, answer_s: Math.round(answerS * 10) / 10, fps_median: s[Math.floor(s.length / 2)] ?? null,
-  fps_min: s[0] ?? null, render_scale: dpr, video: file, errors }, null, 2));
+  fps_min: s[0] ?? null, fps_by_phase: Object.fromEntries(Object.entries(phases).map(([k, v]) => [k, Math.min(...v)])), render_scale: dpr, video: file, errors }, null, 2));

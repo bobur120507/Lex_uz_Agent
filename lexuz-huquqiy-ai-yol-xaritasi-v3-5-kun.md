@@ -12,7 +12,7 @@ Tushunchalar va vositalar jamoa uchun [I_EXPLAIN.md](I_EXPLAIN.md) da tushuntiri
 
 > Har bir qadam tugaganda shu roʻyxat yangilanadi. Belgilar: ✅ bajarildi · 🔄 jarayonda · ⏸️ toʻxtatilgan · ↪️ boshqa yoʻl bilan · ❌ toʻsiq · ⬜ hali boshlanmagan. Batafsil buyruqlar — [KUN-1.md](KUN-1.md).
 >
-> **Oxirgi yangilanish:** 2026-11-08 10:30 (5-kun). **GPU noutbuk, yangi kod (`3e29a55`): demo 6/6 ✅** — 2-savol faqat «yigirma bir kalendar kun», 4-savol faqat «12 foiz»; 70 ta eski hujjat chiqarildi; eval Recall@5 0,911, MRR 0,778 → `hybrid_auth` 0,819 (yoqildi); server isitilgan — javob 1,5 s. Haqiqiy fixture `public/demo/` da. Tuzatildi: Fuqarolik kodeksi 1-qismi «eski nusxa» deb chiqmasin (modda raqamlari mosligi), kadr/s oʻlchovi. Qolgani — push va mashq ([KUN-5.md](KUN-5.md) §5–6).
+> **Oxirgi yangilanish:** 2026-11-08 11:40 (5-kun). Demo 6/6 ✅ (09:41). 10:56: **Fuqarolik kodeksi 1-qismi endi qidiruvda** (63 ta eski hujjat chiqariladi), video RTX 4060’da javob **1,7 s**, median **59** kadr/s, render 1,5. Tuzatildi: video oldidan eski `dist` boʻlsa avtomatik `build`; 3D oyna shader’lari parallel kompilyatsiya (ochilishdagi 1 s toʻxtash); yozuvchi kadr/s ni bosqichlar boʻyicha beradi. Qolgani — push, mashq ([KUN-5.md](KUN-5.md) §7).
 
 ### 1-kun — uzoq ishlar va asos
 
@@ -120,6 +120,7 @@ Gibrid har ikkalasidan yaxshi → standart sifatida qoladi; reranker hozircha o�
 | ✅ | Yakuniy baholash — [docs/BAHOLASH.md](docs/BAHOLASH.md): qidiruv (dense / BM25 / gibrid / gibrid+ierarxiya), bakeoff, τ, **6 demo savol 6/6** (GPU noutbuk, 8-noyabr 09:41) |
 | ✅ | README (yangi, ildizda), I_EXPLAIN §0.1 «Rejadan amalga» — qaysi qism qanday qurildi |
 | ✅ | **Ovozlar** (Bobur: «kitob, tarozi, olov, bolgʻacha»): bolgʻacha — Bobur topgan 2 zarbali fayl, animatsiya ham 2 marta uradi (ritm mos); olov — fayl; tarozi qoʻngʻirogʻi, varaq, muqova — Web Audio sintezi; birinchi bosishdan keyin, karnay tugmasi (eslab qolinadi), limiter; e2e’da tekshiriladi ([KUN-5.md](KUN-5.md)) |
+| ✅ | 10:37/10:56: Fuqarolik kodeksi 1-qismi qidiruvda qoldi (versiyalar 70 → 63); video 1,7 s, 59 kadr/s, render 1,5; 10:37 dagi video xatosi — eski `dist` → `day4` endi oʻzi `build` qiladi; oyna ochilishidagi bir martalik toʻxtash — parallel shader kompilyatsiyasi |
 | ✅ | 08:07 ishga tushirish eski kod bilan edi (push yoʻq) → Bobur push qildi → **09:40: demo 6/6**, fixture toʻgʻri, video javobi 1,5 s; `day4` nomaʼlum qismni ogohlantiradi |
 | ✅ | **Maʼlumot sifati** — [docs/MALUMOT-SIFATI.md](docs/MALUMOT-SIFATI.md): tuzilgan (25 maydon), toza (HTML/boʻsh matn/aralash yozuv yoʻq); **20 ta tasodifiy modda jonli lex.uz bilan**: 17 mos, 3 tekshirib boʻlmadi, 0 mos emas; snapshot sanasi (`version_date`) lex.uz tahrirlar roʻyxati bilan mos; 5 maʼlum kamchilik va yechimlari |
 | ✅ | Demo ssenariysi va mashq — **[DEMO.md](DEMO.md)** (tayyorlov, 7 daqiqalik ssenariy, oʻlchangan natijalar bilan, zaxira rejalar); **zaxira fixture** — haqiqiy GPU javobi (217-modda, baho 100) `frontend_idea/public/demo/fixture.json` da, banner yozib olingan sanani koʻrsatadi; **zaxira video** — RTX 4060, javob 1,5 s; serverda isitish ✅. Mashqning oʻzi — jamoa ⬜ |
