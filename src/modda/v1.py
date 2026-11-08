@@ -411,7 +411,8 @@ _lock = threading.Lock()
 
 
 def _path(batch_id: str):
-    return STORE / f"{re.sub(r'[^\w.\-]', '_', batch_id)}.json"
+    safe = re.sub(r"[^\w.\-]", "_", batch_id)      # (no backslash inside an f-string: Python 3.10 on the laptop)
+    return STORE / f"{safe}.json"
 
 
 def _load(batch_id: str) -> dict | None:

@@ -4,7 +4,7 @@ Qisqa qoidalar: shu papkada ishlaydigan har kim (odam yoki AI) uchun. Batafsil k
 
 ## Rostgoʻylik (eng muhim)
 - Sahifadagi **har bir raqam backend’dan** keladi (`/ask/stream` hodisalari, `/ask/{id}/embedding`, `/model/info`). Kelmagan maʼlumot — «Mavjud emas», oʻylab topilmaydi.
-- Neyron **faollashuvlari, attention vaznlari chizilmaydi** — Ollama ularni bermaydi. Mind tarmogʻida (`viz/network.js`) faqat haqiqiy sanoqlar: qatlamlar, attention boshlari, KV guruhlari, FFN kengligi, kirish/chiqish tokenlari, token/s. Impulslar — chiqish tokenlarining *qayta oʻynalishi* (son va tezlik oʻlchangan), yorugʻlik — oʻlchov emas.
+- Neyron **faollashuvlari, attention vaznlari chizilmaydi** — Ollama ularni bermaydi. Mind tarmogʻida (`viz/network.js` + orqasidagi qatlamlar minorasi `viz/layers.js`) faqat haqiqiy sanoqlar: qatlamlar, attention boshlari, KV guruhlari, FFN kengligi, kirish/chiqish tokenlari, token/s. Impulslar — chiqish tokenlarining *qayta oʻynalishi* (son va tezlik oʻlchangan), yorugʻlik — oʻlchov emas.
 - PCA — «hosila proeksiya»: bitta tekis masshtab, buzish (fisheye va h.k.) yoʻq.
 - `?demo` (namuna rejimi) haqiqiy rejimga hech qachon aralashmaydi va banner bilan koʻrinadi.
 

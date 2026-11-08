@@ -45,7 +45,7 @@ export function openMind(ctx, which = 'llm') {
       h('p', { class: 'note mind-view__foot' },
         run.filter(Boolean).length ? `Shu soʻrov: ${run.filter(Boolean).join(' · ')}. ` : '', replay,
         `Chapdan oʻngga: kirish tokenlari → embedding (${fmtNum(c.hidden_size)}) → bitta transformer bloki: attention (${c.attention_heads ?? '—'} bosh${c.kv_heads && c.kv_heads < c.attention_heads ? `, bir rangdagilar — ${c.kv_heads} ta umumiy KV guruh` : ''}), FFN (${fmtNum(c.ffn_size)}), qoldiq oqim → ${kind === 'llm' ? 'chiqish tokenlari' : 'savol vektori'}. `,
-        `Blok ${c.layers} marta takrorlanadi (pastdagi ${c.layers} belgi — har biri bitta qatlam; ‹ › bilan tanlang). `,
+        `Blok ${c.layers} marta takrorlanadi: orqadagi minora — ${c.layers} ta halqa, har biri bitta qatlam (tashqi yoyi — attention boshlari, ichkisi — FFN, markaziy nur — qoldiq oqim); pastdagi ${c.layers} belgi ham shu qatlamlar, ‹ › bilan tanlang. `,
         'Ustundagi sharlar soni — namuna (kenglikning kvadrat ildiziga mutanosib), haqiqiy son ostida yozilgan; sharni bosing — izoh. ',
         'Faollashuvlar chizilmaydi — Ollama ularni bermaydi; shar faqat impuls oʻtayotganda yonadi.'));
     const height = Math.max(380, Math.min(window.innerHeight - 250, 740));

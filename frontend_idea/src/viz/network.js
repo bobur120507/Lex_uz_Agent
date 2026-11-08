@@ -4,7 +4,9 @@
 //   KIRISH (this request's input tokens) → EMBEDDING (hidden_size) → one transformer block: ATTENTION
 //   (attention_heads; heads sharing a key/value group have one hue) → FFN (ffn_size) → QOLDIQ OQIM (hidden_size)
 //   → CHIQISH (output tokens; for the embedding model: the pooled vector).
-// The block repeats card.layers times: the arc over the block and the row of ticks under the brace (one per layer).
+// The block repeats card.layers times: behind it stands the v3 tower (layers.js) — one ring per layer receding into
+// depth, with its attention heads (KV-group hues), feed-forward dots and the residual-stream beam; also the arc over
+// the block and the row of ticks under the brace (one per layer). A pulse crossing the block runs through the rings.
 // Every number written is real (Ollama's model card and this request). The number of spheres in a column is a
 // sample — proportional to √width so the shape stays truthful (FFN is 4× wider → 2× the spheres); the real
 // width is written under it. Not drawn: activations or attention weights (Ollama does not expose them). Light
@@ -12,6 +14,7 @@
 // passes it — that brightness is not a measurement.
 import { mini3d, LOW } from './mini3d.js';
 import { glowPoints, scalePoints, flowLine, textSprite, PALETTE } from './fx.js';
+import { layerTower } from './layers.js';
 
 const DX = 2.9, SY = 0.235, R = 0.088;
 
@@ -73,11 +76,11 @@ export function layerNetwork(container, card, { tokens = null, run = null, kind 
     sx0 = yName - 1.15 * kL * T * dist; sx1 = yBrace + 0.4 + 1.15 * kR * T * dist; sy0 = x0 - 0.6; sy1 = -x0 + 0.6;
   } else {
     [sx0, sx1, sy0, sy1] = [x0 - 1.0, -x0 + 1.0, yBrace - 0.75, top + 1.3];
-    dist = Math.max(((sx1 - sx0) / 2) * 1.06 / Math.tan(hHalf), ((sy1 - sy0) / 2) * 1.1 / Math.tan(vHalf));
+    dist = Math.max(((sx1 - sx0) / 2) * 1.16 / Math.tan(hHalf), ((sy1 - sy0) / 2) * 1.1 / Math.tan(vHalf));   // + room for the turned view
   }
   const cx = (sx0 + sx1) / 2, cy = (sy0 + sy1) / 2;
   const gap = vert ? 0.027 * T * dist : 0.27;               // one text line, in world units (labels are screen-sized)
-  const AZ = vert ? -0.06 : -0.16, EL = 0.1, SWAY = vert ? 0.05 : 0.1;
+  const AZ = vert ? -0.08 : -0.2, EL = vert ? 0.12 : 0.24, SWAY = vert ? 0.05 : 0.08;   // from above: the tower rises behind the block   // a little from the side: the tower’s depth shows
   const camAt = (az) => [cx + Math.sin(az) * Math.cos(EL) * dist, cy + Math.sin(EL) * dist, Math.cos(az) * Math.cos(EL) * dist];
   const v = mini3d(container, { height, fov, camera: camAt(AZ), target: [cx, cy, 0], autoRotate: 0,
     bloom: { strength: 0.55, radius: 0.5, threshold: 0.42 } });
@@ -126,6 +129,16 @@ export function layerNetwork(container, card, { tokens = null, run = null, kind 
     new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(seg, 3)).setAttribute('color', new THREE.Float32BufferAttribute(segCol, 3)),
     new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.55, blending: THREE.AdditiveBlending, depthWrite: false }));
   scene.add(links);
+
+  // ---- the tower behind the block: card.layers rings receding into depth (v3 Mind tower, layers.js)
+  let tower = null, ringLabel = null;
+  if (blockCols.length && card.layers) {
+    const xm = (blockCols[0].x + blockCols[blockCols.length - 1].x) / 2;
+    tower = layerTower(THREE, { layers: card.layers, heads: H || 8, kvHeads: KV < H ? KV : null, radius: half * 0.86,
+      innerRadius: half * 0.46, gap: Math.min(0.26, 9 / Math.max(1, card.layers)) });
+    tower.group.position.set(xm, 0, -1.3);
+    scene.add(tower.group);
+  }
 
   // ---- labels under the columns (screen-sized, always readable)
   const sprites = [];
@@ -188,7 +201,7 @@ export function layerNetwork(container, card, { tokens = null, run = null, kind 
   for (let i = 0; i < POOL; i++) { pp[i * 3 + 1] = -999; pc.set(llm ? [1.6, 2.6, 2.2] : [2.4, 2.2, 1.6], i * 3); ps[i] = 0.16; }
   const pulses = POOL ? glowPoints({ count: POOL, positions: pp, colors: pc, sizes: ps }) : null;
   if (pulses) scene.add(pulses);
-  scalePoints(v, halos.material, ...(ticks ? [ticks.material] : []), ...(pulses ? [pulses.material] : []));
+  scalePoints(v, halos.material, ...(ticks ? [ticks.material] : []), ...(pulses ? [pulses.material] : []), ...(tower ? tower.materials : []));
 
   const rate = llm ? (run?.tokens_per_s || 0) : 0;
   const total = llm ? outTok : Math.max(1, Math.min(tokens || 16, 120));
@@ -238,6 +251,7 @@ export function layerNetwork(container, card, { tokens = null, run = null, kind 
       col[i * 3] = c.r * g; col[i * 3 + 1] = c.g * g; col[i * 3 + 2] = c.b * g;
     }
     halos.geometry.attributes.color.needsUpdate = true;
+    tower?.update(dt, time, tickLevel, sel);
     if (ticks) {
       const tc2 = ticks.geometry.attributes.color.array;
       const tsz = ticks.geometry.attributes.size.array;
@@ -256,6 +270,13 @@ export function layerNetwork(container, card, { tokens = null, run = null, kind 
     if (blockCols.length) {
       const parts = [`${sel + 1} / ${L}-qatlam`, H ? `${H} bosh` : null, KV < H ? `${KV} KV guruh` : null, card.ffn_size ? `FFN ${fmt(card.ffn_size)}` : null].filter(Boolean);
       setBrace(parts.join(' · '));
+    }
+    if (tower) {                                           // the selected ring in the tower gets its number
+      drop(ringLabel);
+      ringLabel = textSprite(`${sel + 1}-qatlam`, { color: '#f3e3bb', height: 0.022, bg: 'rgba(10,18,16,0.85)', mono: true, weight: 500, screen: true });
+      ringLabel.material.color.setScalar(0.62); ringLabel.center.set(0.5, 0);
+      ringLabel.position.set(tower.group.position.x, half * 0.86 + 0.12, tower.group.position.z + tower.layerZ(sel));
+      scene.add(ringLabel);
     }
     onLayer?.(sel);
   };
@@ -282,6 +303,7 @@ export function layerNetwork(container, card, { tokens = null, run = null, kind 
     clear() {
       sel = -1;
       drop(info); info = null;
+      drop(ringLabel); ringLabel = null;
       if (arc) { arc.visible = true; arcLabel.visible = true; }
       setBrace(`TRANSFORMER BLOKI × ${L}`);
       setTimeout(() => { touched = false; }, 950);           // after the camera flew home, the sway resumes

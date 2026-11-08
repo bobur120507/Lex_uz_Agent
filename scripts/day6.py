@@ -87,6 +87,12 @@ def part_pull():
     (ok if code == 0 else warn)(f"Kod: {head.strip().splitlines()[-1] if head.strip() else '?'}")
     if not (ROOT / "src" / "modda" / "v1.py").exists():
         raise StepFailed("src/modda/v1.py yoʻq — Bobur yangi kodni push qilganmi?")
+    # the code must compile on THIS Python (3.10 here; 8-noyabr 15:15 the server died on a 3.12-only f-string)
+    code, out = run([VPY, "-m", "compileall", "-q", ROOT / "src" / "modda", ROOT / "scripts"], check=False, quiet=True)
+    if code != 0:
+        raise StepFailed("kod bu Python’da kompilyatsiya boʻlmadi — logni Bobur’ga yuboring: "
+                         + " | ".join(l.strip() for l in out.splitlines() if l.strip())[-400:])
+    ok("Kod bu Python’da kompilyatsiya boʻldi")
 
 
 def part_machine():
@@ -163,7 +169,12 @@ class Server:
         env["MODDA_API_KEY"] = STATE.get("key") or env_get("MODDA_API_KEY") or ""
         cls.proc = base.start_detached([VPY, "-m", "modda", "serve", "--host", "0.0.0.0", "--port", srv.API_PORT],
                                        REPORTS / "day6-serve.log", env=env)
-        return (time.time() - t0) if srv.wait_ready(180) else None
+        while time.time() - t0 < 180:                 # a server that crashed on start is reported at once, not after 3 min
+            if cls.proc.poll() is not None:
+                return None
+            if srv.wait_ready(5):
+                return time.time() - t0
+        return None
 
     @classmethod
     def stop(cls):
@@ -175,7 +186,9 @@ class Server:
 def part_server():
     t = Server.start()
     if t is None:
-        raise StepFailed(f"Server 3 daqiqada tayyor boʻlmadi — {REPORTS / 'day6-serve.log'}")
+        logf = REPORTS / "day6-serve.log"
+        tail = logf.read_text(encoding="utf-8", errors="replace").strip().splitlines()[-3:] if logf.exists() else []
+        raise StepFailed(f"Server 3 daqiqada tayyor boʻlmadi — {logf}" + (" · " + " | ".join(tail) if tail else ""))
     ok(f"Server tayyor ({t:.0f} s): http://127.0.0.1:{srv.API_PORT}/v1/health")
     ip = srv.lan_ip()
     if ip:

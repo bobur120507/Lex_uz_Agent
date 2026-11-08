@@ -45,7 +45,7 @@ src/scene/                 stage.js (renderer, kamera, yorugʻlik), book.js, pag
 src/ui/                    nodes.js, inspectors.js (8 bosqich), mind.js, scales.js, reader.js, documents.js, help.js, overlay.js
 src/audio/sfx.js           ovozlar: bolgʻacha, olov (public/sounds, Pixabay), tarozi, varaq, muqova (Web Audio sintezi)
 src/viz/                   v3: mini3d (HDR, ACES, bloom, avto-aylanish), fx (yorqin nuqtalar, oqimli chiziqlar, matn yorliqlari),
-                           network (Mind — qatlamli neyron tarmogʻi), vecfield (1024 qiymat — 3D ustunlar), cloud (PCA tumanligi), rankflow (RRF),
+                           network (Mind — qatlamli neyron tarmogʻi) + layers (uning orqasidagi qatlamlar minorasi), vecfield (1024 qiymat — 3D ustunlar), cloud (PCA tumanligi), rankflow (RRF),
                            heatmap (WebGL’siz 2D zaxira)
 src/styles/                tokens.css (frontend_idea.md §2.2), layout, components, inspector, responsive
 src/assets/models/         lady-justice.glb (95 MB → 3.6 MB: scripts/optimize_model.py)

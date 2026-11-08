@@ -171,3 +171,25 @@ retrieval / generatsiya / manba.
 
 **Sinov muhitidagi natija** (sinov LLM har savolga javob beradi, embedding — xesh, korpus 10 kodeks): API checklist 21/21 ✅,
 100/100 javob, xato 0 %, p50 2,6 s. Sifat raqamlari maʼnosiz — haqiqiysi `day6.bat` dan keyin.
+
+## 12. 15:12–15:18 natijalari va tuzatish
+
+**`day5.bat` (15:12, zaryadlovchida, 100 %):** 27 ✅ · 1 ⚠️ · 1 ❌ — 6/6 demo savol (1,3–6,8 s, baho 95,9–100), **sayt median 60
+kadr/s, eng past 41** (answer 41, scales 59, mind 42), render 1,5 — 12:34 dagi 30 kadr/s (batareya 14 %) haqiqatan quvvatdan edi.
+Birinchi isitish javobi 23 s (modellar sovuq) — demo oldidan bitta sinov savoli bering (DEMO.md). Yagona ❌ — Wi-Fi «PDP Staff» Public.
+
+**`day6.bat` (15:15): test boshlanmadi.** Server ishga tushmadi: `v1.py` 414-qatorda f-string ichida backslash —
+`f"{re.sub(r'[^\w.\-]', '_', batch_id)}.json"`. Python 3.12+ buni qabul qiladi (sinov muhitida 3.13), GPU noutbukda esa
+**Python 3.10** → `SyntaxError`. `day6` 3 daqiqa kutib, «tayyor boʻlmadi» dedi.
+
+Tuzatildi:
+1. `v1.py` — ifoda f-string’dan oldin hisoblanadi. Hamma `.py` fayllar Python 3.11 bilan kompilyatsiya qilindi (3.10 bilan bir xil
+   f-string qoidalari) — boshqa muammo yoʻq; API testlari 3.11 da 18/18.
+2. `tests/test_py310.py` — har `.py` faylda 3.10 qabul qilmaydigan f-string shakllarini topadi (eski xatoni topishi tekshirildi).
+3. `day6.py` — pull’dan keyin kod **noutbukning oʻz Python’ida** kompilyatsiya qilinadi (xato boʻlsa — darhol, aniq xabar); server
+   ishga tushishda yiqilsa — 3 daqiqa emas, darhol, server logining oxirgi qatorlari bilan.
+
+**Mind v5 — minora + tarmoq.** Bobur soʻrovi: eski minora (`viz/layers.js`) va yangi qatlamli tarmoq bitta 3D koʻrinishda. Old
+tomonda — tarmoq (rasm kabi); transformer bloki orqasida — **42 ta halqa chuqurlikka ketadi**: har halqa bitta qatlam (tashqi yoyi —
+8 attention boshi, 2 KV guruh rangi; ichkisi — FFN; markazdan qoldiq oqim nuri). Impuls blokdan oʻtganda halqalar ketma-ket yonadi;
+‹ › bilan tanlangan qatlam — oltin halqa va raqami. Kamera biroz yuqoridan — minora blok orqasidan koʻtariladi.
