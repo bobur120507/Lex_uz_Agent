@@ -20,6 +20,7 @@ from .store import QdrantStore
 
 S = get_settings()
 TRACE_TTL, TRACE_MAX = 30 * 60, 50
+KEEP_ALIVE = os.environ.get("MODDA_KEEP_ALIVE", "2h")   # models stay on the GPU between demo questions
 
 
 class NotFound(LookupError):
@@ -100,17 +101,39 @@ def run(question: str, emit=None) -> dict:
     con = _con()
     trace: dict = {}
     try:
-        llm = Ollama(S.ollama_url)
+        llm = Ollama(S.ollama_url, keep_alive=KEEP_ALIVE)
         tau = os.environ.get("RERANK_TAU")
         dense_tau = os.environ.get("DENSE_TAU")             # from `python -m modda calibrate --write-env`
         return ask(con, _store(), llm, llm,
                    question=question, embed_model=S.embed_model, llm_model=S.llm_model, emit=emit, k=S.top_k,
                    reranker=_get_reranker(), tau=float(tau) if tau else None,
                    dense_tau=float(dense_tau) if dense_tau else None,
+                   authority=os.environ.get("AUTHORITY_PRIOR", "off").lower() in ("on", "1", "true"),
                    stale_ids=_stale(con), checked_at=_checked_at(con), trace=trace, diagnostics=True)
     finally:
         _keep_trace(trace)
         con.close()
+
+
+def warmup() -> dict:
+    """Loads bge-m3 and the LLM onto the GPU and reads the act versions once, so the first question of the
+    demo is not the slow one (day-4 run: question 1 took 20 s cold, the next ones 2–5 s)."""
+    t0, out = time.time(), {}
+    try:
+        from .versions import superseded
+        con = _con()
+        try:
+            out["superseded_docs"] = len(superseded(con))
+        finally:
+            con.close()
+        llm = Ollama(S.ollama_url, keep_alive=KEEP_ALIVE)
+        llm.embed(S.embed_model, ["salom"])
+        llm.chat(S.llm_model, [{"role": "user", "content": "Salom"}], num_predict=1)
+        out["ok"] = True
+    except Exception as exc:                          # the server still starts; the first question is just slower
+        out.update(ok=False, error=str(exc)[:200])
+    out["seconds"] = round(time.time() - t0, 1)
+    return out
 
 
 HEALTH_TTL = 120          # seconds: the page polls /health; counting 183 k rows every time is wasteful

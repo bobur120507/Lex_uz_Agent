@@ -9,6 +9,7 @@
   ask          Savol berish
   eval         Qidiruv sifati: Recall@k, MRR, kechikish
   bakeoff      LLM modellarini bir xil kontekstda solishtirish
+  versions     Bir aktning eski nusxalari (Mehnat kodeksi 1995 ↔ 2022…) — qidiruvdan chiqariladi
   sample       Oltin toʻplam yozish uchun tasodifiy moddalar
   find         Hujjat nomi va modda raqami boʻyicha topish
   fix-numbers  Yuqori indeksli modda raqamlarini tiklash (1951 → 195¹)
@@ -324,7 +325,39 @@ def cmd_rss(s, a):
         print(f"  {i['published']}  {i['title'][:90]}  {i['link']}")
 
 
+def cmd_versions(s, a):
+    """Which older generations of the same code/law are dropped from retrieval (versions.py)."""
+    from .versions import superseded
+    con = _con(s)
+    old = superseded(con)
+    title = {str(r["doc_id"]): (r["doc_title"], r["n"]) for r in con.execute(
+        "SELECT doc_id, MIN(doc_title) AS doc_title, COUNT(*) AS n FROM articles GROUP BY doc_id").fetchall()}
+    chunks = {str(r["doc_id"]): r["n"] for r in con.execute(
+        "SELECT a.doc_id, COUNT(*) AS n FROM chunks c JOIN articles a ON a.id = c.article_id GROUP BY a.doc_id").fetchall()}
+    groups: dict[str, list[str]] = {}
+    for o, cur in old.items():
+        groups.setdefault(cur, []).append(o)
+    rows = sorted(groups.items(), key=lambda kv: -sum(chunks.get(o, 0) for o in kv[1]))
+    print(f"{len(old)} ta eski hujjat ({sum(chunks.get(o, 0) for o in old)} boʻlak) {len(groups)} ta amaldagi hujjat foydasiga "
+          "qidiruvdan chiqariladi.")
+    for cur, olds in rows[:a.n]:
+        print(f"  ✓ {cur:>9} {title.get(cur, ('?', 0))[0][:70]} ({title.get(cur, ('?', 0))[1]} modda)")
+        for o in sorted(olds):
+            print(f"      ✗ {o:>9} {title.get(o, ('?', 0))[0][:66]} ({title.get(o, ('?', 0))[1]} modda)")
+    s.reports_dir.mkdir(parents=True, exist_ok=True)
+    (s.reports_dir / "versions.json").write_text(json.dumps(
+        {"superseded": old, "dropped_chunks": sum(chunks.get(o, 0) for o in old)}, ensure_ascii=False, indent=1), encoding="utf-8")
+
+
 def cmd_serve(s, a):
+    import threading
+
+    def warm():
+        from . import service
+        r = service.warmup()
+        print(f"Modellar GPU’ga yuklandi ({r['seconds']} s)" if r.get("ok") else f"Isitish oʻtmadi: {r.get('error')}",
+              flush=True)
+    threading.Thread(target=warm, daemon=True).start()       # the first demo question is not the slow one
     try:
         if a.stdlib:
             raise ImportError
@@ -377,13 +410,15 @@ def main(argv=None):
     x.add_argument("--k", type=int, default=5); x.add_argument("--mode", choices=["dense", "sparse", "hybrid"], default="hybrid")
     x.add_argument("--show-context", action="store_true"); x.set_defaults(fn=cmd_ask)
     x = sub.add_parser("eval"); x.add_argument("--k", type=int, default=5)
-    x.add_argument("--modes", default="dense,sparse,hybrid"); x.set_defaults(fn=cmd_eval)
+    x.add_argument("--modes", default="dense,sparse,hybrid,hybrid_auth"); x.set_defaults(fn=cmd_eval)
     x = sub.add_parser("bakeoff"); x.add_argument("--models", required=True, help="vergul bilan: qwen3:8b,gemma4:e4b")
     x.add_argument("--n", type=int, default=20); x.add_argument("--k", type=int, default=5); x.set_defaults(fn=cmd_bakeoff)
     x = sub.add_parser("calibrate", help="«Bilmayman» uchun τ (savol ↔ eng yaqin modda oʻxshashligi)")
     x.add_argument("--keep", type=float, default=0.97); x.add_argument("--write-env", action="store_true")
     x.set_defaults(fn=cmd_calibrate)
     sub.add_parser("report", help="toʻliq baholash hisoboti (data/reports → BAHOLASH.md)").set_defaults(fn=cmd_report)
+    x = sub.add_parser("versions", help="bir aktning eski nusxalari (qidiruvdan chiqariladi)")
+    x.add_argument("--n", type=int, default=25); x.set_defaults(fn=cmd_versions)
     x = sub.add_parser("sample"); x.add_argument("--n", type=int, default=60); x.add_argument("--mvp", action="store_true")
     x.set_defaults(fn=cmd_sample)
     x = sub.add_parser("find"); x.add_argument("--title"); x.add_argument("--article"); x.set_defaults(fn=cmd_find)

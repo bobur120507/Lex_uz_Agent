@@ -55,6 +55,14 @@ async function askAndWait(p, q = Q) {
   check('answer arrived', st.phase === 'done' || st.phase === 'unknown', st.phase);
   check('every stage has a final status', Object.values(st.stages).every((s) => ['done', 'warning', 'skipped', 'failed', 'unobserved'].includes(s.status)), JSON.stringify(Object.fromEntries(Object.entries(st.stages).map(([k, v]) => [k, v.status]))));
   check('book controls visible after answer', await p.locator('.book-ui').isVisible());
+  // sounds (8-noyabr): the keypress unlocked audio; the verdict plays flame + scales + gavel, the book its pages
+  await p.waitForTimeout(2500);
+  const snd = await p.evaluate(() => ({ ...window.__modda.sfx.state(), played: { ...window.__modda.sfx.played } }));
+  if (st.score?.score != null) check('verdict sounds: flame, scales, gavel', snd.played.flame >= 1 && snd.played.scales >= 1 && snd.played.gavel >= 1, JSON.stringify(snd.played));
+  check('book sounds: cover and pages', snd.played.book >= 1 && snd.played.page >= 1, `${snd.context}, ${snd.loaded.join('+')}`);
+  await p.click('.sound');
+  check('mute button mutes and is remembered', await p.evaluate(() => window.__modda.sfx.isMuted() && localStorage.getItem('modda.sound') === 'off'));
+  await p.click('.sound');
   await shot(p, 'desktop-3-answer');
 
   // the graph glides to its answer layout after the book has landed: wait until the nodes stop moving

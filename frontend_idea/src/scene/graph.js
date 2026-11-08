@@ -4,6 +4,7 @@
 import * as THREE from 'three';
 import { gsap } from 'gsap';
 import { STAGES } from '../config.js';
+import { flowLine } from '../viz/fx.js';
 
 const COLORS = {
   waiting: '#5d6b64', running: '#d6b66d', runningCyan: '#65d8ee', runningBlue: '#73afe0', done: '#39d6a0',
@@ -38,6 +39,47 @@ function brainPoints(n, r) {
   return pos;
 }
 
+/** Soft round points with per-point size and colour (the Mind's neurons), additive, size-attenuated. */
+function neuronMaterial() {
+  return new THREE.ShaderMaterial({
+    transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+    uniforms: { uTime: { value: 0 }, uScale: { value: 900 }, uLevel: { value: 0 } },
+    vertexShader: /* glsl */`
+      attribute float size; attribute vec3 color; attribute float phase;
+      uniform float uTime, uScale, uLevel; varying vec3 vColor; varying float vA;
+      void main() {
+        vec4 mv = modelViewMatrix * vec4(position, 1.0);
+        float beat = 0.75 + 0.25 * sin(uTime * (1.2 + uLevel * 2.5) + phase * 6.2831);
+        vColor = color * (0.8 + 0.6 * uLevel) * beat; vA = beat;
+        gl_PointSize = size * uScale / -mv.z;
+        gl_Position = projectionMatrix * mv;
+      }`,
+    fragmentShader: /* glsl */`
+      varying vec3 vColor; varying float vA;
+      void main() {
+        float r = length(gl_PointCoord - 0.5) * 2.0; if (r > 1.0) discard;
+        float a = smoothstep(1.0, 0.0, r); a *= a;
+        gl_FragColor = vec4(vColor * (0.6 + 1.4 * smoothstep(0.35, 0.0, r)), a * vA);
+      }`,
+  });
+}
+
+/** Each neuron linked to its two nearest neighbours: the Mind's "synapses" (decorative structure). */
+function synapses(pos, maxLen) {
+  const n = pos.length / 3, seg = [];
+  for (let i = 0; i < n; i++) {
+    let b1 = -1, b2 = -1, d1 = Infinity, d2 = Infinity;
+    for (let j = 0; j < n; j++) {
+      if (j === i) continue;
+      const dx = pos[i * 3] - pos[j * 3], dy = pos[i * 3 + 1] - pos[j * 3 + 1], dz = pos[i * 3 + 2] - pos[j * 3 + 2];
+      const d = dx * dx + dy * dy + dz * dz;
+      if (d < d1) { d2 = d1; b2 = b1; d1 = d; b1 = j; } else if (d < d2) { d2 = d; b2 = j; }
+    }
+    for (const [b, d] of [[b1, d1], [b2, d2]]) if (b > i && d < maxLen * maxLen) seg.push(i, b);
+  }
+  return seg;
+}
+
 export class Graph {
   constructor(scene, { reducedMotion = false } = {}) {
     this.reduced = reducedMotion;
@@ -54,13 +96,48 @@ export class Graph {
     // --- the Mind
     this.core = new THREE.Group();
     this.core.position.copy(this.center);
-    this.brain = new THREE.Points(new THREE.BufferGeometry().setAttribute('position', new THREE.BufferAttribute(brainPoints(this.reduced ? 500 : 1300, 0.42), 3)),
-      new THREE.PointsMaterial({ color: '#7fe3f2', size: 0.016, transparent: true, opacity: 0.85, depthWrite: false, blending: THREE.AdditiveBlending }));
+    const N = this.reduced ? 500 : 1400;
+    const bp = brainPoints(N, 0.42);
+    const bc = new Float32Array(N * 3), bs = new Float32Array(N), ph = new Float32Array(N);
+    const teal = new THREE.Color('#62e6f2'), gold = new THREE.Color('#f0c66e'), deep = new THREE.Color('#2f7fd6'), cc = new THREE.Color();
+    for (let i = 0; i < N; i++) {
+      const x = bp[i * 3], y = bp[i * 3 + 1], z = bp[i * 3 + 2], r = Math.hypot(x, y, z) / 0.42;
+      cc.copy(deep).lerp(teal, Math.min(1, r * 1.1)).lerp(gold, Math.max(0, (y / 0.42) * 0.35 + (Math.random() < 0.06 ? 0.6 : 0)));
+      bc.set([cc.r, cc.g, cc.b], i * 3);
+      bs[i] = 0.012 + Math.random() * 0.016 + (Math.random() < 0.04 ? 0.02 : 0);
+      ph[i] = Math.random();
+    }
+    const bg = new THREE.BufferGeometry();
+    bg.setAttribute('position', new THREE.BufferAttribute(bp, 3));
+    bg.setAttribute('color', new THREE.BufferAttribute(bc, 3));
+    bg.setAttribute('size', new THREE.BufferAttribute(bs, 1));
+    bg.setAttribute('phase', new THREE.BufferAttribute(ph, 1));
+    this.brain = new THREE.Points(bg, neuronMaterial());
+    this.brain.frustumCulled = false;
+    // synapses: nearest-neighbour links, and sparks that run along them (faster while a request runs)
+    const links = synapses(bp, 0.11);
+    this.synSeg = links;
+    const lp = new Float32Array(links.length * 3);
+    links.forEach((idx, k) => lp.set([bp[idx * 3], bp[idx * 3 + 1], bp[idx * 3 + 2]], k * 3));
+    this.synapse = new THREE.LineSegments(new THREE.BufferGeometry().setAttribute('position', new THREE.BufferAttribute(lp, 3)),
+      new THREE.LineBasicMaterial({ color: '#4fc9e0', transparent: true, opacity: 0.16, blending: THREE.AdditiveBlending, depthWrite: false }));
+    this.brainPos = bp;
+    const SP = this.reduced ? 0 : 90;
+    this.sparks = Array.from({ length: SP }, () => ({ seg: Math.floor(Math.random() * (links.length / 2)), t: Math.random(), v: 0.6 + Math.random() * 1.4 }));
+    const sg = new THREE.BufferGeometry();
+    sg.setAttribute('position', new THREE.BufferAttribute(new Float32Array(Math.max(1, SP) * 3), 3));
+    sg.setAttribute('color', new THREE.BufferAttribute(new Float32Array(Math.max(1, SP) * 3).fill(1.4), 3));
+    sg.setAttribute('size', new THREE.BufferAttribute(new Float32Array(Math.max(1, SP)).fill(0.03), 1));
+    sg.setAttribute('phase', new THREE.BufferAttribute(new Float32Array(Math.max(1, SP)), 1));
+    this.sparkPts = new THREE.Points(sg, neuronMaterial());
+    this.sparkPts.frustumCulled = false;
     this.coreGlow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glow, color: '#9fe9d8', transparent: true, opacity: 0.5, depthWrite: false, blending: THREE.AdditiveBlending }));
     this.coreGlow.scale.set(1.7, 1.7, 1);
     this.coreRing = new THREE.Mesh(new THREE.TorusGeometry(0.6, 0.006, 8, 96),
       new THREE.MeshBasicMaterial({ color: '#d6b66d', transparent: true, opacity: 0.55, blending: THREE.AdditiveBlending, depthWrite: false }));
-    this.core.add(this.coreGlow, this.brain, this.coreRing);
+    this.brainGroup = new THREE.Group();
+    this.brainGroup.add(this.synapse, this.brain, this.sparkPts);
+    this.core.add(this.coreGlow, this.brainGroup, this.coreRing);
     this.group.add(this.core);
 
     // --- orbit rings (decorative frame of the graph, no data)
@@ -83,8 +160,7 @@ export class Graph {
       this.group.add(dot, halo);
       const mid = p.clone().lerp(this.center, 0.5).add(new THREE.Vector3(0, 0, 0.25));
       const spoke = new THREE.QuadraticBezierCurve3(this.center.clone(), mid, p.clone());
-      const spokeLine = new THREE.Line(new THREE.BufferGeometry().setFromPoints(spoke.getPoints(32)),
-        new THREE.LineBasicMaterial({ color: '#65d8ee', transparent: true, opacity: 0.18, blending: THREE.AdditiveBlending, depthWrite: false }));
+      const spokeLine = flowLine(spoke.getPoints(24), { color: '#65d8ee', width: 0.0045, speed: 0.35, dashes: 2, glow: 1.2, opacity: 0.25 });
       this.group.add(spokeLine);
       return { id: s.id, kind: s.kind, pos: p, dot, halo, spoke, spokeLine };
     });
@@ -96,8 +172,7 @@ export class Graph {
         pts.push(new THREE.Vector3(this.center.x + this.rx * Math.cos(a), this.center.y + this.ry * Math.sin(a), this.center.z + 0.02));
       }
       const curve = new THREE.CatmullRomCurve3(pts);
-      const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts),
-        new THREE.LineBasicMaterial({ color: '#d6b66d', transparent: true, opacity: 0.16, blending: THREE.AdditiveBlending, depthWrite: false }));
+      const line = flowLine(pts, { color: '#d6b66d', width: 0.0035, speed: 0.25, dashes: 1, glow: 1.0, opacity: 0.2 });
       this.group.add(line);
       return { from: n.id, to: this.nodes[i + 1].id, curve, line };
     });
@@ -140,14 +215,18 @@ export class Graph {
       n.dot.material.color.copy(col);
       n.halo.material.color.copy(col);
       n.halo.material.opacity = st === 'waiting' ? 0.25 : st === 'skipped' ? 0.15 : 0.6;
-      n.spokeLine.material.color.copy(st === 'waiting' || st === 'skipped' ? new THREE.Color('#65d8ee') : col);
-      n.spokeLine.material.opacity = st === 'running' ? 0.75 : st === 'done' ? 0.4 : st === 'warning' || st === 'failed' ? 0.5 : 0.16;
+      const su = n.spokeLine.material.uniforms;
+      su.uColor.value.copy(st === 'waiting' || st === 'skipped' ? new THREE.Color('#65d8ee') : col);
+      su.uOpacity.value = st === 'running' ? 0.95 : st === 'done' ? 0.5 : st === 'warning' || st === 'failed' ? 0.6 : 0.22;
+      su.uSpeed.value = st === 'running' ? 1.4 : st === 'done' ? 0.35 : 0.15;
+      su.uGlow.value = st === 'running' ? 2.4 : 1.2;
     }
     for (const a of this.arcs) {
       const a0 = statuses[a.from], a1 = statuses[a.to];
       const lit = (a0 === 'done' || a0 === 'warning') && a1 && a1 !== 'waiting' && a1 !== 'skipped';
-      a.line.material.color.set(lit ? COLORS.done : '#d6b66d');
-      a.line.material.opacity = lit ? 0.55 : 0.14;
+      a.line.material.uniforms.uColor.value.set(lit ? COLORS.done : '#d6b66d');
+      a.line.material.uniforms.uOpacity.value = lit ? 0.7 : 0.18;
+      a.line.material.uniforms.uSpeed.value = lit ? 0.6 : 0.2;
     }
     // particles only on edges of running stages (spoke + incoming arc)
     const curves = [];
@@ -171,8 +250,19 @@ export class Graph {
     const t = this.time;
     if (!this.reduced) {
       const breathe = 1 + Math.sin(t * 1.3) * 0.02 + this.level * 0.03;
-      this.brain.scale.setScalar(breathe);
-      this.brain.rotation.y = Math.sin(t * 0.25) * 0.35;              // a gentle sway, never a full spin
+      this.brainGroup.scale.setScalar(breathe);
+      this.brainGroup.rotation.y = Math.sin(t * 0.25) * 0.35;         // a gentle sway, never a full spin
+      const sp = this.sparkPts.geometry.attributes.position.array, bp = this.brainPos, seg = this.synSeg;
+      for (let i = 0; i < this.sparks.length; i++) {
+        const k = this.sparks[i];
+        k.t += dt * k.v * (0.6 + this.level * 2.2);
+        if (k.t >= 1) { k.t = 0; k.seg = Math.floor(Math.random() * (seg.length / 2)); }
+        const a = seg[k.seg * 2], b = seg[k.seg * 2 + 1];
+        sp[i * 3] = bp[a * 3] + (bp[b * 3] - bp[a * 3]) * k.t;
+        sp[i * 3 + 1] = bp[a * 3 + 1] + (bp[b * 3 + 1] - bp[a * 3 + 1]) * k.t;
+        sp[i * 3 + 2] = bp[a * 3 + 2] + (bp[b * 3 + 2] - bp[a * 3 + 2]) * k.t;
+      }
+      this.sparkPts.geometry.attributes.position.needsUpdate = true;
       this.coreRing.rotation.x = Math.PI / 2 - 0.35 + Math.sin(t * 0.4) * 0.08;   // a slow tilt, no spinning
       this.coreRing.rotation.y = Math.sin(t * 0.21) * 0.25;
       for (const n of this.nodes) {
@@ -187,6 +277,11 @@ export class Graph {
       }
     }
     this.coreGlow.material.opacity = 0.38 + this.level * 0.3 + (this.reduced ? 0 : Math.sin(t * 1.7) * 0.05);
+    const scale = ((window.innerHeight || 900) * Math.min(window.devicePixelRatio || 1, 2) * 0.5) / Math.tan((18 * Math.PI) / 180);
+    for (const m of [this.brain.material, this.sparkPts.material]) { m.uniforms.uTime.value = t; m.uniforms.uScale.value = scale; m.uniforms.uLevel.value = this.level; }
+    this.synapse.material.opacity = 0.12 + this.level * 0.18;
+    for (const n of this.nodes) n.spokeLine.material.uniforms.uTime.value = t;
+    for (const a of this.arcs) a.line.material.uniforms.uTime.value = t;
     this.beam.material.opacity = 0.1 + this.level * 0.25;
   }
 
@@ -202,7 +297,8 @@ export class Graph {
       n.dot.position.copy(n.pos); n.halo.position.copy(n.pos);
       const mid = n.pos.clone().lerp(this.center, 0.5).add(new THREE.Vector3(0, 0, 0.25));
       n.spoke = new THREE.QuadraticBezierCurve3(this.center.clone(), mid, n.pos.clone());
-      n.spokeLine.geometry.setFromPoints(n.spoke.getPoints(32));
+      const fresh = flowLine(n.spoke.getPoints(24), { color: '#65d8ee', width: 0.0045, speed: 0.35, dashes: 2, glow: 1.2, opacity: 0.25 });
+      n.spokeLine.geometry.dispose(); n.spokeLine.geometry = fresh.geometry;
     });
     this.arcs.forEach((arc, i) => {
       const pts = [];
@@ -211,7 +307,8 @@ export class Graph {
         pts.push(new THREE.Vector3(this.center.x + rx * Math.cos(a), this.center.y + ry * Math.sin(a), this.center.z + 0.02));
       }
       arc.curve = new THREE.CatmullRomCurve3(pts);
-      arc.line.geometry.setFromPoints(pts);
+      const fresh = flowLine(pts, { color: '#d6b66d', width: 0.0035, speed: 0.25, dashes: 1, glow: 1.0, opacity: 0.2 });
+      arc.line.geometry.dispose(); arc.line.geometry = fresh.geometry;
     });
     this.setStatuses(this.status, this.active);
   }

@@ -1,5 +1,5 @@
-// The Mind window: the 3-D stack of the model's real layers is the main element; around it only one line of
-// facts (from Ollama's model card) and the request's counters. Activations are not available and not drawn.
+// The Mind window: the model as a 3-D tower of its real layers (viz/layers.js) is the main element; around it only
+// one line of facts (Ollama's model card) and the request's counters. Activations are not available and not drawn.
 import { ICONS } from '../config.js';
 import { openPanel } from './overlay.js';
 import { h, unavailable, fmtMs, fmtNum, fmtBig } from './dom.js';
@@ -37,14 +37,18 @@ export function openMind(ctx, which = 'llm') {
         h('button', { type: 'button', class: 'btn btn--sm btn--ghost', 'aria-label': 'Oldingi qatlam', onclick: () => view.select(view.selected - 1) }, '‹'),
         where,
         h('button', { type: 'button', class: 'btn btn--sm btn--ghost', 'aria-label': 'Keyingi qatlam', onclick: () => view.select(view.selected + 1) }, '›'),
-        h('button', { type: 'button', class: 'btn btn--sm btn--ghost', onclick: () => view.view.reset() }, 'Butun model')));
+        h('button', { type: 'button', class: 'btn btn--sm btn--ghost', onclick: () => { view.clear(); where.textContent = `${c.layers} qatlam`; view.view.reset(); } }, 'Butun model')));
+    const replay = kind === 'llm' && stats?.output_tokens
+      ? `Impulslar — shu soʻrovning ${fmtNum(stats.output_tokens)} ta chiqish tokeni, oʻlchangan ${stats.tokens_per_s ?? '—'} tok/s tezlikda qayta oʻynaladi. `
+      : kind === 'embedding' && tokens ? `Impulslar — savolning ${fmtNum(tokens)} ta tokeni bitta oʻtishda (forward pass). ` : 'Savol berilgach, impulslar shu soʻrovning tokenlarini koʻrsatadi. ';
     body.replaceChildren(viz,
       h('p', { class: 'note mind-view__foot' },
-        run.filter(Boolean).length ? `Shu soʻrov: ${run.filter(Boolean).join(' · ')}. ` : '',
-        `Har qatlamda ${fmtNum(c.hidden_size)} neyrondan 48 tasi namuna sifatida chizilgan. Faollashuvlar chizilmaydi — Ollama ularni bermaydi.`));
-    const height = Math.max(360, Math.min(window.innerHeight - 250, 720));
-    view = layerStack(viz, c, { tokens, height, onLayer: (i) => { where.textContent = `${i + 1} / ${c.layers}-qatlam`; } });
-    view.select(0, false);
+        run.filter(Boolean).length ? `Shu soʻrov: ${run.filter(Boolean).join(' · ')}. ` : '', replay,
+        `Har halqa — bitta qatlam: tashqi yoyi ${c.attention_heads ?? '—'} ta attention boshi${c.kv_heads && c.kv_heads < c.attention_heads ? ` (bir rangdagilar — ${c.kv_heads} ta umumiy KV guruh)` : ''}, ichkisi — FFN (${fmtNum(c.ffn_size)}); markaziy nur — qoldiq oqim. `,
+        'Faollashuvlar chizilmaydi — Ollama ularni bermaydi; halqa faqat impuls oʻtayotganda yonadi.'));
+    const height = Math.max(380, Math.min(window.innerHeight - 250, 740));
+    view = layerStack(viz, c, { tokens, run: stats, kind, height, onLayer: (i) => { where.textContent = `${i + 1} / ${c.layers}-qatlam`; } });
+    where.textContent = `${c.layers} qatlam`;
   };
   for (const [kind, label] of [['llm', 'LLM'], ['embedding', 'Embedding']]) {
     seg.append(h('button', { type: 'button', 'data-kind': kind, 'aria-pressed': 'false', onclick: () => show(kind) }, label));

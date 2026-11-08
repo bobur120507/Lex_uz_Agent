@@ -6,6 +6,7 @@ import { openPanel } from './overlay.js';
 import { h, kv, card, tag, unavailable, fmtMs, fmtNum, fmtBig, copyText } from './dom.js';
 import { toast } from './toast.js';
 import { heatmap } from '../viz/heatmap.js';
+import { vectorField } from '../viz/vecfield.js';
 import { pcaCloud } from '../viz/cloud.js';
 import { rankFlow } from '../viz/rankflow.js';
 
@@ -68,7 +69,7 @@ function embed(state, ctx, panel) {
   const holder = h('div', {}, loading('Vektor yuklanmoqda…'));
   const archHolder = h('div', {}, loading('Model maʼlumoti…'));
   embeddingFor(ctx.backend, state.requestId).then((d) => {
-    holder.replaceChildren(vectorView(d));
+    holder.replaceChildren(vectorView(d, panel));
   }).catch((err) => holder.replaceChildren(unavailable(`Exact vector payload is not available. (${err.message})`)));
   modelInfo(ctx.backend).then((m) => archHolder.replaceChildren(archCard(m.embedding, () => ctx.openMind('embedding'))))
     .catch(() => archHolder.replaceChildren(unavailable('Model kartasi mavjud emas.')));
@@ -78,7 +79,7 @@ function embed(state, ctx, panel) {
   ];
 }
 
-function vectorView(d) {
+function vectorView(d, panel) {
   const v = d.vector;
   const PAGE = 64;
   let page = 0, hit = -1;
@@ -91,14 +92,17 @@ function vectorView(d) {
     }));
     where.textContent = `${page * PAGE}–${Math.min(v.length, page * PAGE + PAGE) - 1} / ${v.length}`;
   };
-  const hm = heatmap(v, { onSelect: (i) => { hit = i; page = Math.floor(i / PAGE); render(); } });
+  const pickDim = (i) => { hit = i; page = Math.floor(i / PAGE); render(); };
+  // 3-D field of the real values; the flat heatmap stays for browsers without WebGL
+  const hm = document.body.classList.contains('no-webgl') ? heatmap(v, { onSelect: pickDim }) : vectorField(v, { onSelect: pickDim, height: 400 });
+  if (hm.dispose) panel?.onCleanup(() => hm.dispose());
   const find = h('input', { type: 'number', min: 0, max: v.length - 1, placeholder: 'oʻlcham №', 'aria-label': 'Oʻlcham raqami', style: { width: '120px' } });
   const go = () => { const i = Number(find.value); if (Number.isInteger(i) && i >= 0 && i < v.length) { hit = i; page = Math.floor(i / PAGE); hm.select(i); render(); } };
   find.addEventListener('keydown', (e) => { if (e.key === 'Enter') go(); });
   render();
   return h('div', { class: 'grid2' },
     card(['Aniq vektor', `${d.dim} × ${d.dtype}`], hm.el,
-      h('p', { class: 'note' }, 'Har bir katak — bitta oʻlcham: oltin — musbat, moviy — manfiy qiymat; yorqinlik — qiymat kattaligi. Katakni bosing.'),
+      h('p', { class: 'note' }, 'Har bir ustun — bitta oʻlcham (32 × 32): oltin ustun yuqoriga — musbat, moviy pastga — manfiy; balandligi va yorqinligi — qiymat kattaligi. Ustunni bosing — qiymat oʻngda ochiladi.'),
       kv([['min', d.stats.min.toFixed(4)], ['max', d.stats.max.toFixed(4)], ['oʻrtacha', d.stats.mean.toFixed(5)], ['norma', d.norm.toFixed(4)]])),
     card('Qiymatlar',
       h('div', { class: 'field' }, find, h('button', { type: 'button', class: 'btn btn--sm', onclick: go }, 'Topish'),

@@ -23,6 +23,9 @@ Qoidalar:
 
 UNKNOWN_RE = re.compile(r"\bBILMAYMAN\b", re.I)
 CITE_RE = re.compile(r"\[(\d+)\]")
+# «the sources do not say» written as an answer sentence (bakeoff g027: «Manbalarda … bevosita maʼlumot yoʻq [1][2]…»)
+NO_INFO_RE = re.compile(r"\b(manba\w*|bu haqda|bu masala\w*|savol\w*)\b.{0,160}\b(maʼlumot(?:lar)?|javob(?:i)?)\s+"
+                        r"(yoʻq|mavjud emas|keltirilmagan|berilmagan)\b(?!\s+boʻlsa)|aytib bera olmayman", re.I)
 
 
 @dataclass
@@ -74,21 +77,27 @@ def fetch_contexts(con, hits) -> list[Context]:
 
 def retrieve(con, store, embedder, embed_model: str, question: str, k: int = 5, mode: str = "dense",
              flt: dict | None = None, routing: bool = True) -> list[Context]:
-    """Explicit references ("MK 131-modda") are looked up directly and put first; the rest is search."""
+    """Explicit references ("MK 131-modda") are looked up directly and put first; the rest is search.
+    mode: dense | sparse | hybrid, with «_auth» — higher acts moved up (versions.arrange)."""
     from .router import lookup, route
     from .store import Hit
+    from .versions import arrange, superseded
+    authority = mode.endswith("_auth")
+    mode = mode.removesuffix("_auth")
     q = to_query_form(question)
     exact = lookup(con, route(question)) if routing else []
+    old = superseded(con)
+    n = k * 2 if old or authority else k               # room for dropping older versions / moving higher acts up
     if mode == "sparse":
-        hits = store.search_sparse(sparse.query_vector(q), k, flt)
+        hits = store.search_sparse(sparse.query_vector(q), n, flt)
     else:
         vec = embedder.embed(embed_model, [q])[0]
-        hits = (store.search_hybrid(vec, sparse.query_vector(q), k, flt=flt) if mode == "hybrid"
-                else store.search_dense(vec, k, flt))
+        hits = (store.search_hybrid(vec, sparse.query_vector(q), n, flt=flt) if mode == "hybrid"
+                else store.search_dense(vec, n, flt))
     if exact:
         hits = [Hit(cid, 1.0, {}) for cid in exact] + [h for h in hits if h.chunk_id not in exact]
-        hits = hits[:max(k, len(exact))]
-    return fetch_contexts(con, hits)
+    ctx = fetch_contexts(con, hits[:max(n, len(exact))])
+    return arrange(ctx, old, exact, k, authority=authority)          # versions.py
 
 
 def build_messages(question: str, contexts: list[Context]) -> list[dict]:
@@ -108,6 +117,8 @@ def parse_answer(question: str, raw: str, contexts: list[Context]) -> Answer:
         return Answer(question, True, raw, contexts=contexts)
     sentences, used = [], {}
     for s in split_sentences(raw):
+        if NO_INFO_RE.search(CITE_RE.sub("", s)):
+            continue                               # not an answer: the model says the sources lack it
         nums = [int(x) for x in CITE_RE.findall(s)]
         ids = [by_n[n].chunk_id for n in nums if n in by_n]
         sentences.append({"text": CITE_RE.sub("", s).strip(), "chunk_ids": ids, "cited": bool(ids)})

@@ -91,3 +91,40 @@ scripts\day4.bat --llm auto --only demo,fixture,video,report
 `--llm auto` bakeoff va llm qismlarini oʻzi qoʻshadi. Zaryadlovchi ulangan, qopqoq ochiq, brauzer oynalari yopiq; video vaqtida (≈ 1 daqiqa) sichqonchaga tegmang. Oxirida ekranda koʻrsatilgan **`data\reports\Bobur_uchun-…` papkasini toʻliq** yuboring.
 
 Kutilgan: bakeoff’da gemma4 vaqti 15 s dan ≈ 3–5 s ga tushadi, «Kesilgan» = 0; demo 2-savol «yigirma bir kalendar kun», 5-savol «Bilmayman»; fixture — haqiqiy javob.
+
+## 7. Uchinchi ishga tushirish (8-noyabr 00:12, kod `343d270`, `--llm auto`)
+
+**Bakeoff (fikrlashsiz, 20 oltin savol):**
+
+| Model | Toʻgʻri manba | Toʻgʻri «Bilmayman» | Yolgʻon javob | Vaqt | Kesilgan |
+|---|---|---|---|---|---|
+| **gemma4:e4b** | 12/15 | **5/5** | **0** | **2,8 s** | 0 |
+| qwen3:8b | 12/15 | 4/5 | 1 («Konstitutsiyaning 400-moddasi…» ni javob qildi) | 5,9 s | 1 (dollar kursi, 24 s) |
+
+gemma4 fikrlashsiz **5,5× tezlashdi** (15,4 → 2,8 s) va sifati oʻzgarmadi → qoida boʻyicha **gemma4:e4b** (`.env` ga yozildi). Ikkala model ham boy bergan 3 savol (g002, g012, g027) — **qidiruv xatosi** (kutilgan modda top-5 da yoʻq), LLM aybdor emas. g027 da gemma «Manbalarda … bevosita maʼlumot yoʻq [1]…[5]» deb yozdi — bu javob emas → endi «Bilmayman» deb hisoblanadi.
+
+**Demo (gemma4):** 1 ✅ Konstitutsiya 1-modda, 95,9 (sovuq start 20 s) · 2 ⚠️ «yigirma bir kalendar kun» ✅ **+** «134-moddaga muvofiq 15 ish kunidan kam emas» (2018 yilgi yoʻriqnoma eski kodeksdan iqtibos) · 3 ✅ 100, 3,3 s · 4 ❌ **12, 15, 30, 20 foiz** — toʻrt hujjatdan · 5 ✅ «Bilmayman» 1,7 s · 6 ✅ «Bilmayman» 0,3 s.
+
+**Video:** RTX 4060, 60 / 53 kadr/s, javob 2,2 s. **Fixture:** 22 hodisa, lekin qisqa savol («…necha kun?») 217-moddani topmagan → javob «**15 ish kuni**» (yoʻriqnomadan) — **notoʻgʻri, public/demo/ ga qoʻyilmaydi**; videoda ham shu javob. Sayt «tekshirilgan sana» sifatida **2028-01-01** koʻrsatgan (korpusdagi xato sana).
+
+**Asosiy topilma:** HF korpusida hamma hujjat «in-force», lekin bir aktning bir necha avlodi bor — Mehnat kodeksi 1995 (-142859) va 2022 (-6257288), Soliq kodeksi 1997 (-152637), 2007 (-1286558), 2019 (-4674902). Tekshiruvchi har gapni **oʻz manbasi** bilan tekshiradi — shuning uchun eski kodeksdagi «30 foiz» ham «tasdiqlangan» boʻlgan.
+
+## 8. Tuzatishlar (8-noyabr 01:00)
+
+* **Eski nusxalar chiqariladi** (`versions.py`): kodeks, Konstitutsiya va qonunlar — nomi bir xil (prefiks, katta-kichik harf, qoʻshtirnoq hisobga olinmaydi) boʻlsa bitta akt; Lex.uz id’si eng katta (eng yangi) nusxa qoladi. Oʻzgartirish/tasdiqlash aktlari guruhlanmaydi. Qidiruvda 2× nomzod olinadi, eskisi tashlanadi; aniq havola («Soliq kodeksi 258-modda») ham joriy nusxaga boradi. `python -m modda versions` — roʻyxat.
+* **Zid raqamlar:** savol miqdor soʻrasa («necha», «qancha», «foiz», «stavka», «muddat»…) va tasdiqlangan gaplar turli hujjatlardan turli raqam bersa — faqat **yuqori akt**ning raqamli gaplari qoladi (Konstitutsiya → kodeks → qonun → farmon → qaror → buyruq; keyin yangisi). Olib tashlangani tekshiruv oynasida «boshqa hujjatdagi raqam — ustun manba: …» deb koʻrinadi; tarozi faqat koʻrsatilgan gaplarni baholaydi.
+* **Ierarxiya bonusi (oʻlchanadi):** `eval` da yangi rejim `hybrid_auth` — Konstitutsiya/kodeks 3 oʻrin, qonun 1,5 oʻrin yuqoriga. Recall va MRR’ni pasaytirmasa `day4` `AUTHORITY_PRIOR=on` ni `.env` ga yozadi.
+* **«Maʼlumot yoʻq» gapi javob emas:** «Manbalarda … maʼlumot yoʻq», «aytib bera olmayman» — gap olib tashlanadi; boshqa gap boʻlmasa «Bilmayman».
+* **Isitish:** `serve` ishga tushganda bge-m3 va LLM GPU’ga yuklanadi, versiyalar oʻqiladi; modellar 2 soat GPU’da qoladi (`MODDA_KEEP_ALIVE`). 1-savol 20 s emas, 2–5 s.
+* **Tekshirilgan sana** — kelajakdagi sanalar hisobga olinmaydi (2028 → haqiqiy snapshot sanasi).
+* fixture/video savoli — toʻliq shakl: «Har yilgi asosiy mehnat taʼtilining eng kam muddati necha kun?».
+* Demo ssenariysi va mashq: **[DEMO.md](DEMO.md)**. Testlar: **60**.
+
+## 9. Jamoadosh endi nima qiladi (≈ 10 daqiqa)
+
+```bat
+git pull
+scripts\day4.bat --only versions,eval,demo,fixture,video,report
+```
+
+Oxirida `data\reports\Bobur_uchun-…` papkasini toʻliq yuboring. Kutilgan: `versions` — Mehnat/Soliq kodeksining eski nusxalari roʻyxatda; eval gibrid Recall@5 ≥ 0,911; demo 2-savolda faqat «yigirma bir kalendar kun», 4-savolda faqat «12 foiz»; fixture — 217-modda bilan. Keyin Bobur fixture’ni `frontend_idea/public/demo/` ga qoʻyadi.

@@ -4,9 +4,11 @@
                                              (bakeoff’dan keyin oʻzi tanlasin: scripts\\day4.bat --llm auto)
 
   0 bakeoff    (--llm auto yoki --only bakeoff) qwen3:8b va gemma4:e4b — 20 oltin savol, «fikrlash»siz; qoida boʻyicha tanlaydi
+     versions   (--only versions) bir aktning eski nusxalari roʻyxati → data\\reports\\versions.json
   1 llm        --llm MODEL boʻlsa: .env dagi LLM_MODEL ni oʻzgartiradi (--llm auto: bakeoff gʻolibi)
   2 calibrate  «Bilmayman» chegarasi τ: savol ↔ eng yaqin modda oʻxshashligi; ajratish yaxshi boʻlsa DENSE_TAU .env ga yoziladi
-  3 eval       qidiruv sifati, 45 oltin savol (dense, BM25, gibrid) → data\\reports\\eval.json
+  3 eval       qidiruv sifati, 45 oltin savol (dense, BM25, gibrid, gibrid+ierarxiya) → data\\reports\\eval.json;
+               gibrid+ierarxiya yomonlashtirmasa AUTHORITY_PRIOR=on .env ga yoziladi
   4 demo       6 demo savol yangi sozlamalar bilan (τ, kuchaytirilgan iqtibos tekshiruvchi)
   5 build      sayt: npm run build (frontend_idea\\dist)
   6 fixture    zaxira «Namuna rejimi» uchun haqiqiy javobni yozib olish → data\\reports\\fixture.json (Bobur uni
@@ -42,9 +44,9 @@ import setup_server as srv                            # noqa: E402
 from setup_windows import C, IS_WIN, REPORTS, ROOT, VPY, StepFailed, bad, ok, run, say, warn  # noqa: E402
 
 PARTS = ["llm", "calibrate", "eval", "demo", "build", "fixture", "video", "report"]
-OPTIONAL = ["bakeoff", "browser"]
+OPTIONAL = ["bakeoff", "browser", "versions"]
 BAKEOFF = ["gemma4:e4b", "qwen3:8b"]
-QUESTION = "Har yilgi mehnat taʼtili necha kun?"
+QUESTION = "Har yilgi asosiy mehnat taʼtilining eng kam muddati necha kun?"   # the short form found a 2018 by-law (15 ish kuni)
 FIXTURE = REPORTS / "fixture.json"             # not public/demo/ directly: a changed tracked file would block `git pull`
 
 
@@ -117,9 +119,14 @@ def part_eval():
         raise StepFailed("eval xato bilan tugadi")
     rep = json.loads(out[out.find("{"):])
     (REPORTS / "eval.json").write_text(json.dumps(rep, ensure_ascii=False, indent=2), encoding="utf-8")
+    rec = lambda r: next((v for k, v in r.items() if k.lower().startswith("recall")), None) or 0
     for mode, r in rep.items():
-        rec = next((v for k, v in r.items() if k.lower().startswith("recall")), None)
-        say(f"  {mode:8} Recall@5 {rec}   MRR {r.get('mrr')}")
+        say(f"  {mode:12} Recall@5 {rec(r)}   MRR {r.get('mrr')}")
+    h, a = rep.get("hybrid"), rep.get("hybrid_auth")
+    if h and a:                                     # the authority shift only goes on when it does not cost quality
+        on = rec(a) >= rec(h) and (a.get("mrr") or 0) >= (h.get("mrr") or 0)
+        set_env("AUTHORITY_PRIOR", "on" if on else None)
+        (ok if on else say)(f"AUTHORITY_PRIOR={'on' if on else 'off'} (hybrid_auth {rec(a)}/{a.get('mrr')} ↔ hybrid {rec(h)}/{h.get('mrr')})")
 
 
 def part_demo():
@@ -216,6 +223,13 @@ Write-Output 'gpu-pref-ok'""")
     warn("Brauzer ochiq boʻlsa — yopib, qayta oching (sozlama keyingi ishga tushirishda kuchga kiradi).")
 
 
+def part_versions():
+    code, out = base.modda("versions", check=False, timeout=600)
+    if code != 0:
+        raise StepFailed("versions xato bilan tugadi")
+    ok(out.strip().splitlines()[0] if out.strip() else "versions")
+
+
 def part_report():
     code, out = base.modda("report", check=False, timeout=600)
     if code != 0:
@@ -228,7 +242,7 @@ def collect(started: float) -> Path:
     old BAHOLASH.md or fixture.json can no longer be sent by mistake."""
     dest = REPORTS / f"Bobur_uchun-{datetime.fromtimestamp(started):%Y%m%d-%H%M}"
     dest.mkdir(parents=True, exist_ok=True)
-    pats = ["BAHOLASH.md", "fixture.json", "calibration.json", "eval.json", "demo-*.json", "bakeoff-*.md", "bakeoff-*.csv",
+    pats = ["BAHOLASH.md", "fixture.json", "calibration.json", "eval.json", "versions.json", "demo-*.json", "bakeoff-*.md", "bakeoff-*.csv",
             "video/*.webm"]
     fresh = [f for pat in pats for f in REPORTS.glob(pat) if f.is_file() and f.stat().st_mtime >= started]
     for f in fresh:
@@ -247,11 +261,14 @@ def main():
     ap.add_argument("--models", default=",".join(BAKEOFF), help="bakeoff modellari")
     ap.add_argument("--question", default=QUESTION)
     a = ap.parse_args()
-    order = ["bakeoff", "llm", "browser", *PARTS[1:]]                 # the GPU setting before the video
+    order = ["versions", "bakeoff", "llm", "browser", *PARTS[1:]]                 # the GPU setting before the video
     wanted = set(a.only.split(",")) if a.only else set(PARTS)
     if a.llm == "auto":
         wanted |= {"bakeoff", "llm"}
     parts = [p for p in order if p in wanted]
+    unknown = sorted(wanted - set(order))
+    if unknown:                                       # an old script silently skipped these (8-noyabr run)
+        warn(f"Nomaʼlum qism(lar): {', '.join(unknown)} — kod eski boʻlishi mumkin: avval `git pull`, Bobur push qilganmi?")
     chosen = {"model": None if a.llm == "auto" else a.llm}
     if IS_WIN:
         base.keep_awake()
@@ -273,7 +290,7 @@ def main():
     fns = {"bakeoff": do_bakeoff,
            "llm": lambda: part_llm(chosen["model"]), "calibrate": part_calibrate, "eval": part_eval, "demo": part_demo,
            "build": part_build, "fixture": lambda: part_fixture(a.question), "video": lambda: part_video(a.question),
-           "report": part_report, "browser": part_browser}
+           "report": part_report, "browser": part_browser, "versions": part_versions}
     for i, name in enumerate(parts, 1):
         print()
         say(f"══ [{i}/{len(parts)}] {name} ══", "b")

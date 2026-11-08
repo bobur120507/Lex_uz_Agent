@@ -49,6 +49,7 @@ cd frontend_idea && npm ci && npm run dev             # sayt :5174
 | `python -m modda bakeoff --models a,b` | LLM’larni bir xil kontekstda solishtirish (oxirida qoida boʻyicha gʻolib) |
 | `python -m modda calibrate --write-env` | «Bilmayman» chegarasi τ → `.env` (`DENSE_TAU`) |
 | `python -m modda rss` | Lex.uz RSS → «oʻzgargan boʻlishi mumkin» belgilari |
+| `python -m modda versions` | bir aktning eski nusxalari (qidiruvdan chiqariladi) |
 | `python -m modda report` | `data/reports/BAHOLASH.md` |
 | `scripts\day3.bat`, `scripts\day4.bat` | GPU noutbukda: tekshiruv, bakeoff, demo savollar, τ, baholash, zaxira video |
 
@@ -59,10 +60,13 @@ Testlar: `pytest` (backend), `cd frontend_idea && npm test` (unit), `node tests/
 * [lexuz-huquqiy-ai-yol-xaritasi-v3-5-kun.md](lexuz-huquqiy-ai-yol-xaritasi-v3-5-kun.md) — 5 kunlik reja va checklist
 * [I_EXPLAIN.md](I_EXPLAIN.md) — loyihani noldan tushuntirish (§0.1 — rejadan amalga)
 * [frontend_idea.md](frontend_idea.md) — sayt konsepsiyasi · [frontend_idea/README.md](frontend_idea/README.md)
-* [KUN-1.md](KUN-1.md) … [KUN-4.md](KUN-4.md) — kunlik ishlar · [docs/BAHOLASH.md](docs/BAHOLASH.md) — baholash
+* [DEMO.md](DEMO.md) — demo ssenariysi va mashq
+* [docs/MALUMOT-SIFATI.md](docs/MALUMOT-SIFATI.md) — Lex.uz maʼlumotlari: tuzilma, tozalik, lex.uz bilan solishtirish · [frontend_idea/QABUL.md](frontend_idea/QABUL.md) — sayt qabul mezonlari
+* [KUN-1.md](KUN-1.md) … [KUN-4.md](KUN-4.md), [KUN-5.md](KUN-5.md) — kunlik ishlar · [docs/BAHOLASH.md](docs/BAHOLASH.md) — baholash
 
 ## Cheklovlar
 
 * Tarozi bahosi — soʻz mosligi oʻlchovi, yuridik xulosa emas.
 * Korpus snapshot sanasidan keyingi oʻzgarishlar faqat RSS orqali **belgilanadi**, matn yangilanmaydi.
 * Qidiruv va javob — lotin yozuvida; kirillcha savol avtomatik lotinchaga oʻgiriladi.
+* Korpusda hamma hujjat «amalda» deb belgilangan; bir aktning eski nusxasi (bir xil nomli kodeks/qonun) nomi boʻyicha aniqlanib chiqariladi — boshqa nomli eskirgan hujjatlar (masalan eski kodeksdan iqtibos keltirgan qaror) qolishi mumkin.

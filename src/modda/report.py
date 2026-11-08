@@ -55,7 +55,9 @@ def build(reports: Path, golden_path: Path | None = None) -> tuple[Path, str]:
                 continue
             rec = next((v for k, v in r.items() if k.lower().startswith("recall")), None)
             md.append(f"| {mode} | {rec} | {r.get('mrr', r.get('MRR'))} | {r.get('p50_ms', r.get('p50', '—'))} |")
-        md += ["", "Gibrid (dense + BM25, RRF) — standart rejim.", ""]
+        md += ["", "Gibrid (dense + BM25, RRF) — standart rejim; bir aktning eski nusxalari (masalan 1995 yilgi Mehnat kodeksi) "
+               "qidiruvdan chiqariladi. `hybrid_auth` — qoʻshimcha ravishda Konstitutsiya/kodeks/qonun boʻlaklari bir necha "
+               "oʻrin yuqoriga suriladi (`AUTHORITY_PRIOR=on`).", ""]
 
     bo = _latest(reports, "bakeoff-*.md")
     if bo:

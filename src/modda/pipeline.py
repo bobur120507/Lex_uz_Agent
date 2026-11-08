@@ -19,6 +19,7 @@ from .router import lookup, route
 from .scoring import score_answer
 from .store import Hit
 from .textnorm import number_words, normalize_uz, to_query_form, tokenize
+from .versions import arrange, resolve_numbers, superseded
 
 NUM_RE = re.compile(r"\d+")
 
@@ -94,7 +95,7 @@ def _stale_fields(stale_ids, m: dict) -> dict:
 
 def ask(con, store, embedder, llm, *, question: str, embed_model: str, llm_model: str, emit=None,
         k: int = 5, candidates: int = 20, reranker=None, rerank_top: int = 10, tau: float | None = None,
-        dense_tau: float | None = None,
+        dense_tau: float | None = None, authority: bool = False,
         stale_ids: set | None = None, checked_at: str | None = None, trace: dict | None = None,
         diagnostics: bool = False) -> dict:
     """`trace` (optional dict) receives the request's raw data for the inspector endpoints (vector, ranks…);
@@ -137,7 +138,8 @@ def ask(con, store, embedder, llm, *, question: str, embed_model: str, llm_model
     t = time.perf_counter()
     exact = lookup(con, r)
     n_cand = candidates if reranker else k
-    hits = store.search_hybrid(vec, sq, n_cand)
+    old = superseded(con)                             # older generations of the same code/law (versions.py)
+    hits = store.search_hybrid(vec, sq, n_cand * 2 if old or authority else n_cand)
     dense_rank, sparse_rank = {}, {}
     if diagnostics:                                    # the two lists RRF fused, for the inspector
         for rank, h in enumerate(store.search_dense(vec, 40), start=1):
@@ -151,7 +153,9 @@ def ask(con, store, embedder, llm, *, question: str, embed_model: str, llm_model
         top1 = store.search_dense(vec, 1) if dense_tau is not None else []
         dense_top = round(top1[0].score, 4) if top1 else None
     hits = [Hit(cid, 1.0, {}) for cid in exact] + [h for h in hits if h.chunk_id not in exact]
-    ctx = fetch_contexts(con, hits[:max(n_cand, len(exact))])
+    ctx = fetch_contexts(con, hits[:max(n_cand * 2, len(exact))])
+    dropped_old = [c for c in ctx if str(c.meta.get("doc_id")) in old and c.chunk_id not in exact]
+    ctx = arrange(ctx, old, exact, n_cand, authority=authority)
     docs = {c.meta.get("doc_id") for c in ctx}
 
     def cand(c):
@@ -169,6 +173,8 @@ def ask(con, store, embedder, llm, *, question: str, embed_model: str, llm_model
     ev("retrieval.completed", {
         "documents_found": len(docs), "chunks_retrieved": len(ctx), "ms": round((time.perf_counter() - t) * 1000),
         "fusion": "rrf", "candidates": cands, "dense_top": dense_top,
+        "superseded": [{"chunk_id": c.chunk_id, "doc_id": c.meta.get("doc_id"), "doc_title": c.meta.get("doc_title"),
+                        "current_doc_id": old[str(c.meta.get("doc_id"))]} for c in dropped_old],
         "dense_list": [{"chunk_id": cid, "rank": rk, "score": sc} for cid, (rk, sc) in dense_rank.items()][:20],
         "sparse_list": [{"chunk_id": cid, "rank": rk, "score": sc} for cid, (rk, sc) in sparse_rank.items()][:20],
     })
@@ -248,12 +254,19 @@ def ask(con, store, embedder, llm, *, question: str, embed_model: str, llm_model
         ok, why = verify(s, by_id)
         (kept if ok else failed).append({**s, "why": why})
         checked.append({**s, "why": why, "ok": ok})
+    kept, clash, winner = resolve_numbers(question, kept, lambda cid: by_id[cid].meta if cid in by_id else {})
+    if clash:                                          # different numbers from different acts: the senior act stays
+        why = f"boshqa hujjatdagi raqam — ustun manba: {winner}"
+        failed += [{**s, "why": why} for s in clash]
+        for s in checked:
+            if any(s["text"] == c["text"] for c in clash):
+                s.update(ok=False, why=why, conflict=True)
     ev("verification.completed", {"verified": [i for s in kept for i in s["chunk_ids"]],
                                   "failed": [{"text": s["text"][:80], "why": s["why"]} for s in failed],
                                   "llm_ms": round(secs * 1000),
                                   "sentences": [{"text": s["text"], "chunk_ids": s["chunk_ids"], "ok": s["ok"],
                                                  "why": s["why"]} for s in checked]})
-    score = score_answer(checked, by_id)
+    score = score_answer([s for s in checked if not s.get("conflict")], by_id)
     ev("scoring.completed", score)
     if trace is not None:
         trace["score"] = score
@@ -277,5 +290,7 @@ def ask(con, store, embedder, llm, *, question: str, embed_model: str, llm_model
 
 def snapshot_date(con) -> str | None:
     rows = con.execute("SELECT DISTINCT version_date FROM articles WHERE version_date IS NOT NULL").fetchall()
-    dates = sorted(filter(None, (_iso(r[0]) for r in rows)))
+    today = datetime.now(timezone.utc).date().isoformat()
+    # a few rows carry impossible future dates (the GPU-run fixture showed «2028-01-01»): not a snapshot date
+    dates = sorted(d for d in filter(None, (_iso(r[0]) for r in rows)) if re.fullmatch(r"\d{4}-\d{2}-\d{2}", d) and d <= today)
     return dates[-1] if dates else None

@@ -72,9 +72,12 @@ def lookup(con, r: Route) -> list[str]:
     kw = r.document
     types = ("constitution",) if kw == "Konstitutsiya" else ("code",)
     marks = ", ".join("?" for _ in types)
-    doc = con.execute(
+    from .versions import superseded
+    old = superseded(con)
+    docs = con.execute(
         "SELECT doc_id, COUNT(*) AS n FROM articles WHERE LOWER(doc_title) LIKE LOWER(?) "
-        f"AND doc_type IN ({marks}) GROUP BY doc_id ORDER BY n DESC LIMIT 1", (f"%{kw}%", *types)).fetchone()
+        f"AND doc_type IN ({marks}) GROUP BY doc_id ORDER BY n DESC", (f"%{kw}%", *types)).fetchall()
+    doc = next((d for d in docs if str(d["doc_id"]) not in old), docs[0] if docs else None)   # the current version
     if not doc:
         return []
     flat = r.label.replace("-", "")

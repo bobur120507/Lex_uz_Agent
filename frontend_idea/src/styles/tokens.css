@@ -24,7 +24,7 @@
   --font-serif: "Literata", "Lora", Georgia, "Times New Roman", serif;
   --font-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
 
-  --fs-hero: clamp(30px, 3.3vw, 54px);
+  --fs-hero: clamp(30px, min(3.3vw, 5.1vh), 54px);   /* height-bound: the two-line title must clear the graph */
   --fs-h2: clamp(19px, 1.6vw, 26px);
   --fs-h3: 16px;
   --fs-body: 15px;

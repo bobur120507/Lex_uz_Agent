@@ -20,6 +20,8 @@
   .nav__item { padding: 10px; font-size: 18px; }
   .nav__item svg { font-size: 19px; }
   .status { padding: 7px 10px; }
+  .sound { width: 34px; height: 34px; }
+  .topbar__end { gap: 6px; }
   .status__text { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
   .hero p { font-size: 14px; }
   .node { width: 76px; gap: 2px; }

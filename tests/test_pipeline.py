@@ -658,3 +658,121 @@ def test_bakeoff_pick_rule():
     assert best == "fast:1b" and len(rows) == 3
     assert bakeoff_pick(md.replace("13/15", "11/15"))[0] == "gemma4:e4b"
     assert bakeoff_pick("nothing")[0] is None
+
+
+# ----------------------------------------------------------------------------- versions of one act (versions.py)
+
+def test_superseded_groups_same_title_and_keeps_the_newest():
+    from modda.versions import find_superseded
+    rows = [("-142859", "OʻZBEKISTON RESPUBLIKASINING MEHNAT KODEKSI", "code"),
+            ("-6257288", "Oʻzbekiston Respublikasining Mehnat kodeksi", "code"),
+            ("-152637", "OʻZBEKISTON RESPUBLIKASINING SOLIQ KODEKSI", "code"),
+            ("-1286558", "OʻZBEKISTON RESPUBLIKASINING SOLIQ KODEKSI", "code"),
+            ("-4674902", "Oʻzbekiston Respublikasining Soliq kodeksi", "code"),
+            ("-10", "Mehnat kodeksini tasdiqlash toʻgʻrisida", "law"),          # approving acts stay separate
+            ("-20", "Mehnat kodeksini tasdiqlash toʻgʻrisida", "law"),
+            ("-30", "Ayrim qarorlarga oʻzgartish kiritish toʻgʻrisida", "resolution"),
+            ("-40", "Ayrim qarorlarga oʻzgartish kiritish toʻgʻrisida", "resolution"),
+            ("-50", "“Taʼlim toʻgʻrisida”", "law"), ("-5013007", "Taʼlim toʻgʻrisida", "law")]
+    assert find_superseded(rows) == {"-142859": "-6257288", "-152637": "-4674902", "-1286558": "-4674902",
+                                     "-50": "-5013007"}
+
+
+def test_retrieval_and_exact_reference_skip_the_old_version(tmp_path):
+    import shutil
+    from modda.router import lookup, route
+    fix = tmp_path / "fix"
+    shutil.copytree(FIX, fix, ignore=shutil.ignore_patterns("lexuz"))
+    old = json.loads((FIX / "articles-sample.jsonl").read_text(encoding="utf-8").splitlines()[0])
+    old.update(id="8001:3", act_group_id="8001", doc_id="8001", article_text="Xodimga har yili kamida 15 ish kuni haq "
+               "toʻlanadigan taʼtil beriladi.", source_url="https://lex.uz/docs/-8001")
+    with (fix / "articles-sample.jsonl").open("a", encoding="utf-8") as fh:
+        fh.write(json.dumps(old, ensure_ascii=False) + "\n")
+    c = make_con(tmp_path, "versions")
+    ingest(fix, c)
+    build_chunks(c)
+    store, emb = MemoryStore(dim=64), FakeEmbedder(64)
+    run_index(c, store, emb, "fake", batch=2)
+    for mode in ("dense", "sparse", "hybrid"):
+        ctx = retrieve(c, store, emb, "fake", "Har yili kamida necha kun haq toʻlanadigan taʼtil beriladi?", k=3, mode=mode)
+        assert ctx and all(x.meta["doc_id"] != "8001" for x in ctx)
+        assert any(x.meta["doc_id"] == "9001" for x in ctx)
+    ids = lookup(c, route("Namuna mehnat kodeksi 3-modda"))
+    if ids:                                                  # the router knows this title: it must pick 9001
+        meta = c.execute("SELECT a.doc_id FROM chunks ch JOIN articles a ON a.id = ch.article_id WHERE ch.chunk_id = ?",
+                         (ids[0],)).fetchone()
+        assert meta["doc_id"] == "9001"
+
+
+def test_conflicting_numbers_keep_the_senior_act():
+    from modda.versions import resolve_numbers
+    meta = {"a": {"doc_id": "-6257288", "doc_type": "code", "doc_title": "Mehnat kodeksi"},
+            "b": {"doc_id": "-3590278", "doc_type": "resolution", "doc_title": "Yoʻriqnoma"}}
+    kept = [{"text": "Davomiyligi yigirma bir kalendar kunni tashkil etadi.", "chunk_ids": ["a"]},
+            {"text": "Mehnat kodeksining 134-moddasiga muvofiq taʼtil 15 ish kunidan kam boʻlmasligi kerak.", "chunk_ids": ["b"]},
+            {"text": "Taʼtil haq toʻlanadigan dam olishdir.", "chunk_ids": ["b"]}]
+    q = "Har yilgi asosiy mehnat taʼtilining eng kam muddati necha kun?"
+    out, dropped, winner = resolve_numbers(q, kept, meta.get)
+    assert [s["chunk_ids"] for s in out] == [["a"], ["b"]] and len(dropped) == 1 and winner == "Mehnat kodeksi"
+    assert resolve_numbers("Taʼtil qanday beriladi?", kept, meta.get)[1] == []       # not a quantity question
+    same = [kept[0], {"text": "Taʼtil yigirma bir kalendar kun.", "chunk_ids": ["b"]}]
+    assert resolve_numbers(q, same, meta.get)[1] == []                               # the acts agree
+
+
+class CitingLLM:
+    """Writes the given sentences and cites the context block whose text contains each sentence's key phrase."""
+
+    def __init__(self, *pairs):
+        self.pairs = pairs
+
+    def chat(self, model, messages, **kw):
+        import re as _re
+        blocks = {int(m.group(1)): m.group(2) for m in _re.finditer(r"\[(\d+)\] (.*?)(?=\n\n\[\d+\] |\n\nSAVOL:)",
+                                                                   messages[1]["content"], _re.S)}
+        out = []
+        for sentence, key in self.pairs:
+            n = next(n for n, b in blocks.items() if key in b)
+            out.append(f"{sentence} [{n}].")
+        return " ".join(out), 0.01
+
+
+def test_pipeline_reports_number_conflict_and_scores_only_what_is_shown(indexed):
+    from modda.pipeline import ask
+    con, store, emb = indexed
+    llm = CitingLLM(("Taʼtil haqi taʼtil boshlanishidan kamida 3 kun oldin toʻlanadi", "kamida 3 kun"),
+                    ("Yer soligʻi har yili 1-aprelgacha toʻlanadi", "1-aprelgacha"))
+    events = []
+    out = ask(con, store, emb, llm, question="Taʼtil haqi va yer soligʻi necha kun ichida toʻlanadi?", embed_model="fake",
+              llm_model="x", emit=events.append, k=4)
+    ver = next(e["data"] for e in events if e["type"] == "verification.completed")
+    assert [a["text"].startswith("Taʼtil haqi") for a in out["answer"]] == [True]          # the code wins over the law
+    clash = [s for s in ver["sentences"] if not s["ok"]]
+    assert len(clash) == 1 and clash[0]["why"].startswith("boshqa hujjatdagi raqam") and "kodeksi" in clash[0]["why"]
+    assert out["score"]["total"] == 1 and out["score"]["supported"] == 1                    # scored on what is shown
+
+
+def test_arrange_moves_higher_acts_up_and_renumbers():
+    from modda.rag import Context
+    from modda.versions import arrange
+    mk = lambda cid, doc, kind: Context(0, cid, 0.0, "", "", {"doc_id": doc, "doc_type": kind})
+    ctx = [mk("r1", "-1", "resolution"), mk("r2", "-2", "resolution"), mk("o1", "-142859", "code"),
+           mk("c1", "-6257288", "code"), mk("r3", "-3", "order")]
+    out = arrange(ctx, {"-142859": "-6257288"}, exact=(), k=3, authority=True)
+    assert [c.chunk_id for c in out] == ["c1", "r1", "r2"] and [c.n for c in out] == [1, 2, 3]
+    plain = arrange(ctx, {"-142859": "-6257288"}, exact=("o1",), k=3)
+    assert [c.chunk_id for c in plain] == ["r1", "r2", "o1"]            # an explicit reference is never dropped
+
+
+def test_snapshot_date_ignores_future_dates(con):
+    from modda.pipeline import snapshot_date
+    con.execute("UPDATE articles SET version_date = '2099-01-01' WHERE doc_id = '9002'")
+    assert snapshot_date(con) == "2026-03-01"
+
+
+def test_no_information_sentence_is_not_an_answer(indexed):
+    con, store, emb = indexed
+    ctx = retrieve(con, store, emb, "fake", "Taʼtil haqi qachon toʻlanadi?", k=2, mode="sparse")
+    a = parse_answer("?", "Manbalarda bu haqda bevosita maʼlumot yoʻq. [1][2]", ctx)
+    assert a.unknown and not a.sentences
+    b = parse_answer("?", "Taʼtil haqi kamida 3 kun oldin toʻlanadi [1]. Bu haqda boshqa maʼlumot keltirilmagan [1].", ctx)
+    assert not b.unknown and len(b.sentences) == 1

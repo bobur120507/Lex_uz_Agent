@@ -43,7 +43,10 @@ src/api/                   client.js (fetch + xatolar), stream.js (SSE + /ask za
 src/scene/                 stage.js (renderer, kamera, yorugʻlik), book.js, pages.js (sahifa tekstura + bosiladigan joylar),
                            graph.js (Mind + 8 tugun), justice.js (haykal .glb yoki oʻrinbosar), backdrop.js (kutubxona foni)
 src/ui/                    nodes.js, inspectors.js (8 bosqich), mind.js, scales.js, reader.js, documents.js, help.js, overlay.js
-src/viz/                   heatmap (1024 qiymat), cloud (PCA 3D), layers (qatlamlar 3D), rankflow (RRF)
+src/audio/sfx.js           ovozlar: bolgʻacha, olov (public/sounds, Pixabay), tarozi, varaq, muqova (Web Audio sintezi)
+src/viz/                   v3: mini3d (HDR, ACES, bloom, avto-aylanish), fx (yorqin nuqtalar, oqimli chiziqlar, matn yorliqlari),
+                           layers (Mind minorasi), vecfield (1024 qiymat — 3D ustunlar), cloud (PCA tumanligi), rankflow (RRF),
+                           heatmap (WebGL’siz 2D zaxira)
 src/styles/                tokens.css (frontend_idea.md §2.2), layout, components, inspector, responsive
 src/assets/models/         lady-justice.glb (95 MB → 3.6 MB: scripts/optimize_model.py)
 scripts/                   optimize_model.py, record_demo.py
@@ -66,7 +69,8 @@ tests/                     research.test.js (unit), e2e.mjs (Playwright)
 
 ## Cheklovlar (halol)
 
-* **Neyron faollashuvlari va attention** koʻrsatilmaydi — Ollama ularni bermaydi. Mind inspektori modelning *haqiqiy tuzilishini* (qatlamlar soni, kengligi) chizadi; har plastinkadagi 48 nuqta — namuna, sahifada shunday yozilgan.
+* **Neyron faollashuvlari va attention** koʻrsatilmaydi — Ollama ularni bermaydi. Mind oynasi (v3, 8-noyabr) modelni *haqiqiy tuzilishi* boʻyicha minora qilib chizadi: har qatlam — halqa, tashqi yoyi attention boshlariga boʻlingan (bir rangdagilar — umumiy KV guruh), ichki halqa — FFN, markaziy nur — qoldiq oqim; chapda kirish tokenlari, oʻngda chiqish tokenlari. Impulslar — shu soʻrovning chiqish tokenlari, oʻlchangan token/s tezlikda **qayta oʻynaladi**; halqa faqat impuls oʻtganda yonadi — bu oʻlchov emas, sahifada shunday yozilgan.
+* **Vizualizatsiyalar v3** (8-noyabr): 1024 qiymat — 32 × 32 nurli ustunlar maydoni (oltin yuqoriga — musbat, moviy pastga — manfiy, bosilsa qiymat ochiladi); PCA — savol markazidagi tumanlik (indeks namunasi savolgacha boʻlgan haqiqiy masofasiga qarab yorqin, nomzodlar — kosinusga qarab katta, nurlar savolga oqadi); RRF — gradient lentalar, tanlanganlarda harakatlanuvchi yorugʻlik; bosh sahifadagi Mind — shader neyronlar, sinapslar va soʻrov vaqtida tezlashadigan uchqunlar. `?quality=low` — bloom va harakatsiz.
 * **Tokenlar roʻyxati** yoʻq (faqat soni) — Ollama embedding uchun tokenizer bermaydi.
 * **Tarozi bahosi** — soʻz mosligi oʻlchovi (`lexical-support-v1`), yuridik xulosa emas; usuli «Gaplar» oynasida yozilgan.
 * **Lex.uz logotipi** — `src/assets/models/lex_uz.svg` (Bobur qoʻshgan rasmiy fayl). SVG boʻlsa 3D logotip yasaladi; `.png`/`.webp`/`.jpg` boʻlsa — medalda rasm. Fayl boʻlmasa — «LEX.UZ» yozuvli medal.
@@ -75,3 +79,14 @@ tests/                     research.test.js (unit), e2e.mjs (Playwright)
 * **Haykal litsenziyasi**: Sketchfab muallifi va litsenziyasini `src/assets/models/ATTRIBUTION.txt` ga yozing.
 * Shriftlar Google Fonts’dan yuklanadi (internet boʻlmasa — tizim shriftlari).
 * Sinov shu kompyuterda: haqiqiy backend kodi + haqiqiy Qdrant 1.20 + 10 ta Lex.uz kodeksi (4 028 modda) + **sinov LLM’i** (GPU yoʻq). Haqiqiy `qwen3:8b` bilan Bobur’ning kompyuterida tekshiriladi.
+
+## Ovozlar (8-noyabr)
+
+| Hodisa | Ovoz |
+|---|---|
+| Bolgʻacha (javob bahosi kelganda yoki bosilganda) | `public/sounds/gavel.mp3` — ikki zarba; animatsiya ham ikki marta uradi, ritm ovoz bilan bir xil |
+| Tarozidagi olov | `public/sounds/flame.mp3` |
+| Tarozi pallalari | sintez: jez qoʻngʻiroq + zanjir |
+| Kitob varagʻi / muqova | sintez: varaq shitirlashi (qidiruvda sokin, ≤ 3 ta bir vaqtda), muqova «gup» etishi |
+
+Birinchi bosish/tugmadan keyin yoqiladi (brauzer qoidasi). Yuqori oʻngdagi karnay tugmasi — oʻchirish/yoqish (eslab qolinadi), `?mute=1` — ovozsiz. Fayllar: Pixabay (Pixabay Content License) — «intrepidmedia — Gavel of Justice», «Dragon Studio — Elemental Spell Impact (Flame)»; asl nusxalar `3D_Models/Sounds/` da (gitga kirmaydi), saytdagilari qisqartirilgan mono 96 kbit/s.

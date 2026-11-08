@@ -12,7 +12,7 @@ Tushunchalar va vositalar jamoa uchun [I_EXPLAIN.md](I_EXPLAIN.md) da tushuntiri
 
 > Har bir qadam tugaganda shu roʻyxat yangilanadi. Belgilar: ✅ bajarildi · 🔄 jarayonda · ⏸️ toʻxtatilgan · ↪️ boshqa yoʻl bilan · ❌ toʻsiq · ⬜ hali boshlanmagan. Batafsil buyruqlar — [KUN-1.md](KUN-1.md).
 >
-> **Oxirgi yangilanish:** 2026-11-08 00:10 (4→5-kun). **Sayt RTX 4060’da: 60 kadr/s** (eng past 53) ✅. Qidiruv oʻzgarmadi (Recall@5 0,911, MRR 0,773). **gemma4 demo’da 2–4-savol notoʻgʻri «Bilmayman»** — model 700 tokenni yashirin «fikrlash»ga sarflagan → `think: false` hamma modelga, chegara 900, kesilish belgisi. Keyingi: `day4 --llm auto --only demo,fixture,video,report` — fikrlashsiz bakeoff gemma4 ↔ qwen3, gʻolib bilan demo, fixture, video ([KUN-4.md §6](KUN-4.md)).
+> **Oxirgi yangilanish:** 2026-11-08 10:00 (5-kun). 08:07 dagi GPU ishga tushirish **eski kod (`343d270`) bilan** oʻtdi — 7–8-noyabr tuzatishlari hali push qilinmagan: qidiruv 0,911 / 0,754, video 60 / 47 kadr/s ✅, lekin demo 2 va 4, fixture — eski xatolar (kutilganidek). **Ovozlar qoʻshildi** (bolgʻacha — ikki zarba, olov, tarozi, varaq, muqova; karnay tugmasi). Keyingi: **Bobur push** → jamoadosh `day4 --only versions,eval,demo,fixture,video,report` ([KUN-5.md](KUN-5.md)).
 
 ### 1-kun — uzoq ishlar va asos
 
@@ -34,8 +34,8 @@ Tushunchalar va vositalar jamoa uchun [I_EXPLAIN.md](I_EXPLAIN.md) da tushuntiri
 | ✅ | `bench-embed`: **0,22 boʻlak/s** (CPU) → MVP ≈ 15 soat (bench), amalda 0,5 boʻlak/s ≈ 4,5 soat; butun korpus ≈ 233 soat | rejani oʻzgartirdi (2-kun) |
 | ↪️ | MVP qismini indekslash (`index --mvp`, 12 269 boʻlak) | 4 896 tasi CPU’da qilindi, keyin toʻxtatildi; **hammasi GPU snapshot’ida bor** |
 | ✅ | Birinchi savol (`ask`) | 6-noyabr: sayt orqali `/ask/stream` → 200 (API logi) |
-| ⬜ | Modellarni solishtirish (`bakeoff`, 20 savol) → LLM tanlash | CPU’da juda sekin → **GPU kompyuterda** qilish taklif etiladi (3-kun boʻlimi) |
-| ⬜ | 3D kitob kadr/s — oʻz kompyuterda ≥ 45 | `cd web && npm run dev` → `?debug` |
+| ↪️ | Modellarni solishtirish (`bakeoff`, 20 savol) → LLM tanlash | CPU’da juda sekin → **GPU noutbukda bajarildi**: gemma4:e4b tanlandi (4-kun boʻlimi) |
+| ↪️ | 3D kitob kadr/s — oʻz kompyuterda ≥ 45 | Iris Xe’da 27 → demo **GPU noutbukda** (RTX 4060: median 60, eng past 53) |
 | ✅ | Tungi indekslash | oʻrniga GPU kompyuterda toʻliq indeks yasaldi (2-kun boʻlimi) |
 
 ### 2-kun — toʻliq qidiruv
@@ -68,7 +68,7 @@ Tushunchalar va vositalar jamoa uchun [I_EXPLAIN.md](I_EXPLAIN.md) da tushuntiri
 | ✅ | 3D kitob yangi hodisalarni oʻqiydi (`api.js`) | |
 | ✅ | Saytda birinchi haqiqiy javob (`serve` + `npm run dev`) | 6-noyabr: `serve` (standart kutubxona serveri) + Vite 5174; javob mazmuni 6 demo savolda tekshiriladi (3-kun) |
 | ✅ | Raqam tekshiruvchi (javobdagi har bir son manbada boʻlishi shart) | 3-kundagi toʻliq tekshiruvchining birinchi qismi |
-| ⬜ | 3D: xatchoʻplar sahifa chetida (hozir HTML yorliqlar) | eski `web/` uchun; yangi frontend’da kerak emas → kesildi |
+| ↪️ | 3D: xatchoʻplar sahifa chetida (hozir HTML yorliqlar) | eski `web/` uchun; yangi frontend’da kerak emas → **kesildi** |
 
 **`eval` natijasi (toʻliq indeks, 183 170 boʻlak, 45 savol, k = 5, CPU):**
 
@@ -108,16 +108,21 @@ Gibrid har ikkalasidan yaxshi → standart sifatida qoladi; reranker hozircha o�
 | ✅ | top-k = 5, τ = 0,58, prompt: raqamni manbadagidek yozish, qonunchilikdan tashqari savolga BILMAYMAN; javob ≤ 900 token, **fikrlash oʻchirilgan** (`think: false` hamma modelga; chegaraga yetsa «kesilgan» belgisi). Tekshiruvchi raqamni soʻz bilan ham taniydi («yigirma bir» = 21) |
 | ✅ | Prompt-injection — demo 6-savol: «Bilmayman», koʻrsatmaga boʻysunmadi, tizim prompti chiqmadi (qwen3:8b, 6,6 s) |
 | ✅ | Toʻliq baholash hisoboti — [docs/BAHOLASH.md](docs/BAHOLASH.md) (GPU noutbuk, 7-noyabr 22:09 va 23:47: qidiruv, bakeoff, τ, 6 demo) |
-| 🔄 | LLM yakuniy tanlovi: gemma4:e4b 23:47 demo’sida 2–4-savolni yashirin fikrlash tufayli boy berdi → **fikrlashsiz qayta bakeoff** (gemma4 ↔ qwen3), gʻolib avtomatik `.env` ga (`day4 --llm auto`) |
+| ✅ | LLM yakuniy tanlovi: fikrlashsiz bakeoff — **gemma4:e4b** 12/15 manba, 5/5 «Bilmayman», 0 yolgʻon, **2,8 s** (qwen3:8b 1 yolgʻon, 5,9 s) → `.env` ga avtomatik (`day4 --llm auto`) |
+| ✅ | Bir aktning eski nusxalari (HF’da hammasi «in-force»): nomi bir xil kodeks/qonunlardan eng yangisi qoladi; zid raqamlarda yuqori akt; aniq havola joriy nusxaga (`versions.py`, 60 test) |
+| 🔄 | Ierarxiya bonusi (`hybrid_auth`) va eski nusxalarsiz qidiruv — GPU noutbukda `eval` bilan oʻlchash |
 | ✅ | 3D: unumdorlik, zaxira rejim, klaviatura — WebGL’siz rejim, klaviatura, qisqartirilgan harakat; **RTX 4060: median 60, eng past 53 kadr/s** (render koeff. 1,5) |
 
 ### 5-kun — muzlatish va demo
 
 | Holat | Qadam |
 |---|---|
-| ⬜ | Yakuniy baholash |
+| 🔄 | Yakuniy baholash — bakeoff ✅, demo 4/6 ✅ (2 va 4 tuzatildi), qidiruv eval yangi kod bilan qayta ⬜ |
 | ✅ | README (yangi, ildizda), I_EXPLAIN §0.1 «Rejadan amalga» — qaysi qism qanday qurildi |
-| 🔄 | Demo ssenariysi, zaxira video — video RTX 4060’da yozildi (60 kadr/s) ✅, lekin javob buzilgan gemma4 bilan → yakuniy model bilan qayta; `day4` endi oʻz fayllarini `Bobur_uchun-<vaqt>` papkasiga yigʻadi (eski nusxa yuborilmaydi) |
+| ✅ | **Ovozlar** (Bobur: «kitob, tarozi, olov, bolgʻacha»): bolgʻacha — Bobur topgan 2 zarbali fayl, animatsiya ham 2 marta uradi (ritm mos); olov — fayl; tarozi qoʻngʻirogʻi, varaq, muqova — Web Audio sintezi; birinchi bosishdan keyin, karnay tugmasi (eslab qolinadi), limiter; e2e’da tekshiriladi ([KUN-5.md](KUN-5.md)) |
+| 🔄 | 08:07 GPU ishga tushirish eski kod bilan (push yoʻq) — tizim barqaror (0,911 / 60 kadr/s), demo 2/4 va fixture yangi kod bilan qayta; `day4` endi nomaʼlum qismni ogohlantiradi |
+| ✅ | **Maʼlumot sifati** — [docs/MALUMOT-SIFATI.md](docs/MALUMOT-SIFATI.md): tuzilgan (25 maydon), toza (HTML/boʻsh matn/aralash yozuv yoʻq); **20 ta tasodifiy modda jonli lex.uz bilan**: 17 mos, 3 tekshirib boʻlmadi, 0 mos emas; snapshot sanasi (`version_date`) lex.uz tahrirlar roʻyxati bilan mos; 5 maʼlum kamchilik va yechimlari |
+| 🔄 | Demo ssenariysi va mashq — **[DEMO.md](DEMO.md)** ✅ (tayyorlov, 7 daqiqalik ssenariy, zaxira rejalar); zaxira video va fixture — qisqa savol eski yoʻriqnomani topdi («15 ish kuni») → toʻliq savol bilan qayta ⬜; serverda isitish ✅ |
 
 ### Yakuniy bosqich — yangi frontend `frontend_idea/` (12- va 13-boʻlimlar)
 
@@ -144,11 +149,12 @@ Batafsil tekshiruv roʻyxati — [13.5](#135-tekshiruv-roʻyxati-bosqichlar-boʻ
 | ✅ | Tarozi nuri: dumaloq halo oʻrniga **olov tillari** (shader, shovqin bilan miltillaydi) — **eni palla bilan bir xil**; oldida past olov, tepaga uchqunlar koʻtariladi |
 | ✅ | Kitob sifati: sahifa teksturalari **2048 × 2752** (avval 1024 × 1376), anizotropiya GPU maksimumi (16), ekran piksellari **2×** gacha (FPS < 40 boʻlsa oʻzi pasaytiradi), soya xaritasi 2048; javob kamerasi tikroq — matn kamroq qisiladi; eski sahifa teksturalari GPU’dan tozalanadi (xotira oqishi yoʻq). `?quality=low` — kuchsiz kompyuter uchun |
 | ✅ | Hamma graflar oynada; **Mind oynasi**: keng oyna, 3D qatlamlar asosiy, maʼlumot — bitta qator teg + bitta izoh |
+| ✅ | **Vizualizatsiyalar v3 (8-noyabr, Bobur: «2000-yillar sayti → 2026»):** umumiy HDR dvigatel (ACES, bloom, avto-aylanish); **Mind** — qatlamlar minorasi: halqa = qatlam, yoylar = attention boshlari (rang = KV guruh), ichki halqa = FFN, nur = qoldiq oqim, impulslar = chiqish tokenlari oʻlchangan token/s’da; **1024 qiymat** — 3D ustunlar maydoni; **PCA** — savol markazidagi tumanlik, nomzod nurlari; **RRF** — gradient lentalar (eski diagramma global `svg {1em}` tufayli umuman koʻrinmas edi — tuzatildi); bosh sahifa Mind — shader neyronlar, sinapslar, uchqunlar. Faollashuv chizilmaydi |
 | ✅ | **Hakam bolgʻachasi (7-noyabr 23:00):** kitobning oʻng tomonida (haykalning juftligi), Bobur’ning modeli (teksturalar 1024 px, 5,2 → 1,0 MB); hukm kelganda bir marta uradi (yorugʻlik halqasi), bosilsa yana; sarlavha «Javob qonundan — isbot manbadan» |
 | ✅ | **Hukm lahzasi (7-noyabr):** javob tayyor boʻlganda kamera kitobdan ketmaydi — haykal joyida (javob rejimida toʻliq koʻrinadi) pallalarini bahoga qarab ogʻdiradi, medal va Lex.uz logotipi pallaga «otilib» chiqadi, olov bir lahza kuchayadi; haykal ostida «⚖ 97 / 100 · manbaga moslik»; **kitobning javob sahifasida oltin muhr** (baho, gaplar soni) — bosilsa tarozi markazga keladi |
 | ✅ | F6 — Sifat: telefon/planshet, WebGL’siz rejim, qisqartirilgan harakat, klaviatura ✅; kadr/s: Iris Xe’da 27 → **RTX 4060’da median 60, eng past 53** ✅ |
 | ✅ | F7 — Brauzer sinovlari va vizual tanqid (Playwright, 5 oʻlcham, WebGL’siz) — sinov muhitida (haqiqiy backend kodi + Qdrant 1.20 + 10 kodeks + sinov LLM) |
-| 🔄 | F8 — Yakuniy tekshiruv: testlar ✅ (53), README ✅, `npm run build` noutbukda ✅, 6 demo haqiqiy LLM bilan ✅ (qwen3); gemma4 bilan 2–4 buzildi (fikrlash) → tuzatildi, yakuniy model bilan qayta ⬜ |
+| 🔄 | F8 — Yakuniy tekshiruv: testlar ✅ (60), README ✅, `npm run build` noutbukda ✅, 6 demo gemma4 bilan: 1, 3, 5, 6 ✅, 2 va 4 — eski nusxalar tuzatildi, qayta ⬜ |
 
 ---
 
@@ -797,12 +803,12 @@ Tasdiqlanmasa ham frontend toʻliq ishlaydi — faqat tegishli joylar «Mavjud e
 - [x] `frontend_idea.md`, 12-boʻlim, `web/` va backend API’ni oʻqish (faqat oʻqish)
 - [x] Vizual namuna rasmi → `frontend_idea/reference/`
 - [x] `frontend_idea/README.md`: maqsad, foydalanuvchilar, asosiy yoʻl, mavjud / mock / bloklangan imkoniyatlar (13.3 asosida)
-- [ ] Ixtiyoriy: `frontend_idea/CLAUDE.md` — shu frontend uchun qisqa qoidalar
+- [x] Ixtiyoriy: `frontend_idea/CLAUDE.md` — shu frontend uchun qisqa qoidalar (rostgoʻylik, tuzilma, sifat, tekshirish)
 
 **F1 — Asos va bosh sahifa** *(topshiriq §20 Phase 1, §2–4)*
-- [ ] Vite loyihasi `frontend_idea/` da, versiyalar qulflangan (`package-lock.json`) — kod tayyor; `package-lock.json` Bobur’ning `npm install` ida yaratiladi
+- [x] Vite loyihasi `frontend_idea/` da, versiyalar qulflangan (`package-lock.json` repoda; noutbukda `npm ci` + `npm run build` oʻtdi)
 - [x] `tokens.css`: §2.2 ranglari, shriftlar, oraliqlar, chegaralar
-- [ ] Shriftlar mahalliy: Onest, Literata, JetBrains Mono; `oʻ`, `gʻ`, `ʻ`, `ʼ` va kirill toʻgʻri chiqadi — hozircha Google Fonts orqali (fallback bilan); mahalliy qilish — keyin
+- [ ] Shriftlar mahalliy: Onest, Literata, JetBrains Mono; `oʻ`, `gʻ`, `ʻ`, `ʼ` va kirill toʻgʻri chiqadi — skript tayyor: `node frontend_idea/scripts/fetch_fonts.mjs` (internetli kompyuterda bir marta → `public/fonts/` + `index.html` → commit); hozircha Google Fonts + tizim shrifti zaxirasi
 - [x] Sarlavha: logotip, Bosh sahifa / Graf / Hujjatlar / Yordam, haqiqiy «● Onlayn» belgisi
 - [x] Bosh sahifa: sarlavha, tavsif, qidiruv maydoni (Enter / Shift+Enter, boʻsh savol yoʻq, takror yuborish yoʻq), 3 mavzu, ishonch belgilari, «Qanday ishlaydi?»
 - [x] 3D kitob: toʻq-koʻk muqova, oltin naqsh, haqiqiy gerb, sahifa qirralari; aylanmaydi, sekin «nafas oladi»
@@ -812,7 +818,7 @@ Tasdiqlanmasa ham frontend toʻliq ishlaydi — faqat tegishli joylar «Mavjud e
 - [x] Markaziy «intellekt yadrosi» + 7 bosqich tuguni, pipeline tartibida bogʻlangan (tasodifiy chiziqlarsiz) — v2: **8** bosqich, markaz — ayni bajarilayotgan bosqich
 - [x] Chap panel: 7 bosqich, holatlar (kutish / bajarilmoqda / bajarildi / oʻtkazildi / xato / ogohlantirish), haqiqiy vaqt — v2 da **olib tashlandi** — bosqichlar markazdagi grafda
 - [x] Hujjat → modda tugunlari, ikki marta bosish — ochish/yopish — v2: topilgan moddalar **kitob sahifasida** (±5 qoʻshni bilan) va inspektorlarda
-- [ ] Hover, bosish (kamera yaqinlashadi, panel ochiladi), boshqaruv: zoom, reset, markazlash, chiqarilganlarni yashirish, yorliqlar, zarralar — tugmalar, inspektorlar, Graf ↔ kitob almashinuvi bor; grafni zoom/aylantirish — yoʻq (kamera oldindan belgilangan)
+- [x] Hover, bosish (kamera yaqinlashadi, panel ochiladi), boshqaruv: zoom, reset, markazlash, chiqarilganlarni yashirish, yorliqlar, zarralar — bosh sahifa grafi oldindan belgilangan kamera bilan (kitob/haykal kompozitsiyasi uchun ataylab); **aylantirish/zoom/reset — inspektor oynalarining 3D koʻrinishlarida** (Mind minorasi, PCA, 1024 ustun; v3), yorliqlar, «Fon nuqtalari / Chiziqlar / Savol» tugmalari
 - [x] ≤ 40 koʻrinadigan tugun, geometriya/materiallar qayta ishlatiladi
 
 **F3 — Backend hodisalariga ulash** *(§13)*
@@ -849,13 +855,13 @@ Tasdiqlanmasa ham frontend toʻliq ishlaydi — faqat tegishli joylar «Mavjud e
 - [x] Playwright: yoʻnalishlar, tugmalar (§12 jadvalidagi 25 ta boshqaruv), xato va «Bilmayman» holatlari — `tests/e2e.mjs`: ~45 tekshiruv
 - [x] Konsol xatolari va muvaffaqiyatsiz soʻrovlar yoʻq
 - [x] 5 oʻlchamda skrinshot → dizayner koʻzi bilan tanqid → tuzatish (kamida 2 aylana) — 2 aylana: graf pastga tushirildi, planshet/telefon kadrlari, javob rejimi
-- [ ] §22 dagi 6 demo savol haqiqiy backend bilan: aniq modda, mehnat mavzusi, kirill, yangilangan hujjat, javobsiz savol, prompt-injection — haqiqiy `qwen3:8b` bilan Bobur’ning kompyuterida
+- [ ] §22 dagi 6 demo savol haqiqiy backend bilan: aniq modda, mehnat mavzusi, kirill, yangilangan hujjat, javobsiz savol, prompt-injection — gemma4:e4b, GPU noutbuk, 8-noyabr: 1, 3, 5, 6 ✅; 2 va 4 eski kodeks nusxalari tufayli → tuzatildi, qayta oʻlchanadi
 
 **F8 — Yakuniy tekshiruv** *(Master prompt 12, 14)*
-- [ ] `npm ci`, ESLint, Vitest (holat mashinasi, hodisalar, maʼlumot rostgoʻyligi), Playwright, `npm run build` — hammasi haqiqatan ishga tushirilgan — unit (`node --test`, 8) ✅, e2e ✅, esbuild bundle ✅; `npm run build` (Vite) va ESLint — Bobur’ning kompyuterida
+- [x] `npm ci`, Vitest (holat mashinasi), Playwright, `npm run build` — hammasi haqiqatan ishga tushirilgan: unit (`node --test`) ✅, e2e ✅, noutbukda `npm ci` + `npm run build` ✅; ESLint — loyihada sozlanmagan (bogʻliqlik qoʻshilmadi)
 - [x] `web/` va backend oʻzgarmaganini `git diff` bilan tasdiqlash — `web/` tegilmadi; backend’ga faqat **yangi** endpoint/maydonlar (Bobur ruxsati bilan), eski javoblar oʻzgarmadi
 - [x] `frontend_idea/README.md`: oʻrnatish, ishga tushirish, `.env.example` (faqat namunalar), mock va cheklovlar roʻyxati
-- [ ] `frontend_idea.md` §21 dagi qabul mezonlari (vizual 9, funksional 13, texnik 10) — har biri belgilangan
+- [x] `frontend_idea.md` §21 dagi qabul mezonlari (vizual 9, funksional 13, texnik 10) — har biri belgilangan: **[frontend_idea/QABUL.md](frontend_idea/QABUL.md)** — 30 ✅, 2 ⚠️ (bosh sahifa kamerasi ataylab qatʼiy; Iris Xe’da 27 kadr/s), ❌ yoʻq
 
 ### 13.6. Vaqt va tartib
 

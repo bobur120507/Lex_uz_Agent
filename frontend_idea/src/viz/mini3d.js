@@ -1,51 +1,88 @@
 // A small, self-contained Three.js view for inspectors (its own renderer, disposed when the panel closes).
+// v3 (8-noyabr): HDR pipeline — ACES tone mapping, multisampled render target, UnrealBloom (glow comes from
+// bright colours, not from textures), a radial background, slow auto-orbit that stops when the user takes over.
+// ?quality=low or reduced motion: no bloom, no auto-orbit.
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
+import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
 import { REDUCED } from '../config.js';
 
-export function mini3d(container, { height = 420, camera = [0, 0, 6], target = [0, 0, 0], fov = 45 } = {}) {
+export const LOW = REDUCED || (typeof location !== 'undefined' && /[?&]quality=low/.test(location.search));
+
+export function mini3d(container, {
+  height = 420, camera = [0, 0, 6], target = [0, 0, 0], fov = 45,
+  bloom = { strength: 0.85, radius: 0.6, threshold: 0.18 }, autoRotate = 0.35, background = ['#10201c', '#04090a'],
+} = {}) {
   container.style.height = `${height}px`;
-  const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+  const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: 'high-performance' });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.75));
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.05;
+  renderer.outputColorSpace = THREE.SRGBColorSpace;
   container.append(renderer.domElement);
   const scene = new THREE.Scene();
-  const cam = new THREE.PerspectiveCamera(fov, 1, 0.01, 200);
+  scene.background = backgroundTexture(...background);
+  const cam = new THREE.PerspectiveCamera(fov, 1, 0.01, 400);
   cam.position.set(...camera);
   const controls = new OrbitControls(cam, renderer.domElement);
   controls.target.set(...target);
   controls.enableDamping = !REDUCED;
   controls.dampingFactor = 0.08;
-  controls.minDistance = 0.5; controls.maxDistance = 60;
+  controls.minDistance = 0.4; controls.maxDistance = 80;
+  controls.autoRotate = !LOW && autoRotate > 0;
+  controls.autoRotateSpeed = autoRotate;
+  controls.addEventListener('start', () => { controls.autoRotate = false; });
   const home = { pos: cam.position.clone(), target: controls.target.clone() };
+
+  let composer = null, bloomPass = null;
+  if (bloom && !LOW) {
+    const rt = new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, samples: 4 });
+    composer = new EffectComposer(renderer, rt);
+    composer.addPass(new RenderPass(scene, cam));
+    bloomPass = new UnrealBloomPass(new THREE.Vector2(256, 256), bloom.strength, bloom.radius, bloom.threshold);
+    composer.addPass(bloomPass);
+    composer.addPass(new OutputPass());
+  }
   const ticks = [];
   let alive = true, raf = 0;
   const size = () => {
     const w = container.clientWidth || 600, hgt = container.clientHeight || height;
     renderer.setSize(w, hgt, false);
+    composer?.setPixelRatio(renderer.getPixelRatio());
+    composer?.setSize(w, hgt);
     renderer.domElement.style.width = '100%'; renderer.domElement.style.height = '100%';
     cam.aspect = w / hgt; cam.updateProjectionMatrix();
+    for (const fn of resizers) fn(w, hgt, renderer.getPixelRatio());
   };
-  const ro = new ResizeObserver(size); ro.observe(container); size();
+  const resizers = [];
+  const ro = new ResizeObserver(size); ro.observe(container);
   const clock = new THREE.Clock();
   const loop = () => {
     if (!alive) return;
     raf = requestAnimationFrame(loop);
+    if (document.hidden) return;
     const dt = Math.min(clock.getDelta(), 0.05);
     controls.update();
     for (const fn of ticks) fn(dt, clock.elapsedTime);
-    renderer.render(scene, cam);
+    if (composer) composer.render(); else renderer.render(scene, cam);
   };
+  size();
   loop();
   return {
-    THREE, scene, camera: cam, controls, renderer, el: renderer.domElement,
+    THREE, scene, camera: cam, controls, renderer, el: renderer.domElement, bloom: bloomPass,
+    get pixelRatio() { return renderer.getPixelRatio(); },
     onTick: (fn) => ticks.push(fn),
-    reset() { cam.position.copy(home.pos); controls.target.copy(home.target); controls.update(); },
-    fly(pos, look, dur = 0.8) {
+    onResize: (fn) => { resizers.push(fn); fn(container.clientWidth || 600, container.clientHeight || height, renderer.getPixelRatio()); },
+    reset() { controls.autoRotate = !LOW && autoRotate > 0; this.fly(home.pos.toArray(), home.target.toArray()); },
+    fly(pos, look, dur = 0.9) {
       const p0 = cam.position.clone(), t0 = controls.target.clone(), p1 = new THREE.Vector3(...pos), t1 = new THREE.Vector3(...look);
       if (REDUCED) { cam.position.copy(p1); controls.target.copy(t1); return; }
       const start = performance.now();
       const step = () => {
-        const k = Math.min(1, (performance.now() - start) / (dur * 1000)), e = 1 - Math.pow(1 - k, 3);
+        const k = Math.min(1, (performance.now() - start) / (dur * 1000)), e = k < 0.5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2;
         cam.position.lerpVectors(p0, p1, e); controls.target.lerpVectors(t0, t1, e);
         if (k < 1 && alive) requestAnimationFrame(step);
       };
@@ -60,9 +97,20 @@ export function mini3d(container, { height = 420, camera = [0, 0, 6], target = [
     dispose() {
       alive = false; cancelAnimationFrame(raf); ro.disconnect(); controls.dispose();
       scene.traverse((o) => { o.geometry?.dispose?.(); const m = o.material; (Array.isArray(m) ? m : m ? [m] : []).forEach((x) => { x.map?.dispose?.(); x.dispose?.(); }); });
+      scene.background?.dispose?.();
+      composer?.renderTarget1?.dispose(); composer?.renderTarget2?.dispose(); bloomPass?.dispose?.();
       renderer.dispose(); renderer.domElement.remove();
     },
   };
+}
+
+function backgroundTexture(inner, outer) {
+  const c = document.createElement('canvas'); c.width = c.height = 512;
+  const g = c.getContext('2d'); const r = g.createRadialGradient(256, 220, 10, 256, 256, 380);
+  r.addColorStop(0, inner); r.addColorStop(1, outer);
+  g.fillStyle = r; g.fillRect(0, 0, 512, 512);
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
+  return t;
 }
 
 export function dotTexture() {

@@ -18,6 +18,7 @@ import { openHelp } from './ui/help.js';
 import { openPanel, closePanel, isOpen } from './ui/overlay.js';
 import { toast, say } from './ui/toast.js';
 import { h, kv, unavailable } from './ui/dom.js';
+import * as sfx from './audio/sfx.js';
 
 gsap.ticker.lagSmoothing(0);                         // timelines follow real time even when frames are slow
 const $ = (s) => document.querySelector(s);
@@ -212,7 +213,10 @@ function finishAnswer(id) {
   const st = store.get();
   setBusy(false);
   sourceIndex = 1;
-  if (st.score?.score != null && justice && justice.score == null) gavel?.strike();   // the verdict: the gavel falls
+  if (st.score?.score != null && justice && justice.score == null) {   // the verdict: flames, scales, the gavel falls
+    if (statueShown()) { sfx.flame(); sfx.scales(); }
+    gavel?.strike();
+  }
   justice?.setScore(st.score?.score ?? null);
   const tag = $('.justice-hit__tag');
   if (tag) tag.textContent = st.score?.score != null ? `⚖ ${Math.round(st.score.score)} / 100 · manbaga moslik` : 'Adolat tarozisi';
@@ -401,6 +405,7 @@ document.addEventListener('click', (e) => {
     case 'documents': setNav('documents'); openDocuments(ctx); break;
     case 'help': openHelp(); break;
     case 'status': openStatus(); break;
+    case 'sound': sfx.setMuted(!sfx.isMuted()); break;
     case 'scales': focusJustice(); break;
     case 'unfocus': unfocusJustice(); break;
     case 'sentences': openSentences(ctx); break;
@@ -450,6 +455,8 @@ function setupScene({ Stage, Book, Graph, Justice, Gavel }) {
   justice = new Justice(stage.scene, { envMap: stage.env, reducedMotion: REDUCED });
   justice.camera = stage.camera;
   gavel = new Gavel(stage.scene, { envMap: stage.env, reducedMotion: REDUCED });
+  gavel.onImpact = (n) => { if (n === 1 && gavel.group.visible) sfx.gavel(); };   // the file holds both strikes
+  book.onSound = (kind, o) => (kind === 'page' ? sfx.page(o) : sfx.book({ close: kind === 'close' }));
   const pos = {}, tmp = { x: 0, y: 0, visible: false };
   const hit = $('.justice-hit');
   const ids = ['mind', ...STAGES.map((s) => s.id)];
@@ -527,7 +534,11 @@ async function start() {
   } else setupFallback();
   refreshHealth();
   setInterval(refreshHealth, 60000);
-  window.__modda = { store, get state() { return store.get(); }, ask, goToSource, get sourceIndex() { return sourceIndex; }, get gavel() { return gavel; } };
+  sfx.initSound();
+  const soundBtn = $('.sound');
+  const showSound = (m) => { if (!soundBtn) return; soundBtn.setAttribute('aria-pressed', String(!m)); soundBtn.setAttribute('aria-label', m ? 'Ovoz: oʻchirilgan' : 'Ovoz: yoqilgan'); };
+  showSound(sfx.isMuted()); sfx.onMuteChange(showSound);
+  window.__modda = { store, get state() { return store.get(); }, ask, goToSource, get sourceIndex() { return sourceIndex; }, get gavel() { return gavel; }, sfx };
   body.classList.add('is-ready');
 }
 start();

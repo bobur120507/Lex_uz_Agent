@@ -201,6 +201,9 @@ export class Stage {
   loop() {
     if (!this.running) return;
     requestAnimationFrame(() => this.loop());
+    // behind an inspector panel (dark scrim) the scene runs at ¼ rate: the panel's own 3-D view gets the GPU
+    const covered = document.body.classList.contains('has-overlay');
+    if (covered && (this.skip = ((this.skip || 0) + 1) % 4)) return;
     const dt = Math.min(this.clock.getDelta(), 0.05);
     const t = this.clock.elapsedTime;
     if (this.dust.geometry.attributes.position.count) {
@@ -214,8 +217,8 @@ export class Stage {
     this.renderer.render(this.scene, this.camera);
     this.frames++; this.fpsT += dt;
     if (this.fpsT >= 1) {
-      this.fps = Math.round(this.frames / this.fpsT); this.frames = 0; this.fpsT = 0; window.__moddaFps = this.fps;
-      this.governDpr(t);
+      this.fps = Math.round(this.frames / this.fpsT); this.frames = 0; this.fpsT = 0;
+      if (!covered) { window.__moddaFps = this.fps; this.governDpr(t); }
     }
   }
 }

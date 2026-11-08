@@ -1,4 +1,5 @@
 // The Modda book: covers, two page stacks, a pool of bendable turning sheets and the two open pages.
+// Sounds: `onSound(kind, opts)` — 'open', 'close', 'page' (main.js connects it to audio/sfx.js).
 // The spine lies along z at x = 0; pages turn from +x (right) to −x (left). Adapted from web/src/scene/book.js.
 import * as THREE from 'three';
 import { gsap } from 'gsap';
@@ -124,6 +125,7 @@ export class Book {
   open() {
     if (this.isOpen) return this.opening ?? Promise.resolve();
     this.isOpen = true;
+    this.onSound?.('open');
     this.opening = new Promise((resolve) => gsap.to(this.state, {
       cover: 1, open: 1, duration: this.dur(1.0), ease: 'power2.inOut',
       onUpdate: () => this.layout(), onComplete: () => { this.opening = null; resolve(); },
@@ -141,6 +143,7 @@ export class Book {
 
   close() {
     this.wantRiffle = false; this.stopRiffle();
+    if (this.isOpen) this.onSound?.('close');
     this.hits = { left: [], right: [] };
     return new Promise((resolve) => {
       const finish = () => gsap.to(this, {
@@ -167,6 +170,7 @@ export class Book {
     if (dir > 0 && this.nRight - n < 6) return Promise.resolve();
     if (dir < 0 && (count ? this.nLeft - n < 0 : this.nLeft < 4)) return Promise.resolve();
     slot.busy = true; this.flipsInAir++;
+    this.onSound?.('page', { soft: this.riffling, duration });
     slot.f.material.map = faces?.front ?? this.blankR[Math.floor(Math.random() * 4)];
     slot.b.material.map = faces?.back ?? this.blankBacks[Math.floor(Math.random() * 4)];
     slot.f.material.needsUpdate = slot.b.material.needsUpdate = true;

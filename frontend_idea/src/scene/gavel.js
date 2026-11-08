@@ -1,6 +1,6 @@
 // The judge's gavel on the right of the book — the pair to Lady Justice on the left.
 // Model: src/assets/models/judges-gavel.glb (Bobur's 3D_Models/judges_gavel.glb, textures shrunk by
-// scripts/shrink_textures.py). It strikes its block once when the answer's verdict arrives (with the scales),
+// scripts/shrink_textures.py). It strikes its block twice when the answer's verdict arrives (with the scales),
 // and again when it is clicked. Without the file: a simple wooden stand-in.
 import * as THREE from 'three';
 import { gsap } from 'gsap';
@@ -121,13 +121,16 @@ export class Gavel {
     this.ring.position.copy(this.impact);
   }
 
-  /** One strike: lift, a short hold, down hard, a small rebound — and a ring of light on the block. */
+  /** Two strikes, in the rhythm of the gavel sound (impacts 0.49 s apart): lift, hold, down hard; a half lift,
+   *  down again; a small rebound. A ring of light at each impact; `onImpact(n)` fires at impact n (sound). */
   strike() {
-    if (!this.pivot || this.reduced) return;
+    if (!this.pivot || this.reduced) { this.onImpact?.(1); return; }
     gsap.killTweensOf(this, 'angle');
     gsap.timeline()
       .to(this, { angle: 0.5, duration: 0.32, ease: 'power2.out' })
-      .to(this, { angle: 0, duration: 0.13, ease: 'power4.in', delay: 0.08, onComplete: () => this.flash() })
+      .to(this, { angle: 0, duration: 0.13, ease: 'power4.in', delay: 0.08, onComplete: () => { this.flash(); this.onImpact?.(1); } })
+      .to(this, { angle: 0.3, duration: 0.24, ease: 'power2.out' })
+      .to(this, { angle: 0, duration: 0.13, ease: 'power4.in', delay: 0.12, onComplete: () => { this.flash(); this.onImpact?.(2); } })
       .to(this, { angle: 0.07, duration: 0.09, ease: 'power1.out' })
       .to(this, { angle: 0, duration: 0.12, ease: 'power1.in' });
   }
