@@ -103,3 +103,30 @@ Qolgani: Bobur push → (ixtiyoriy) jamoadosh `git pull` + `scripts\day4.bat --o
 | Jamoa | mashq — 2 marta, soat bilan | [DEMO.md](DEMO.md) |
 
 `day5.bat` nimani tekshiradi: zaryadlovchi va GPU · Ollama/Qdrant, `gemma4:e4b` va `bge-m3`, indeks toʻliq · `.env` (LLM, τ, ierarxiya) · sayt yigʻmasi yangi (eski boʻlsa yigʻadi) · server tayyor boʻlish va isitish vaqti · sayt, ovozlar, `?demo` fayllari · **6 demo savol** API orqali, har biri avtomatik: 2-savolda «yigirma bir» bor, «15 ish» yoʻq; 4-savolda «12 foiz» bor, boshqa foizlar yoʻq; 5–6 — «Bilmayman»; manba, baho ≥ 80, vaqt < 15 s · tarmoq «Private», firewall, LAN manzili · video va kadr/s bosqichlar boʻyicha. Natija — `TAYYORLIK.md`: hammasi ✅ boʻlsa «TAYYOR», aks holda ❌ lar roʻyxati.
+
+## 9. Yakuniy tekshiruv natijasi (`day5.bat`, 8-noyabr 12:06, GPU noutbuk)
+
+**26 ✅ · 1 ⚠️ · 2 ❌** — dasturiy qism toʻliq tayyor, ikkala ❌ muhitga oid.
+
+| Tekshiruv | Natija |
+|---|---|
+| kod | `878bfae` — eng oxirgi |
+| xizmatlar | Ollama + Qdrant, `gemma4:e4b`, `bge-m3`, indeks 183 170 boʻlak, `.env` (gemma4, τ 0,58, ierarxiya on) ✅ |
+| server | 4 s da tayyor, isitish javobi 3,5 s ✅ |
+| sayt | yigʻildi, `index.html`, ikkala ovoz, `?demo` fayli ✅ |
+| demo 1 Konstitutsiya 1-m. | 3,1 s · 95,9 ✅ |
+| demo 2 taʼtil | 1,0 s · 100 · «yigirma bir kalendar kun» ✅ |
+| demo 3 kirill | 6,2 s · 99,0 ✅ |
+| demo 4 QQS | 2,6 s · 100 · «12 foiz», boshqa foiz yoʻq ✅ |
+| demo 5 ob-havo | 3,0 s · «Bilmayman» ✅ |
+| demo 6 prompt-injection | 0,5 s · «Bilmayman» ✅ |
+| sayt kadr/s | median **59**, render 1,5; eng past (bosqich boʻyicha) idle 11 · answer 37 · scales 52 · mind 28 ⚠️ |
+| ❌ quvvat | **batareyada, 30 %** |
+| ❌ tarmoq | «PDP Staff» — **Public**; firewall qoidalari faqat Private’da → boshqa kompyuter `10.30.10.61:8080` ga ulana olmaydi |
+
+**Xulosa.**
+1. Demo savollar — kutilgan javoblar, manbalar, baholar 4-kundagi bilan bir xil (eski nusxalar filtri va raqam ziddiyati hal qiluvchisi ishlayapti); vaqtlar batareyada ham ≤ 6,2 s.
+2. **Batareya** — zaryadlovchiga ulash; 30 % bilan 7 daqiqalik demo oʻrtasida Windows quvvatni tejash rejimiga oʻtishi mumkin.
+3. **Tarmoq** — ish/universitet Wi-Fi’ida profilni oʻzgartirish ruxsat etilmasligi va mijozlar bir-biridan ajratilgan boʻlishi mumkin. Ishonchli yoʻl: **telefon hotspot’i** (Private) yoki **noutbukni proyektorga ulab `http://localhost:8080`** (tarmoq umuman kerak emas).
+4. **«idle 11 kadr/s»** — yozuvchi sahifa tayyor boʻlgan zahoti birinchi soniyani oʻlchagan (modellar va teksturalar GPU’ga bir marta yuklanadi). Demoda sahifa daqiqalar oldin ochiladi. Endi bu soniya alohida **«load»** bosqichi sifatida koʻrsatiladi va baholanmaydi, `idle` 2 s keyin oʻlchanadi. Mind 28 — oyna ochilishidagi birinchi soniya; batareyada ham. Keyingi `day5.bat` (zaryadlovchida) aniq koʻrsatadi.
+5. Kichik tuzatishlar: indeks bir marta tekshiriladi (`stats` 3 marta chaqirilardi, −4 s), batareya foizi xabarda.

@@ -115,7 +115,8 @@ def part_machine():
         elif vals[0] == "2":
             mark("✅", "Zaryadlovchi ulangan", f"batareya {vals[1] if len(vals) > 1 else '?'} %")
         else:
-            mark("❌", "Noutbuk batareyada ishlayapti", "zaryadlovchini ulang — batareyada GPU 5–6 marta sekin")
+            mark("❌", "Noutbuk batareyada ishlayapti", f"batareya {vals[1] if len(vals) > 1 else '?'} % — zaryadlovchini ulang "
+                 "(batareyada GPU 5–6 marta sekinlashishi mumkin, demo oʻrtasida batareya tugashi ham mumkin)")
     code, out = run(["nvidia-smi", "--query-gpu=name,memory.used,memory.total,temperature.gpu", "--format=csv,noheader"],
                     check=False, quiet=True)
     if code == 0 and out.strip():
@@ -134,8 +135,8 @@ def part_services():
     mark("✅", "Ollama va Qdrant ishlayapti", f"Qdrant nuqtalari: {srv.qdrant_points()}")
     for m in (LLM, EMBED):
         mark("✅" if base.have_model(m) else "❌", f"Model {m}", "yuklangan" if base.have_model(m) else f"yoʻq — ollama pull {m}")
-    mark("✅" if srv.index_complete() else "❌", "Indeks toʻliq (183 170 boʻlak)" if srv.index_complete() else "Indeks toʻliq emas",
-         "" if srv.index_complete() else "scripts\\day3.bat")
+    full = srv.index_complete()
+    mark("✅" if full else "❌", "Indeks toʻliq (183 170 boʻlak)" if full else "Indeks toʻliq emas", "" if full else "scripts\\day3.bat")
     cur = env_value("LLM_MODEL")
     mark("✅" if cur == LLM else "⚠️", f".env LLM_MODEL={cur}", "" if cur == LLM else f"kutilgan {LLM} (bakeoff gʻolibi)")
     tau = env_value("DENSE_TAU")
@@ -251,14 +252,20 @@ def part_lan():
         return mark("⚠️", "Tarmoq tekshiruvi faqat Windows’da")
     ip = srv.lan_ip()
     _, prof = srv.ps("Get-NetConnectionProfile | ForEach-Object { \"$($_.Name)|$($_.NetworkCategory)\" }")
+    public = False
     for name, cat in [l.rsplit("|", 1) for l in prof.splitlines() if "|" in l]:
         cat = cat.strip()
+        public |= cat == "Public"
         mark("✅" if cat in ("Private", "DomainAuthenticated") else "❌", f"Tarmoq «{name.strip()}»: {cat}",
-             "" if cat != "Public" else "Sozlamalar → Tarmoq → shu Wi-Fi → «Private network»")
+             "" if cat != "Public" else "firewall qoidalari faqat Private tarmoqda ochiq — boshqa kompyuter ulana olmaydi. "
+             "Sozlamalar → Tarmoq va Internet → Wi-Fi → shu tarmoq → «Private network». Oʻzgartirib boʻlmasa (ish/universitet "
+             "Wi-Fi’i): telefon hotspot’i (uni Private qiling) yoki noutbukni proyektorga ulab http://localhost:8080")
     have = srv.ps("Get-NetFirewallRule -DisplayName 'Modda *' -ErrorAction SilentlyContinue | Measure-Object | % Count")[1].strip()
     mark("✅" if have.isdigit() and int(have) >= 2 else "⚠️", "Firewall qoidalari (8080)",
          have if have.isdigit() and int(have) >= 2 else "yoʻq — scripts\\setup_server.bat --only lan")
-    mark("✅" if ip else "⚠️", "Boshqa kompyuterdan ochish", f"http://{ip}:{srv.API_PORT}" if ip else "IP aniqlanmadi")
+    url = f"http://{ip}:{srv.API_PORT}" if ip else ""
+    mark("⚠️" if public or not ip else "✅", "Boshqa kompyuterdan ochish",
+         (f"{url} — tarmoq Public boʻlgani uchun hozir ochilmaydi" if public else url) if ip else "IP aniqlanmadi")
 
 
 def part_video(question: str):
@@ -278,8 +285,12 @@ def part_video(question: str):
         return mark("❌", "Video yozilmadi", "yuqoridagi xabarga qarang")
     if r.get("error"):
         return mark("❌", "Video: sahifa tayyor boʻlmadi", f"{r['error']} · {(r.get('errors') or [])[:2]}")
-    phases = ", ".join(f"{k} {v}" for k, v in (r.get("fps_by_phase") or {}).items())
-    lowest = r.get("fps_min") or 0
+    by = r.get("fps_by_phase") or {}
+    phases = ", ".join(f"{k} {v}" for k, v in by.items())
+    # «load» — the first second after the page became ready (models and textures go to the GPU once); in the demo
+    # the page is opened minutes before, so it is shown but not graded
+    graded = [v for k, v in by.items() if k != "load"]
+    lowest = min(graded) if graded else (r.get("fps_min") or 0)
     mark("✅" if (r.get("fps_median") or 0) >= 45 and lowest >= 30 else "⚠️",
          "Kadr/s", f"median {r.get('fps_median')}, eng past {lowest} ({phases}) · render {r.get('render_scale')} · {r.get('gpu')}")
     mark("✅" if (r.get("answer_s") or 99) < SLOW else "⚠️", "Saytdagi javob vaqti", f"{r.get('answer_s')} s")

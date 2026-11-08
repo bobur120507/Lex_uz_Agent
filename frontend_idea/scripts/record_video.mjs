@@ -43,6 +43,8 @@ const gpu = await page.evaluate(() => {
   const ext = gl && gl.getExtension('WEBGL_debug_renderer_info');
   return ext ? gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) : gl ? gl.getParameter(gl.RENDERER) : 'no WebGL';
 });
+await sample(1, 'load');                                          // first second after load: GPU uploads, once
+await wait(2000);
 await sample(4, 'idle');                                          // idle scene
 await page.fill('#question', '');
 await page.type('#question', question, { delay: 45 });

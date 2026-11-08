@@ -8,7 +8,7 @@ Demo GPU noutbukda (RTX 4060) ishlaydi; Bobur saytni oʻz brauzerida ochadi. Ham
 |---|---|---|
 | ☐ | **Avtomatik tekshiruv** | `scripts\day5.bat` (≈ 5 daqiqa) → oxirida «✅ TAYYOR» chiqishi kerak; «❌» boʻlsa — `TAYYORLIK.md` da nima tuzatish kerakligi yozilgan |
 | ☐ | Noutbuk zaryadlovchida, qopqoq ochiq | batareyada GPU sekinlashadi (16,7 → 2,6 boʻlak/s boʻlgan) |
-| ☐ | Bitta tarmoq | ikkala kompyuter bir Wi-Fi’da (Private) yoki telefon hotspot’i |
+| ☐ | Bitta tarmoq | ikkala kompyuter bir Wi-Fi’da, profil **Private** (firewall faqat Private’da ochiq). Ish/universitet Wi-Fi’i («PDP Staff» — Public edi) oʻzgarmasa — **telefon hotspot’i** yoki noutbukni proyektorga ulab `http://localhost:8080` |
 | ☐ | Server | noutbukda `start_modda.bat` → oynada IP. Oynada **«Modellar GPU’ga yuklandi»** chiqishini kuting (isitish: 1-savol ham 2–5 s boʻladi, 20 s emas) |
 | ☐ | Sayt | `http://<noutbuk-IP>:8080` — yuqorida holat belgisi yashil, «183 170 boʻlak» |
 | ☐ | Sinov savoli | bitta savol berib koʻring (pastdagi 1-savol). Javob 5 s ichida keladi |
