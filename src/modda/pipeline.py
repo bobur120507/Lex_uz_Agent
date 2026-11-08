@@ -14,12 +14,12 @@ from datetime import datetime, timezone
 
 from . import sparse
 from .lexparse import label_display
-from .rag import Context, build_messages, fetch_contexts, parse_answer
+from .rag import Context, build_messages, fetch_contexts, interleave, parse_answer, split_question, splitting_on
 from .router import lookup, route
 from .scoring import score_answer
 from .store import Hit
 from .textnorm import number_words, normalize_uz, to_query_form, tokenize
-from .versions import arrange, resolve_numbers, superseded
+from .versions import arrange, excluded, resolve_numbers
 
 NUM_RE = re.compile(r"\d+")
 
@@ -70,6 +70,47 @@ def verify(sentence: dict, ctx_by_id: dict[str, Context], min_overlap: float = M
         if share < min_overlap:
             return False, f"manba matniga mos emas (soʻzlarning {share:.0%} i manbada)"
     return True, "ok"
+
+
+STRICT_OVERLAP = 0.5     # a sentence the model left without [n] is attached to a source only when it clearly comes from it
+
+
+def attach_source(sentence: dict, contexts: list[Context]) -> dict:
+    """The model sometimes writes a correct sentence and forgets its [n] (8-noyabr, q046: «… oʻng tomonlama harakatlanish
+    tartibi amal qiladi» — dropped as «manba koʻrsatilmagan»). If one of the passages it was given clearly states the
+    sentence (every number in it, ≥ 50% of its content words), that passage is cited; otherwise it stays uncited."""
+    if any(True for _ in sentence.get("chunk_ids") or []):
+        return sentence
+    words = _words(sentence["text"])
+    if len(words) < 4:
+        return sentence
+    best, share_best = None, 0.0
+    for c in contexts:
+        src = f"{c.header} {c.text}"
+        if [n for n in NUM_RE.findall(sentence["text"]) if n not in set(NUM_RE.findall(src)) | number_words(src)]:
+            continue
+        share = len(words & _words(src)) / len(words)
+        if share >= STRICT_OVERLAP and share > share_best:
+            best, share_best = c, share
+    return {**sentence, "chunk_ids": [best.chunk_id], "attached": True} if best else sentence
+
+
+# «2030-yilda qabul qilinadigan yangi Soliq kodeksi nima deydi?» — an act adopted after the snapshot cannot be in the
+# corpus; without this rule the model stitched together true but unrelated sentences that mention 2030 (8-noyabr, q087).
+FUTURE_ACT = re.compile(r"\b(qabul qilinadigan|qabul qilinishi (kutilayotgan|kutilgan|rejalashtirilgan)|kuchga kiradigan|"
+                        r"chiqariladigan|kiritiladigan|tasdiqlanadigan|chiqadigan)\b")
+
+
+def future_act(question: str, snapshot: str | None) -> str | None:
+    q = (question or "").lower()
+    if not FUTURE_ACT.search(q):
+        return None
+    year = int(snapshot[:4]) if snapshot and snapshot[:4].isdigit() else datetime.now(timezone.utc).year
+    later = [y for y in map(int, re.findall(r"\b(20\d\d)\b", q)) if y > year]
+    if later or re.search(r"\b(kelgusi|keyingi) yil", q):
+        when = f"{later[0]}-yilda" if later else "kelgusida"
+        return f"{when} qabul qilinadigan hujjat Lex.uz maʼlumotlarida yoʻq (maʼlumotlar {snapshot or 'snapshot'} holatiga)"
+    return None
 
 
 def source_payload(c: Context, stale_ids: set) -> dict:
@@ -138,14 +179,26 @@ def ask(con, store, embedder, llm, *, question: str, embed_model: str, llm_model
     t = time.perf_counter()
     exact = lookup(con, r)
     n_cand = candidates if reranker else k
-    old = superseded(con)                             # older generations of the same code/law (versions.py)
-    hits = store.search_hybrid(vec, sq, n_cand * 2 if old or authority else n_cand)
-    dense_rank, sparse_rank = {}, {}
-    if diagnostics:                                    # the two lists RRF fused, for the inspector
+    old = excluded(con, question)                     # older generations of an act + amending acts (versions.py)
+    # Old versions are excluded IN the search, not after it: «Soliq kodeksi» matches four generations of the Tax Code,
+    # and on 8-noyabr all ten candidates of a VAT question came from the old ones — after dropping them, nothing was left.
+    flt = {"!doc_id": sorted(old)} if old else None
+    hits = store.search_hybrid(vec, sq, n_cand * 2 if authority else n_cand, flt=flt)
+    parts = split_question(q) if splitting_on() else []
+    if parts:                                          # a question that asks two things: each half searched too (rag.py)
+        pv = embedder.embed(embed_model, parts)
+        hits = interleave([hits] + [store.search_hybrid(v, sparse.query_vector(x), n_cand * 2 if authority else n_cand, flt=flt)
+                                    for x, v in zip(parts, pv)], k)
+    dense_rank, sparse_rank, old_seen = {}, {}, {}
+    if diagnostics:                                    # the two lists RRF fused (unfiltered), for the inspector
         for rank, h in enumerate(store.search_dense(vec, 40), start=1):
             dense_rank[h.chunk_id] = (rank, round(h.score, 4))
+            if str(h.payload.get("doc_id")) in old and len(old_seen) < 8:
+                old_seen.setdefault(h.chunk_id, h)
         for rank, h in enumerate(store.search_sparse(sq, 40), start=1):
             sparse_rank[h.chunk_id] = (rank, round(h.score, 4))
+            if str(h.payload.get("doc_id")) in old and len(old_seen) < 8:
+                old_seen.setdefault(h.chunk_id, h)
     fused = {h.chunk_id: h.score for h in hits}
     if dense_rank:
         dense_top = max(sc for _, sc in dense_rank.values())
@@ -154,7 +207,8 @@ def ask(con, store, embedder, llm, *, question: str, embed_model: str, llm_model
         dense_top = round(top1[0].score, 4) if top1 else None
     hits = [Hit(cid, 1.0, {}) for cid in exact] + [h for h in hits if h.chunk_id not in exact]
     ctx = fetch_contexts(con, hits[:max(n_cand * 2, len(exact))])
-    dropped_old = [c for c in ctx if str(c.meta.get("doc_id")) in old and c.chunk_id not in exact]
+    dropped_old = [c for c in ctx if str(c.meta.get("doc_id")) in old and c.chunk_id not in exact] + \
+        fetch_contexts(con, list(old_seen.values()))      # what the search would have returned without the filter
     ctx = arrange(ctx, old, exact, n_cand, authority=authority)
     docs = {c.meta.get("doc_id") for c in ctx}
 
@@ -172,7 +226,7 @@ def ask(con, store, embedder, llm, *, question: str, embed_model: str, llm_model
     cands = [cand(c) for c in ctx]
     ev("retrieval.completed", {
         "documents_found": len(docs), "chunks_retrieved": len(ctx), "ms": round((time.perf_counter() - t) * 1000),
-        "fusion": "rrf", "candidates": cands, "dense_top": dense_top,
+        "fusion": "rrf", "candidates": cands, "dense_top": dense_top, "sub_queries": parts,
         "superseded": [{"chunk_id": c.chunk_id, "doc_id": c.meta.get("doc_id"), "doc_title": c.meta.get("doc_title"),
                         "current_doc_id": old[str(c.meta.get("doc_id"))]} for c in dropped_old],
         "dense_list": [{"chunk_id": cid, "rank": rk, "score": sc} for cid, (rk, sc) in dense_rank.items()][:20],
@@ -218,6 +272,10 @@ def ask(con, store, embedder, llm, *, question: str, embed_model: str, llm_model
         if gate and not gate["passed"]:
             unknown["reason"] = f"savol hech bir moddaga yaqin emas (oʻxshashlik {dense_top} < τ {dense_tau})"
             return finish(unknown)                         # «Bilmayman» without an LLM call
+    fut = future_act(question, snapshot_date(con)) if FUTURE_ACT.search(question.lower()) else None
+    if fut and not exact:
+        unknown["reason"] = fut
+        return finish(unknown)                             # a future act cannot be in the corpus: no LLM call
     for n, c in enumerate(selected, start=1):
         c.n = n
 
@@ -251,6 +309,7 @@ def ask(con, store, embedder, llm, *, question: str, embed_model: str, llm_model
     by_id = {c.chunk_id: c for c in selected}
     kept, failed, checked = [], [], []                 # `checked` keeps the LLM's own sentence order
     for s in ans.sentences:
+        s = attach_source(s, selected)                 # a clearly supported sentence the model forgot to cite
         ok, why = verify(s, by_id)
         (kept if ok else failed).append({**s, "why": why})
         checked.append({**s, "why": why, "ok": ok})

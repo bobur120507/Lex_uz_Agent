@@ -193,3 +193,52 @@ Tuzatildi:
 tomonda — tarmoq (rasm kabi); transformer bloki orqasida — **42 ta halqa chuqurlikka ketadi**: har halqa bitta qatlam (tashqi yoyi —
 8 attention boshi, 2 KV guruh rangi; ichkisi — FFN; markazdan qoldiq oqim nuri). Impuls blokdan oʻtganda halqalar ketma-ket yonadi;
 ‹ › bilan tanlangan qatlam — oltin halqa va raqami. Kamera biroz yuqoridan — minora blok orqasidan koʻtariladi.
+
+## 13. Yakuniy test natijasi (`day6.bat`, 8-noyabr 20:14, GPU noutbuk) va tuzatishlar
+
+100 savol, 10 batch, **xato 0 %**, har batch 20–32 s. API checklist **19 / 20**, metrikalar **12 / 13**:
+
+| Metrika | Natija | Maqsad | |
+|---|---|---|---|
+| Hit@5 hujjat / modda | 91,1 % / 84,4 % | ≥ 90 / 80 % | ✅ |
+| MRR | 0,742 | ≥ 0,70 | ✅ |
+| Context precision (hakam) | 67,0 % | ≥ 60 % | ✅ |
+| Answer correctness | 1,90 → **1,77** (quyida) | ≥ 1,6 | ✅ |
+| Faithfulness / citation accuracy | 100 % / 99,4 % (162 havola) | ≥ 95 / 90 % | ✅ |
+| Toʻqilgan / eskirgan manba | 0 / 0 | 0 | ✅ |
+| No-answer | **8 / 10** | ≥ 9 / 10 | ❌ |
+| Latency p50 / p95 | 2,40 s / 4,43 s | ≤ 5 / 12 s | ✅ |
+
+**Chuqur tahlil — raqamlar ortida nima bor:**
+1. **Hakam (qwen3:8b) ishonchsiz chiqdi.** Yaxlit 0–2 bahosi aniq notoʻgʻri javoblarga 2 qoʻygan: q012 «Otpuskaga necha kun?» →
+   javob homiladorlik taʼtili haqida; q054 «14 kun» soʻralgan, javobda yoʻq — hakam «14 kunni toʻgʻri aytgan» deb yozgan; q078 nikoh
+   yoshi → fuqarolik muomala layoqati. Hakam va kalit faktlarning **kichigi** olinsa — **1,77** (baribir maqsaddan yuqori);
+   koʻp moddali savollar — 1,40 (eng zaif joy).
+2. **Eski Mehnat kodeksiga oʻzgartish aktlari.** «MEHNAT QONUNLARI KODEKSIGA OʻZGARTISHLAR…» (`-112443`) maʼlumotda «kodeks» turida —
+   ierarxiya qoidasi uni haqiqiy kodeks kabi koʻtargan: q012, q050, q072, q091 javoblari 1995-yilgi kodeks matnidan. q063 da xuddi
+   shunday akt jarimani «yuz soʻm» deb bergan. Bu — **eskirgan norma**, lekin metrika uni sanamagan (akt eski nusxa sifatida
+   belgilanmagan edi).
+3. **q075 (rus, QQS):** tarjima toʻgʻri, oʻxshashlik 0,77 — lekin **0 kontekst**: «Soliq kodeksi» Soliq kodeksining 4 avlodiga
+   mos keldi, 10 nomzodning hammasi eski nusxalardan, ular chiqarilgach hech narsa qolmadi.
+4. **q087** («2030-yilda qabul qilinadigan Soliq kodeksi») — 2030 soʻzi bor toʻgʻri, lekin aloqasiz gaplar; **q096** («Oyda uy
+   qurish», kirill) — lotinda «oyda» = «bir oyda» ham; qurilish ruxsatnomasi tartibi berilgan.
+5. **q044** — toʻgʻri modda 1-oʻrinda, lekin oʻxshashlik 0,52 < τ 0,58 → «Bilmayman»; **q046** — LLM toʻgʻri javob yozgan, [n] ni
+   unutgan → tekshiruvchi olib tashlagan.
+6. **Koʻp moddali savollar:** ikkala modda top-5’da faqat **12,5 %** hollarda — qidiruv bitta yarmini topadi.
+7. Checklist’dagi yagona ❌ (`article` boʻsh) — xato emas: moddalarga boʻlinmagan hujjatlar (Oliy sud plenumi qarorlari, oʻzgartish
+   aktlari); tekshiruv qoidasi tuzatildi.
+
+**Tuzatishlar (kod):**
+| # | Nima | Qayer |
+|---|---|---|
+| 1 | Eski nusxalar qidiruv **ichida** chiqariladi (Qdrant `must_not`) — joy egallamaydi (q075) | `store.py`, `pipeline.py`, `rag.py` |
+| 2 | Oʻzgartish / bekor qilish aktlari qidiruvdan chiqariladi (savol oʻzgartishlar haqida boʻlmasa) | `versions.py: amending, excluded` |
+| 3 | Ikki narsa soʻragan savol: har yarmi alohida qidiriladi, butun savolning top-3 i saqlanadi, har yarmining eng yaxshisi qoʻshiladi | `rag.py: split_question, interleave`; yoqilishini noutbukdagi A/B hal qiladi (`scripts/retrieval_ab.py`, `day6` qismi «ab» → `.env` `SPLIT_QUESTIONS`) — sandbox’dagi soxta embeddinglarda natija aniq emas edi |
+| 4 | Kelajakda qabul qilinadigan hujjat haqidagi savol → «Bilmayman», LLM chaqirilmaydi (q087) | `pipeline.py: future_act` |
+| 5 | [n] siz gap aniq bitta manbadan boʻlsa (har son va ≥ 50 % soʻz) — oʻsha manba qoʻshiladi (q046) | `pipeline.py: attach_source` |
+| 6 | Prompt: Oy, Mars, koinot kabi joylar → BILMAYMAN (q096) | `rag.py` |
+| 7 | Hakam: yaxlit baho oʻrniga **faktlar roʻyxati** (har fakt bor/yoʻq, mavzu, zidlik); yakuniy baho — hakam va kalit faktlarning kichigi | `rag_api_test.py` |
+| 8 | Checklist: `article` faqat moddali hujjatlarda talab qilinadi | `rag_api_test.py` |
+
+q044 (τ darvozasi) ataylab oʻzgartirilmadi: τ ni pasaytirish javobsiz savollarni oʻtkazib yuborishi mumkin — 10 javobsizdan 8 tasi
+aynan shu darvoza bilan toʻxtagan. 9 ta yangi unit test (jami 88). Keyingi qadam — `day6.bat` ni qayta ishga tushirib, 20:14 bilan solishtirish.

@@ -66,6 +66,15 @@ qilinmaydi. Buning oʻrniga bir aktning eski nusxalari (masalan, 1995 va 2022 yi
    `article` maydoni aniq. Moddasiz hujjatlar (qarorlar, buyruqlar) — `article: null`, boʻlaklar uzunlik boʻyicha.
 3. **Kuchini yoʻqotgan hujjatlar indeksdami?** Nusxada hamma hujjat «amalda» deb belgilangan, alohida status yoʻq. Bir aktning eski
    nusxalari nom va moddalar mosligi boʻyicha aniqlanadi va qidiruvdan chiqariladi; `GET /v1/meta` → `corpus.superseded_documents`.
+   **Oʻzgartish va bekor qilish aktlari** («…ga oʻzgartish va qoʻshimchalar kiritish toʻgʻrisida») ham qidiruvdan chiqariladi —
+   ularning matni yo asosiy aktga kiritilgan, yo almashtirilgan aktga tegishli; savol oʻzgartishlar haqida boʻlsa — qoladi.
+
+## Ikki qismli savollar (`SPLIT_QUESTIONS`)
+
+«…qancha va … necha kun?» kabi savollar butun holda va har bir qismi alohida qidiriladi (`rag.split_question`, `interleave`).
+Yoqish/oʻchirishni `scripts\day6.bat` oʻzi hal qiladi: testdan oldin `scripts/retrieval_ab.py` (LLMsiz, ≈ 1 daqiqa) 100 savolda
+ikki variantni solishtiradi va `.env` ga `SPLIT_QUESTIONS=on|off` yozadi (koʻp moddali savollar yaxshilansa va umumiy Hit@5
+tushmasa — `on`). Natija: `data/reports/retrieval_ab.json`.
 
 ## 100 savollik test
 

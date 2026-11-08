@@ -91,6 +91,35 @@ def superseded(con) -> dict[str, str]:
     return _cache[key]
 
 
+# Amending and repealing acts («…ga oʻzgartish va qoʻshimchalar kiritish toʻgʻrisida», «…ni oʻz kuchini yoʻqotgan deb
+# hisoblash toʻgʻrisida»). Their text is either already consolidated into the act they amend, or belongs to an act that
+# was replaced — 8-noyabr, 100-question test: amendments to the repealed 1995 «Mehnat qonunlari kodeksi» are typed
+# «code» in the data, got the code's authority boost and answered «how many days of annual leave» with the old
+# maternity-leave text. So they are left out of retrieval, unless the question itself is about amendments.
+AMENDING = re.compile(r"(oʻzgartish|oʻzgartirish|qoʻshimcha)\w*\s+(va\s+\S+\s+)?kiritish|oʻz kuchini yoʻqotgan deb (hisoblash|topish)")
+ASKS_AMENDMENT = re.compile(r"oʻzgartish|oʻzgartirish|qoʻshimcha\w* kirit|tahrir|qachon oʻzgar|oʻz kuchini yoʻqot|bekor qilingan")
+_amend_cache: dict[str, dict[str, str]] = {}
+
+
+def amending(con) -> dict[str, str]:
+    """{doc_id: ""} — amending / repealing acts of this database (computed once per database)."""
+    key = str(getattr(con, "label", None) or id(con))
+    if key not in _amend_cache:
+        rows = con.execute("SELECT DISTINCT doc_id, doc_title FROM articles").fetchall()
+        _amend_cache[key] = {str(r["doc_id"]): "" for r in rows if AMENDING.search(title_key(r["doc_title"]))}
+    return _amend_cache[key]
+
+
+def excluded(con, question: str) -> dict[str, str]:
+    """Documents left out of retrieval for this question: older versions of an act ({old: current}) and amending acts
+    ({doc: ""}) — the latter only when the question is not about amendments."""
+    out = dict(superseded(con))
+    if not ASKS_AMENDMENT.search(normalize_uz(question or "").lower()):
+        for d in amending(con):
+            out.setdefault(d, "")
+    return out
+
+
 def numbers(text: str) -> set[str]:
     return set(NUM_RE.findall(text)) | number_words(text)
 

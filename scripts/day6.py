@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import secrets
 import shutil
 import subprocess
@@ -42,7 +43,7 @@ base._log = open(base.LOG_PATH, "a", encoding="utf-8")
 import setup_server as srv                            # noqa: E402
 from setup_windows import C, IS_WIN, REPORTS, ROOT, StepFailed, VPY, bad, ok, run, say, warn  # noqa: E402
 
-PARTS = ["pull", "machine", "services", "key", "testset", "server", "test", "collect"]
+PARTS = ["pull", "machine", "services", "key", "testset", "ab", "server", "test", "collect"]
 LLM, EMBED = "gemma4:e4b", "bge-m3"
 TESTSET = ROOT / "data" / "testset" / "test100.csv"
 STATE: dict = {"problems": []}
@@ -183,6 +184,29 @@ class Server:
             cls.proc = None
 
 
+def part_ab():
+    """Retrieval-only A/B (no LLM, ≈ 1 min): split two-part questions or not — decides SPLIT_QUESTIONS in .env before the
+    server starts (the sandbox cannot measure it: its embeddings are random)."""
+    env = base.child_env()
+    env["PYTHONPATH"] = str(ROOT / "src")
+    env["PYTHONIOENCODING"] = "utf-8"
+    env.pop("SPLIT_QUESTIONS", None)
+    p = subprocess.run([str(VPY), str(ROOT / "scripts" / "retrieval_ab.py"), "--testset", str(TESTSET), "--write-env"], cwd=ROOT,
+                       env=env, capture_output=True, text=True, encoding="utf-8", errors="replace")
+    for line in (p.stdout + p.stderr).strip().splitlines()[-12:]:
+        print("    " + line, flush=True)
+        base.log("    " + line)
+    res = REPORTS / "retrieval_ab.json"
+    if p.returncode != 0 or not res.exists():
+        warn("A/B ishlamadi — SPLIT_QUESTIONS oʻzgarmadi (standart: on)")
+        return
+    d = json.loads(res.read_text(encoding="utf-8"))
+    ok(f"SPLIT_QUESTIONS={d['decision']} (koʻp moddali savollar, hammasi topilgan: "
+       f"{d['A_whole']['multi_all_found']} → {d['B_split']['multi_all_found']})")
+    os.environ["SPLIT_QUESTIONS"] = d["decision"]       # the server inherits this process's environment
+    STATE["ab"] = res
+
+
 def part_server():
     t = Server.start()
     if t is None:
@@ -240,7 +264,7 @@ def collect(started: float) -> Path:
             for f in out.rglob("*"):
                 if f.is_file():
                     z.write(f, f.relative_to(out.parent))
-    for f in [REPORTS / "day6-serve.log"]:
+    for f in [REPORTS / "day6-serve.log", REPORTS / "retrieval_ab.json"]:
         if f.exists() and f.stat().st_mtime >= started:
             shutil.copy2(f, dest / f.name)
     key, lan = STATE.get("key") or env_get("MODDA_API_KEY"), STATE.get("lan")
@@ -276,7 +300,7 @@ def main():
     if "test" in wanted and "key" not in wanted:
         STATE["key"] = env_get("MODDA_API_KEY")
     fns = {"pull": part_pull, "machine": part_machine, "services": part_services, "key": part_key, "testset": part_testset,
-           "server": part_server, "test": lambda: part_test(a.judge, a.skip_checks), "collect": lambda: None}
+           "ab": part_ab, "server": part_server, "test": lambda: part_test(a.judge, a.skip_checks), "collect": lambda: None}
     try:
         for i, name in enumerate([p for p in PARTS if p in wanted], 1):
             print()

@@ -30,13 +30,20 @@ def point_id(chunk_id: str) -> str:
 def _qdrant_filter(flt: dict | None) -> dict | None:
     if not flt:
         return None
-    must = []
+    must, must_not = [], []
     for k, v in flt.items():
+        to = must_not if k.startswith("!") else must          # «!doc_id»: exclude (old versions of an act)
+        k = k.lstrip("!")
         if isinstance(v, (list, tuple, set)):
-            must.append({"key": k, "match": {"any": list(v)}})
+            to.append({"key": k, "match": {"any": list(v)}})
         else:
-            must.append({"key": k, "match": {"value": v}})
-    return {"must": must}
+            to.append({"key": k, "match": {"value": v}})
+    out = {}
+    if must:
+        out["must"] = must
+    if must_not:
+        out["must_not"] = must_not
+    return out or None
 
 
 @dataclass
@@ -201,10 +208,9 @@ class MemoryStore:
         if not flt:
             return True
         for k, v in flt.items():
-            if isinstance(v, (list, tuple, set)):
-                if payload.get(k) not in v:
-                    return False
-            elif payload.get(k) != v:
+            neg, k = k.startswith("!"), k.lstrip("!")
+            hit = payload.get(k) in v if isinstance(v, (list, tuple, set)) else payload.get(k) == v
+            if hit == neg:
                 return False
         return True
 

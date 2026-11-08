@@ -247,17 +247,32 @@ class Judge:
         src = "\n\n".join(f"[{c['rank']}] {c.get('doc_title')} {c.get('article') or ''}\n{(c.get('text') or '')[:1800]}"
                           for c in res.get("contexts") or [] if c.get("chunk_id") in cited) or "(manba keltirilmagan)"
         uz = (res.get("debug") or {}).get("answer_uz")
+        # A checklist, not a holistic grade: on 8-noyabr a holistic 0–2 grade (qwen3:8b) gave 2 to an answer about
+        # maternity leave for «how many days of annual leave», and to an answer that never stated the asked 14 days.
+        # The judge now lists the reference's facts and checks each one; the grade is computed here from its answers.
         prompt = (
-            "You grade an Uzbek legal question-answering system against Uzbek legislation (Lex.uz).\n"
-            f"QUESTION: {q['question']}\nREFERENCE ANSWER (from the law): {q['expected_answer']}\n"
+            "You check an Uzbek legal question-answering system against a reference answer taken from the law.\n"
+            f"QUESTION: {q['question']}\nREFERENCE ANSWER: {q['expected_answer']}\n"
             f"SYSTEM ANSWER: {res.get('answer')}\n" + (f"SYSTEM ANSWER (Uzbek original): {uz}\n" if uz else "") +
             f"SOURCE TEXTS THE SYSTEM CITED:\n{src}\n\n"
-            "Return JSON only: {\"correctness\": 0|1|2, \"faithful\": true|false, \"reason\": \"one short sentence\"}.\n"
-            "correctness: 2 = correct and complete compared with the reference (same facts and numbers; wording and language "
-            "may differ); 1 = partly correct (a key fact missing, or vague, but nothing contradicts the reference); "
-            "0 = wrong, contradicts the reference, or does not answer.\n"
-            "faithful: true only if every claim in the system answer is stated in the cited source texts.")
-        return self.ask(prompt)
+            "Step 1: list the key facts of the REFERENCE ANSWER (numbers, durations, ages, percentages, who decides, "
+            "conditions) — at most 4. Step 2: for each fact, is the same fact stated in the SYSTEM ANSWER? Wording and "
+            "language may differ, the fact itself may not (a different number, period or subject is NOT the same fact).\n"
+            "Step 3: same_topic — does the system answer talk about what the QUESTION asks (e.g. annual leave, not "
+            "maternity leave)? contradicts — does it state something that contradicts the reference? faithful — is every "
+            "claim of the system answer stated in the cited source texts?\n"
+            "Return JSON only: {\"facts\": [{\"fact\": \"…\", \"present\": true|false}], \"same_topic\": true|false, "
+            "\"contradicts\": true|false, \"faithful\": true|false, \"reason\": \"one short sentence\"}")
+        out = self.ask(prompt)
+        if not out or not isinstance(out.get("facts"), list):
+            return None
+        facts = [f for f in out["facts"] if isinstance(f, dict)]
+        found = sum(1 for f in facts if f.get("present") is True)
+        if out.get("same_topic") is False or out.get("contradicts") is True or not facts:
+            grade = 0
+        else:
+            grade = 2 if found == len(facts) else 1 if found else 0
+        return {**out, "correctness": grade, "facts_present": f"{found}/{len(facts)}"}
 
     def relevance(self, q: dict, res: dict) -> list[int] | None:
         ctx = res.get("contexts") or []
@@ -355,7 +370,11 @@ def checks_after(api: Api, checks: list, rows: list[dict], sent: dict, got: dict
     # citations fields, contexts, chunk ids
     allres = [r for b in got.values() for r in (b or {}).get("results") or []]
     fields = ["doc_id", "url", "article", "edition_date", "doc_status", "quote"]
-    miss = sorted({f for r in allres for c in r.get("citations") or [] for f in fields if not c.get(f) and not (f == "article" and c.get("doc_type") not in ("kodeks", "konstitutsiya", "qonun"))})
+    # «article» may be empty only for a document that is not divided into articles (court plenum resolutions, amending
+    # acts…): it is a defect when the same document appears with article numbers in this run
+    with_articles = {c.get("doc_id") for r in allres for c in (r.get("contexts") or []) + (r.get("citations") or []) if c.get("article")}
+    miss = sorted({f for r in allres for c in r.get("citations") or [] for f in fields
+                   if not c.get(f) and not (f == "article" and c.get("doc_id") not in with_articles)})
     check(checks, "Har citations’da: doc_id, url, article, edition_date, doc_status, quote", not miss, "toʻliq" if not miss else f"boʻsh maydonlar: {miss}")
     noctx = [r["id"] for r in allres if r.get("status") == "ok" and not r.get("contexts")]
     bad_ctx = [r["id"] for r in allres for c in r.get("contexts") or [] if c.get("text") is None or c.get("retrieval_score") is None]
@@ -519,7 +538,10 @@ def score(rows: list[dict], got: dict, judge: Judge, corpus: Corpus, out: Path) 
             if rel is not None:
                 p["ctx_relevant"] = rel
                 p["ctx_precision_judge"] = len({x for x in rel if 1 <= x <= len(ctx)}) / len(ctx) if ctx else 0.0
-            p["correctness"] = p["correct_judge"] if p.get("correct_judge") is not None else p.get("correct_facts")
+            # final grade: the judge's checklist, capped by the test set's key facts (a judge can be fooled by fluent
+            # text on the wrong subject; a missing key number cannot) — the lower of the two
+            cands = [x for x in (p.get("correct_judge"), p.get("correct_facts")) if x is not None]
+            p["correctness"] = min(cands) if cands else None
             jlog.write(json.dumps({"id": q["id"], "grade": g, "relevant": rel}, ensure_ascii=False) + "\n")
             # one cause per wrong answer (spec §6)
             if (p["correctness"] or 0) < 2 or r.get("status") != "ok":
@@ -671,8 +693,10 @@ def build_blocks(rows, per, got, m, checks, meta, info) -> list[tuple]:
     B += [("h", 2, "7. Metodika"),
           ("p", "Hit@5 — kutilgan hujjat / modda (`expected_doc_id`, `expected_article`) top-5 `contexts` ichida; MRR — toʻgʻri moddaning "
                 "birinchi oʻrni (N = javobi bor savollar). Context precision — top-5 dan savolga tegishli boʻlaklar ulushi (LLM-hakam; hakam "
-                "boʻlmasa — kutilgan hujjatdan boʻlganlar). Answer correctness 0/1/2 — LLM-hakam kutilgan javob bilan solishtiradi; hakam "
-                "boʻlmasa test toʻplamidagi kalit faktlar (hammasi bor — 2, bir qismi — 1, yoʻq — 0)."),
+                "boʻlmasa — kutilgan hujjatdan boʻlganlar). Answer correctness 0/1/2 — ikki bahoning **kichigi**: (a) LLM-hakam "
+                "kutilgan javobning asosiy faktlarini sanab, har birini tizim javobida tekshiradi (mavzu boshqa yoki zid boʻlsa — 0; "
+                "hamma fakt bor — 2; bir qismi — 1); (b) test toʻplamidagi kalit faktlar (hammasi bor — 2, bir qismi — 1, yoʻq — 0). "
+                "Hakamning yaxlit bahosi (8-noyabr, birinchi versiya) notoʻgʻri mavzudagi silliq javoblarga ham 2 qoʻygan edi."),
           ("p", "Faithfulness — javobdagi har bir daʼvo (gap) oʻzi havola qilgan kontekst bilan solishtiriladi: gapdagi har bir son kontekstda "
                 "boʻlishi va mazmunli soʻzlarining kamida 50% i kontekstda uchrashi kerak (rus javoblari — tekshirilgan oʻzbekcha asli boʻyicha). "
                 "Citation accuracy — havola `contexts` ichida, `quote` kontekst matnidan aynan olingan va shu havolali gap manba bilan tasdiqlanadi. "
