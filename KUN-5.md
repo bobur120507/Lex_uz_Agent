@@ -55,3 +55,26 @@ scripts\day4.bat --only versions,eval,demo,fixture,video,report
 | Kitob ochiladi / yopiladi | muqovaning yumshoq «gup» etishi | sintez |
 
 Ovoz brauzer qoidasiga koʻra birinchi bosish/tugmadan keyin yoqiladi. Yuqori oʻng burchakda **ovoz tugmasi** (karnay) — oʻchirish/yoqish, shu brauzerda eslab qolinadi; `?mute=1` — ovozsiz. Uchta ovoz bir vaqtda kelganda (olov + tarozi + bolgʻacha) cheklovchi (limiter) shovqinni kesib qoʻymaydi.
+
+## 5. Beshinchi GPU ishga tushirish (09:40, kod `3e29a55` — yangi kod) — **hammasi oʻtdi**
+
+| Qism | Natija |
+|---|---|
+| versions | bir xil nomli **70 ta eski hujjat (4 296 boʻlak)** 63 ta amaldagi hujjat foydasiga chiqarildi: Soliq kodeksi 1997/2007 → 2019, Mehnat 1995 → 2022, Konstitutsiya 1992 → 2023, FPK 1997 → 2018, «Taʼlim toʻgʻrisida» 1992/1997 → 2020 … |
+| eval | gibrid Recall@5 **0,911**, MRR **0,778** (eski nusxalarsiz; avval 0,754) · `hybrid_auth` MRR **0,819** → `AUTHORITY_PRIOR=on` |
+| demo | **6/6**: 1 ✅ Konstitutsiya 95,9 · 2 ✅ faqat «yigirma bir kalendar kun», 100 · 3 ✅ kirill 98,5 · 4 ✅ faqat «12 foiz», 100 · 5 ✅ Bilmayman · 6 ✅ Bilmayman (τ) |
+| fixture | toʻliq savol → 217-modda, «yigirma bir kalendar kun», baho 100, sana 2026-11-01 → **`public/demo/fixture.json` ga qoʻyildi** |
+| video | RTX 4060, javob **1,5 s** (server isitilgan), median 53 / eng past 33 kadr/s, render 1,0 |
+
+**Mening fikrim:** tizim demo’ga tayyor. Ikki kichik topilma:
+
+1. **Fuqarolik kodeksi** ikki hujjatdan iborat (1-qism: 1–386-moddalar, 2-qism: 387–1199) — nomlari bir xil, shuning uchun `versions` 1-qismni (-111189) «eski nusxa» deb chiqarib yuborgan. **Tuzatildi:** endi ikki hujjat faqat modda raqamlari ≥ 50 % mos kelsa bir aktning versiyalari hisoblanadi (yangi versiya raqamlashni 1 dan boshlaydi, ikkinchi qism davom ettiradi). Test qoʻshildi. Oltin toʻplamda 1-qismdan savol yoʻq — shuning uchun eval buni koʻrsatmagan.
+2. **Kadr/s 60 → 53, eng past 33, render koeff. 1,5 → 1,0:** bu sahna emas, oʻlchov xatosi — panel ochiq paytida asosiy sahna ¼ tezlikda chiziladi (5-kun), lekin hisoblagich nollanmagan; panel yopilgach birinchi oʻlchov «20–30 kadr/s» chiqib, DPR boshqaruvchisi sifatni 1,0 ga tushirgan. **Tuzatildi:** panel ochiqligida hisoblagich va boshqaruvchi toʻxtaydi; `record_video.mjs` endi brauzerning haqiqiy kadr tezligini (`requestAnimationFrame`, hamma canvas) oʻlchaydi.
+
+1-savolning 26,8 s i — demo skripti modellarni ataylab GPU’dan tushiradi (sovuq start); jonli serverda isitish bor (video: 1,5 s).
+
+## 6. Qolgan (ixtiyoriy)
+
+* Bobur: oxirgi tuzatishlarni push qilish (Fuqarolik kodeksi, kadr/s oʻlchovi, namuna fixture, banner).
+* Jamoadosh (ixtiyoriy, ≈ 3 daqiqa): `git pull` → `scripts\day4.bat --only versions,video` — eski nusxalar roʻyxatida Fuqarolik kodeksi 1-qismi yoʻqligini va haqiqiy kadr/s ni tasdiqlash.
+* Mashq: [DEMO.md](DEMO.md) boʻyicha 2 marta.

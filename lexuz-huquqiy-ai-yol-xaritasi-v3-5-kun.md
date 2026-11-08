@@ -12,7 +12,7 @@ Tushunchalar va vositalar jamoa uchun [I_EXPLAIN.md](I_EXPLAIN.md) da tushuntiri
 
 > Har bir qadam tugaganda shu roʻyxat yangilanadi. Belgilar: ✅ bajarildi · 🔄 jarayonda · ⏸️ toʻxtatilgan · ↪️ boshqa yoʻl bilan · ❌ toʻsiq · ⬜ hali boshlanmagan. Batafsil buyruqlar — [KUN-1.md](KUN-1.md).
 >
-> **Oxirgi yangilanish:** 2026-11-08 10:00 (5-kun). 08:07 dagi GPU ishga tushirish **eski kod (`343d270`) bilan** oʻtdi — 7–8-noyabr tuzatishlari hali push qilinmagan: qidiruv 0,911 / 0,754, video 60 / 47 kadr/s ✅, lekin demo 2 va 4, fixture — eski xatolar (kutilganidek). **Ovozlar qoʻshildi** (bolgʻacha — ikki zarba, olov, tarozi, varaq, muqova; karnay tugmasi). Keyingi: **Bobur push** → jamoadosh `day4 --only versions,eval,demo,fixture,video,report` ([KUN-5.md](KUN-5.md)).
+> **Oxirgi yangilanish:** 2026-11-08 10:30 (5-kun). **GPU noutbuk, yangi kod (`3e29a55`): demo 6/6 ✅** — 2-savol faqat «yigirma bir kalendar kun», 4-savol faqat «12 foiz»; 70 ta eski hujjat chiqarildi; eval Recall@5 0,911, MRR 0,778 → `hybrid_auth` 0,819 (yoqildi); server isitilgan — javob 1,5 s. Haqiqiy fixture `public/demo/` da. Tuzatildi: Fuqarolik kodeksi 1-qismi «eski nusxa» deb chiqmasin (modda raqamlari mosligi), kadr/s oʻlchovi. Qolgani — push va mashq ([KUN-5.md](KUN-5.md) §5–6).
 
 ### 1-kun — uzoq ishlar va asos
 
@@ -110,19 +110,19 @@ Gibrid har ikkalasidan yaxshi → standart sifatida qoladi; reranker hozircha o�
 | ✅ | Toʻliq baholash hisoboti — [docs/BAHOLASH.md](docs/BAHOLASH.md) (GPU noutbuk, 7-noyabr 22:09 va 23:47: qidiruv, bakeoff, τ, 6 demo) |
 | ✅ | LLM yakuniy tanlovi: fikrlashsiz bakeoff — **gemma4:e4b** 12/15 manba, 5/5 «Bilmayman», 0 yolgʻon, **2,8 s** (qwen3:8b 1 yolgʻon, 5,9 s) → `.env` ga avtomatik (`day4 --llm auto`) |
 | ✅ | Bir aktning eski nusxalari (HF’da hammasi «in-force»): nomi bir xil kodeks/qonunlardan eng yangisi qoladi; zid raqamlarda yuqori akt; aniq havola joriy nusxaga (`versions.py`, 60 test) |
-| 🔄 | Ierarxiya bonusi (`hybrid_auth`) va eski nusxalarsiz qidiruv — GPU noutbukda `eval` bilan oʻlchash |
+| ✅ | Ierarxiya bonusi va eski nusxalarsiz qidiruv — GPU’da oʻlchandi: gibrid MRR 0,754 → **0,778** (eski nusxalarsiz), `hybrid_auth` **0,819**, Recall@5 0,911 oʻzgarmadi → `AUTHORITY_PRIOR=on`; 70 ta eski hujjat (4 296 boʻlak). Fuqarolik kodeksi 1/2-qismi xatosi tuzatildi (modda raqamlari ≥ 50 % mos boʻlsagina versiya) |
 | ✅ | 3D: unumdorlik, zaxira rejim, klaviatura — WebGL’siz rejim, klaviatura, qisqartirilgan harakat; **RTX 4060: median 60, eng past 53 kadr/s** (render koeff. 1,5) |
 
 ### 5-kun — muzlatish va demo
 
 | Holat | Qadam |
 |---|---|
-| 🔄 | Yakuniy baholash — bakeoff ✅, demo 4/6 ✅ (2 va 4 tuzatildi), qidiruv eval yangi kod bilan qayta ⬜ |
+| ✅ | Yakuniy baholash — [docs/BAHOLASH.md](docs/BAHOLASH.md): qidiruv (dense / BM25 / gibrid / gibrid+ierarxiya), bakeoff, τ, **6 demo savol 6/6** (GPU noutbuk, 8-noyabr 09:41) |
 | ✅ | README (yangi, ildizda), I_EXPLAIN §0.1 «Rejadan amalga» — qaysi qism qanday qurildi |
 | ✅ | **Ovozlar** (Bobur: «kitob, tarozi, olov, bolgʻacha»): bolgʻacha — Bobur topgan 2 zarbali fayl, animatsiya ham 2 marta uradi (ritm mos); olov — fayl; tarozi qoʻngʻirogʻi, varaq, muqova — Web Audio sintezi; birinchi bosishdan keyin, karnay tugmasi (eslab qolinadi), limiter; e2e’da tekshiriladi ([KUN-5.md](KUN-5.md)) |
-| 🔄 | 08:07 GPU ishga tushirish eski kod bilan (push yoʻq) — tizim barqaror (0,911 / 60 kadr/s), demo 2/4 va fixture yangi kod bilan qayta; `day4` endi nomaʼlum qismni ogohlantiradi |
+| ✅ | 08:07 ishga tushirish eski kod bilan edi (push yoʻq) → Bobur push qildi → **09:40: demo 6/6**, fixture toʻgʻri, video javobi 1,5 s; `day4` nomaʼlum qismni ogohlantiradi |
 | ✅ | **Maʼlumot sifati** — [docs/MALUMOT-SIFATI.md](docs/MALUMOT-SIFATI.md): tuzilgan (25 maydon), toza (HTML/boʻsh matn/aralash yozuv yoʻq); **20 ta tasodifiy modda jonli lex.uz bilan**: 17 mos, 3 tekshirib boʻlmadi, 0 mos emas; snapshot sanasi (`version_date`) lex.uz tahrirlar roʻyxati bilan mos; 5 maʼlum kamchilik va yechimlari |
-| 🔄 | Demo ssenariysi va mashq — **[DEMO.md](DEMO.md)** ✅ (tayyorlov, 7 daqiqalik ssenariy, zaxira rejalar); zaxira video va fixture — qisqa savol eski yoʻriqnomani topdi («15 ish kuni») → toʻliq savol bilan qayta ⬜; serverda isitish ✅ |
+| ✅ | Demo ssenariysi va mashq — **[DEMO.md](DEMO.md)** (tayyorlov, 7 daqiqalik ssenariy, oʻlchangan natijalar bilan, zaxira rejalar); **zaxira fixture** — haqiqiy GPU javobi (217-modda, baho 100) `frontend_idea/public/demo/fixture.json` da, banner yozib olingan sanani koʻrsatadi; **zaxira video** — RTX 4060, javob 1,5 s; serverda isitish ✅. Mashqning oʻzi — jamoa ⬜ |
 
 ### Yakuniy bosqich — yangi frontend `frontend_idea/` (12- va 13-boʻlimlar)
 
@@ -154,7 +154,7 @@ Batafsil tekshiruv roʻyxati — [13.5](#135-tekshiruv-roʻyxati-bosqichlar-boʻ
 | ✅ | **Hukm lahzasi (7-noyabr):** javob tayyor boʻlganda kamera kitobdan ketmaydi — haykal joyida (javob rejimida toʻliq koʻrinadi) pallalarini bahoga qarab ogʻdiradi, medal va Lex.uz logotipi pallaga «otilib» chiqadi, olov bir lahza kuchayadi; haykal ostida «⚖ 97 / 100 · manbaga moslik»; **kitobning javob sahifasida oltin muhr** (baho, gaplar soni) — bosilsa tarozi markazga keladi |
 | ✅ | F6 — Sifat: telefon/planshet, WebGL’siz rejim, qisqartirilgan harakat, klaviatura ✅; kadr/s: Iris Xe’da 27 → **RTX 4060’da median 60, eng past 53** ✅ |
 | ✅ | F7 — Brauzer sinovlari va vizual tanqid (Playwright, 5 oʻlcham, WebGL’siz) — sinov muhitida (haqiqiy backend kodi + Qdrant 1.20 + 10 kodeks + sinov LLM) |
-| 🔄 | F8 — Yakuniy tekshiruv: testlar ✅ (60), README ✅, `npm run build` noutbukda ✅, 6 demo gemma4 bilan: 1, 3, 5, 6 ✅, 2 va 4 — eski nusxalar tuzatildi, qayta ⬜ |
+| ✅ | F8 — Yakuniy tekshiruv: testlar ✅ (backend 61, unit 8, e2e 44), README ✅, `npm run build` noutbukda ✅, **6 demo savol gemma4 bilan 6/6** ✅ |
 
 ---
 
@@ -855,7 +855,7 @@ Tasdiqlanmasa ham frontend toʻliq ishlaydi — faqat tegishli joylar «Mavjud e
 - [x] Playwright: yoʻnalishlar, tugmalar (§12 jadvalidagi 25 ta boshqaruv), xato va «Bilmayman» holatlari — `tests/e2e.mjs`: ~45 tekshiruv
 - [x] Konsol xatolari va muvaffaqiyatsiz soʻrovlar yoʻq
 - [x] 5 oʻlchamda skrinshot → dizayner koʻzi bilan tanqid → tuzatish (kamida 2 aylana) — 2 aylana: graf pastga tushirildi, planshet/telefon kadrlari, javob rejimi
-- [ ] §22 dagi 6 demo savol haqiqiy backend bilan: aniq modda, mehnat mavzusi, kirill, yangilangan hujjat, javobsiz savol, prompt-injection — gemma4:e4b, GPU noutbuk, 8-noyabr: 1, 3, 5, 6 ✅; 2 va 4 eski kodeks nusxalari tufayli → tuzatildi, qayta oʻlchanadi
+- [x] §22 dagi 6 demo savol haqiqiy backend bilan: aniq modda, mehnat mavzusi, kirill, yangilangan hujjat, javobsiz savol, prompt-injection — gemma4:e4b, GPU noutbuk, 8-noyabr 09:41: **6/6** (baho 95,9 / 100 / 98,5 / 100 / Bilmayman / Bilmayman)
 
 **F8 — Yakuniy tekshiruv** *(Master prompt 12, 14)*
 - [x] `npm ci`, Vitest (holat mashinasi), Playwright, `npm run build` — hammasi haqiqatan ishga tushirilgan: unit (`node --test`) ✅, e2e ✅, noutbukda `npm ci` + `npm run build` ✅; ESLint — loyihada sozlanmagan (bogʻliqlik qoʻshilmadi)

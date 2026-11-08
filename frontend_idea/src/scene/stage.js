@@ -204,6 +204,7 @@ export class Stage {
     // behind an inspector panel (dark scrim) the scene runs at ¼ rate: the panel's own 3-D view gets the GPU
     const covered = document.body.classList.contains('has-overlay');
     if (covered && (this.skip = ((this.skip || 0) + 1) % 4)) return;
+    if (covered) { this.frames = 0; this.fpsT = 0; }             // no fps reading (and no DPR change) behind a panel
     const dt = Math.min(this.clock.getDelta(), 0.05);
     const t = this.clock.elapsedTime;
     if (this.dust.geometry.attributes.position.count) {
@@ -218,7 +219,7 @@ export class Stage {
     this.frames++; this.fpsT += dt;
     if (this.fpsT >= 1) {
       this.fps = Math.round(this.frames / this.fpsT); this.frames = 0; this.fpsT = 0;
-      if (!covered) { window.__moddaFps = this.fps; this.governDpr(t); }
+      window.__moddaFps = this.fps; this.governDpr(t);
     }
   }
 }

@@ -776,3 +776,15 @@ def test_no_information_sentence_is_not_an_answer(indexed):
     assert a.unknown and not a.sentences
     b = parse_answer("?", "Taʼtil haqi kamida 3 kun oldin toʻlanadi [1]. Bu haqda boshqa maʼlumot keltirilmagan [1].", ctx)
     assert not b.unknown and len(b.sentences) == 1
+
+
+def test_parts_of_one_code_are_not_versions():
+    from modda.versions import find_superseded
+    rows = [("-111189", "OʻZBEKISTON RESPUBLIKASINING FUQAROLIK KODEKSI", "code"),
+            ("-180552", "OʻZBEKISTON RESPUBLIKASINING FUQAROLIK KODEKSI", "code"),
+            ("-142859", "OʻZBEKISTON RESPUBLIKASINING MEHNAT KODEKSI", "code"),
+            ("-6257288", "Oʻzbekiston Respublikasining Mehnat kodeksi", "code")]
+    arts = {"-111189": {str(i) for i in range(1, 387)}, "-180552": {str(i) for i in range(387, 1200)},
+            "-142859": {str(i) for i in range(1, 295)}, "-6257288": {str(i) for i in range(1, 582)}}
+    assert find_superseded(rows, arts) == {"-142859": "-6257288"}            # part 1 of the Civil Code stays
+    assert find_superseded(rows)["-111189"] == "-180552"                       # titles alone would drop it

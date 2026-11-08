@@ -7,7 +7,7 @@ import { askStream } from './stream.js';
 export async function createBackend() {
   if (!DEMO) return { demo: false, api, askStream };
   const fixture = await (await fetch(`${BASE}demo/fixture.json`)).json();
-  return { demo: true, ...demoBackend(fixture) };
+  return { demo: true, note: fixture.note, recorded: fixture.recorded, question: fixture.question, ...demoBackend(fixture) };
 }
 
 const sleep = (ms, signal) => new Promise((resolve, reject) => {

@@ -49,6 +49,6 @@ Belgilar: ✅ bajarildi · ⚠️ izoh bilan · ❌ yoʻq.
 | Qisqartirilgan harakat | ✅ | `prefers-reduced-motion`: zarralar, bloom, avto-aylanish oʻchadi |
 | Graf resurslari soʻrovlar orasida tozalanadi | ✅ | har `mini3d` koʻrinish panel yopilganda `dispose()`; panel ochiqligida asosiy sahna ¼ tezlikda |
 | Konsolda jiddiy xato yoʻq | ✅ | e2e: desktop, 5 oʻlcham, WebGL’siz — konsol toza |
-| Unumdorlik | ⚠️ | RTX 4060 (demo kompyuteri): median **60**, eng past **53** kadr/s ✅; Intel Iris Xe: 27 — shuning uchun demo GPU noutbukda |
+| Unumdorlik | ⚠️ | RTX 4060 (demo kompyuteri): median **60**, eng past **47–53** kadr/s ✅ (8-noyabr 09:43 dagi 53/33 — panel ochiq paytdagi oʻlchov xatosi, tuzatildi); Intel Iris Xe: 27 — shuning uchun demo GPU noutbukda |
 
 **Natija:** 32 mezondan 30 tasi ✅, 2 tasi ⚠️ (izoh bilan), ❌ yoʻq.

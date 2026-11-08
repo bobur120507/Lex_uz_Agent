@@ -1,6 +1,6 @@
 # Modda — baholash hisoboti
 
-Yaratildi: 2026-11-07 22:09. Hamma raqamlar `data/reports` dagi oʻlchov fayllaridan olingan.
+Yaratildi: 2026-11-08 09:43. Hamma raqamlar `data/reports` dagi oʻlchov fayllaridan olingan.
 
 ## Muhit
 
@@ -12,22 +12,24 @@ Yaratildi: 2026-11-07 22:09. Hamma raqamlar `data/reports` dagi oʻlchov fayllar
 
 | Usul | Recall@5 | MRR | p50 kechikish |
 |---|---|---|---|
-| dense | 0.8 | 0.675 | — |
-| sparse | 0.778 | 0.601 | — |
-| hybrid | 0.911 | 0.773 | — |
+| dense | 0.822 | 0.684 | — |
+| sparse | 0.778 | 0.605 | — |
+| hybrid | 0.911 | 0.778 | — |
+| hybrid_auth | 0.911 | 0.819 | — |
 
-Gibrid (dense + BM25, RRF) — standart rejim.
+Gibrid (dense + BM25, RRF) — standart rejim; bir aktning eski nusxalari (masalan 1995 yilgi Mehnat kodeksi) qidiruvdan chiqariladi. `hybrid_auth` — qoʻshimcha ravishda Konstitutsiya/kodeks/qonun boʻlaklari bir necha oʻrin yuqoriga suriladi (`AUTHORITY_PRIOR=on`).
 
 ## 2. LLM solishtiruvi (bakeoff)
 
 
 Savollar: 20, kontekst: top-5 (dense)
 
-| Model | Toʻgʻri manba (javobi bor) | Toʻgʻri «Bilmayman» (javobi yoʻq) | Yolgʻon javob | Kirill harflar | Oʻrtacha vaqt, s | Xato |
-|---|---|---|---|---|---|---|
-| `qwen3:8b` | 12/15 | 2/4 | 2 | 0 | 6.5 | 1 |
-| `gemma4:e4b` | 12/15 | 5/5 | 0 | 0 | 15.4 | 0 |
-| `hf.co/QuantFactory/Llama-3.1-8B-Instuct-Uz-GGUF:Q4_K_M` | 7/14 | 4/4 | 0 | 0 | 22.1 | 2 |
+| Model | Toʻgʻri manba (javobi bor) | Toʻgʻri «Bilmayman» (javobi yoʻq) | Yolgʻon javob | Kirill harflar | Oʻrtacha vaqt, s | Xato | Kesilgan |
+|---|---|---|---|---|---|---|---|
+| `gemma4:e4b` | 12/15 | 5/5 | 0 | 0 | 2.8 | 0 | 0 |
+| `qwen3:8b` | 12/15 | 4/5 | 1 | 0 | 5.9 | 0 | 1 |
+
+LLM «fikrlash» (think) oʻchirilgan; *Kesilgan* — javob token chegarasiga yetgan savollar.
 
 **Tanlash qoidasi:** avval eng kam *yolgʻon javob*, keyin eng koʻp *toʻgʻri manba*, keyin tezlik.
 Javoblarni CSV faylida koʻzdan kechiring: oʻzbek tili sifati raqamlarda koʻrinmaydi.
@@ -42,12 +44,12 @@ Savol vektori bilan eng yaqin boʻlak oʻrtasidagi kosinus oʻxshashlik. Javobi 
 
 | # | Tur | Vaqt, s | Natija | Manbalar | Baho | LLM, token/s |
 |---|---|---|---|---|---|---|
-| 1 | aniq modda | 17.5 | 1 gap | OʻZBEKISTON RESPUBLIKASI KONSTITUTSIYASI 1 | 100.0 | 36.75 |
-| 2 | mehnat mavzusi | 17.7 | Bilmayman | — | 0.0 | 35.61 |
-| 3 | kirill | 28.8 | 1 gap | OʻZBEKISTON RESPUBLIKASINING MEHNAT KODE 100 | 95.8 | 38.99 |
-| 4 | yangilangan hujjat | 18.1 | 1 gap | OʻZBEKISTON RESPUBLIKASINING SOLIQ KODEK 211¹ | 28.5 | 41.26 |
-| 5 | javobi yoʻq | 27.2 | 2 gap | Toshkent shahrida ekologik vaziyatni yax; Chang boʻronlariga qarshi kurashish va a | 74.6 | 36.91 |
-| 6 | prompt-injection | 6.6 | Bilmayman | — | — | — |
+| 1 | aniq modda | 26.8 | 2 gap | OʻZBEKISTON RESPUBLIKASI KONSTITUTSIYASI 1 | 95.9 | 104.97 |
+| 2 | mehnat mavzusi | 5.2 | 1 gap | Oʻzbekiston Respublikasining Mehnat kode 217 | 100.0 | 93.91 |
+| 3 | kirill | 5.3 | 2 gap | Oʻzbekiston Respublikasining Mehnat kode 161 | 98.5 | 103.65 |
+| 4 | yangilangan hujjat | 2.0 | 1 gap | Oʻzbekiston Respublikasining Soliq kodek 258 | 100.0 | 94.86 |
+| 5 | javobi yoʻq | 2.1 | Bilmayman | — | — | 95.92 |
+| 6 | prompt-injection | 0.3 | Bilmayman | — | — | — |
 
 Savollar va kutilgan natijalar: `scripts/demo_questions.py`.
 
@@ -57,5 +59,4 @@ Savollar va kutilgan natijalar: `scripts/demo_questions.py`.
 * Korpus — Hugging Face’dagi Lex.uz nusxasi (qatʼiy versiya); undan keyingi oʻzgarishlar RSS orqali faqat belgilanadi.
 * Bu tizim yuridik maslahat bermaydi; rasmiy matn — lex.uz.
 
-> **Izoh (8-noyabr, qoʻlda):** 7-noyabr 23:47 dagi qayta hisobotda demo gemma4:e4b bilan oʻtgan — 1, 5, 6 ✅, lekin 2–4 notoʻgʻri «Bilmayman»: model yashirin «fikrlash» ga butun 700 tokenni sarflagan (`think` yuborilmagan). Tuzatildi ([KUN-4.md §4–5](../KUN-4.md)); demo jadvali keyingi ishga tushirishda yangilanadi. Qolgan boʻlimlar 23:47 hisobotida aynan shu (gibrid MRR 0,773).
-
+> **Izoh (8-noyabr, qoʻlda):** GPU noutbuk, kod `3e29a55`. 1-savolning 26,8 s i — modellarni GPU’ga yuklash vaqti (demo skripti har safar ataylab tushirib qoʻyadi); ishlayotgan serverda modellar oldindan isitiladi — xuddi shu savol videoda **1,5 s** da javob oldi. `versions`: bir xil nomli 70 ta eski hujjat (4 296 boʻlak) qidiruvdan chiqarilgan; `hybrid_auth` (Konstitutsiya/kodeks/qonun bir necha oʻrin yuqoriga) MRR’ni **0,778 → 0,819** ga koʻtardi, Recall@5 oʻzgarmadi → `AUTHORITY_PRIOR=on`.

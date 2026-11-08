@@ -20,7 +20,13 @@ const errors = [];
 page.on('pageerror', (e) => errors.push(e.message));
 const wait = (ms) => page.waitForTimeout(ms);
 const fps = [];
-const sample = async (n) => { for (let i = 0; i < n; i++) { await wait(1000); fps.push(await page.evaluate(() => window.__moddaFps || 0)); } };
+// the browser's real frame rate (requestAnimationFrame over 1 s) — counts every canvas, also a panel's own 3-D view
+const rafFps = () => page.evaluate(() => new Promise((res) => {
+  let n = 0; const t0 = performance.now();
+  const f = () => { n++; const dt = performance.now() - t0; if (dt < 1000) requestAnimationFrame(f); else res(Math.round((n * 1000) / dt)); };
+  requestAnimationFrame(f);
+}));
+const sample = async (n) => { for (let i = 0; i < n; i++) fps.push(await rafFps()); };
 
 await page.goto(url);
 await page.waitForFunction(() => document.body.classList.contains('is-ready'), null, { timeout: 120000 });

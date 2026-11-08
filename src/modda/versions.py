@@ -43,19 +43,36 @@ def doc_num(doc_id) -> int:
     return int(d) if d else 0
 
 
-def find_superseded(rows) -> dict[str, str]:
-    """rows: (doc_id, doc_title, doc_type). Returns {old doc_id: current doc_id}."""
+def find_superseded(rows, articles: dict[str, set] | None = None, overlap: float = 0.5) -> dict[str, str]:
+    """rows: (doc_id, doc_title, doc_type); articles: {doc_id: its article numbers}.
+    Returns {old doc_id: current doc_id}.
+
+    Same title is not enough: the Civil Code is ONE act in TWO documents with the same title (part 1:
+    articles 1–386, part 2: 387–1199 — the 8-noyabr GPU run would have dropped part 1). With `articles`, an
+    older document is a previous version only if at least `overlap` of the smaller document's article numbers
+    also occur in the newer one (a new version renumbers from 1; a second part continues the numbering)."""
     groups: dict[str, list[str]] = {}
     for doc_id, title, kind in rows:
         key = title_key(title)
         if kind not in TYPES or not key or SEPARATE.search(key):
             continue
         groups.setdefault(f"{kind}|{key}", []).append(str(doc_id))
+
+    def same_act(a: str, b: str) -> bool:
+        if articles is None:
+            return True
+        x, y = articles.get(a) or set(), articles.get(b) or set()
+        if not x or not y:
+            return False
+        return len(x & y) / min(len(x), len(y)) >= overlap
+
     out = {}
     for ids in groups.values():
         ids = sorted(set(ids), key=doc_num)
-        for old in ids[:-1]:
-            out[old] = ids[-1]
+        for i, old in enumerate(ids[:-1]):
+            newer = next((n for n in reversed(ids[i + 1:]) if same_act(old, n)), None)
+            if newer:
+                out[old] = newer
     return out
 
 
@@ -66,7 +83,11 @@ def superseded(con) -> dict[str, str]:
         marks = ", ".join("?" for _ in TYPES)
         rows = con.execute(f"SELECT DISTINCT doc_id, doc_title, doc_type FROM articles WHERE doc_type IN ({marks})",
                            TYPES).fetchall()
-        _cache[key] = find_superseded((r["doc_id"], r["doc_title"], r["doc_type"]) for r in rows)
+        arts: dict[str, set] = {}
+        for r in con.execute(f"SELECT doc_id, article_number FROM articles WHERE doc_type IN ({marks})", TYPES).fetchall():
+            if r["article_number"]:
+                arts.setdefault(str(r["doc_id"]), set()).add(str(r["article_number"]))
+        _cache[key] = find_superseded(((r["doc_id"], r["doc_title"], r["doc_type"]) for r in rows), arts)
     return _cache[key]
 
 
