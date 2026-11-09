@@ -242,3 +242,49 @@ tomonda — tarmoq (rasm kabi); transformer bloki orqasida — **42 ta halqa chu
 
 q044 (τ darvozasi) ataylab oʻzgartirilmadi: τ ni pasaytirish javobsiz savollarni oʻtkazib yuborishi mumkin — 10 javobsizdan 8 tasi
 aynan shu darvoza bilan toʻxtagan. 9 ta yangi unit test (jami 88). Keyingi qadam — `day6.bat` ni qayta ishga tushirib, 20:14 bilan solishtirish.
+
+## 14. Qayta test (`day6.bat`, 8-noyabr 22:00, kod `de24524`) va chuqur tahlil
+
+| Metrika | 20:14 | **22:00** | Maqsad |
+|---|---|---|---|
+| Hit@5 hujjat / modda | 91,1 / 84,4 % | **94,4 / 86,7 %** | ≥ 90 / 80 % |
+| MRR | 0,742 | **0,743** | ≥ 0,70 |
+| Context precision (hakam) | 67 % | 65,8 % | ≥ 60 % |
+| Answer correctness: kalit faktlar / hakam / kichigi | 1,77 / 1,90 / 1,77 | 1,72 / 1,53 / **1,42 ❌** | ≥ 1,6 |
+| Faithfulness · citation accuracy | 100 · 99,4 % | **100 · 100 %** | ≥ 95 · 90 % |
+| No-answer | 8 / 10 | **10 / 10** | ≥ 9 / 10 |
+| Notoʻgʻri «Bilmayman» | 3 | 4 (q012, q019, q044, q046) | — |
+| p50 / p95 | 2,40 / 4,43 s | **2,11 / 3,83 s** | ≤ 5 / 12 s |
+| API checklist | 19 / 20 | **20 / 20** | — |
+
+Retrieval A/B (`ab` qismi, LLMsiz, 29 s): yarmlab qidirish **foydali** — Hit@5 modda 84,7 → 85,9 %, koʻp moddali savollarda
+ikkala modda 12,5 → 18,8 %; `SPLIT_QUESTIONS=on` yozildi. q075 tuzaldi (QQS — 12 %), q087 va q096 endi «Bilmayman».
+
+**Tahlil — correctness nega tushdi:**
+1. **Hakam xatosi (asosiy sabab).** Kalit faktlar deyarli oʻzgarmagan (1,77 → 1,72), lekin yangi «faktlar roʻyxati» hakami
+   (qwen3:8b) faktlarni *kutilgan javobdan emas*, keltirilgan qonun matnidan oʻzi tuzgan va toʻgʻri javoblarni «qisman» degan:
+   q021, q030, q034, q038, q045, q048, q086, q093, q098 va boshqalar (~17 ta). q013 da «qirq sakkiz soat» ni «48 soat» ga zid
+   deb 0 bergan.
+2. **Haqiqiy eskirgan norma — 3 ta, metrika 0 degan.** q005: «15 ish kuni» — 2018-yilgi qaror (`-3590278`) eski Mehnat kodeksining
+   134-moddasini keltirgan (amaldagi 217-modda — 21 kun, 1-oʻrinda edi). q043 / q034: 1991-yilgi «Prezident saylovi toʻgʻrisida»
+   qonun (`-111838`, Saylov kodeksi bilan almashtirilgan) — «besh yil»; q043 javobi «yetti yil, ammo boshqa manbada besh yil» degan.
+   Eski nusxa filtri nomga tayanadi, bu hujjatlarning nomi boshqa — shuning uchun oʻtib ketgan.
+3. **Ogʻzaki savollar** (correctness 0,6): «otpusk», «ishdan haydash» — qonun matnida yoʻq soʻzlar, qidiruv topmagan (q012, q072).
+4. q019 — yarmlab qidirish bu savolda yomonlashtirdi (A/B da koʻringan; umumiy natija baribir ijobiy).
+
+**Tuzatishlar (kod):**
+| # | Nima | Qayer |
+|---|---|---|
+| 1 | Hakamga **faktlar beriladi** — kutilgan javobning «;» boʻlaklari; hakam faqat bor/yoʻq deydi. «Zidlik» faqat javobdagi iqtibos va raqam bilan tekshirilsa sanaladi | `rag_api_test.py: ref_facts, real_conflict` |
+| 2 | Generatsiyadan **oldin** eskirgan boʻlaklar chiqariladi: (a) qayta qabul qilingan kodeksning eski raqamlashiga havola qilgan, undan eski quyi hujjat; (b) yuqori hujjatdagi xuddi shu gap boshqa miqdor bilan (Konstitutsiya → kodeks → qonun → qaror) | `versions.py: drop_outdated`; `debug.outdated_dropped` |
+| 3 | «Eskirgan norma» metrikasi xuddi shu qoidalar bilan ham tekshiradi (22:00 qayta baholansa — 3 ta) | `rag_api_test.py: Corpus.outdated_chunks` |
+| 4 | Prompt: bir narsa uchun ikki raqam boʻlsa — Konstitutsiya/kodeksdagisi, «boshqa manbada…» yozilmaydi | `rag.py` |
+| 5 | Ogʻzaki soʻzlar lugʻati: otpusk → mehnat taʼtili, ishdan haydash → mehnat shartnomasini ish beruvchi tashabbusi bilan bekor qilish, shtraf, nalog, prava, dekret… (qidiruv soʻroviga qavsda qoʻshiladi, yarmlarga alohida) | `textnorm.py: legal_terms` |
+| 6 | `day6-serve.log` har ishga tushishda yangidan (eski traceback adashtirmasin) | `day6.py` |
+
+100 savoldagi kontekstlarda sinaldi: (a)+(b) 9 ta boʻlakni chiqaradi — hammasi eskirgan yoki javobsiz savolda, amaldagi manbaga tegmaydi
+(0,2 s / 100 savol). Ogʻzaki lugʻat 100 savoldan 6 tasiga taʼsir qiladi (q003, q012, q072, q091 va 2 rus savoli) — bu savollar test
+toʻplamida boʻlgani uchun ularning yaxshilanishi qisman «oʻrgatilgan» hisoblanadi. 6 ta yangi test (jami 91).
+
+**Keyingi qadam:** `git pull` → `scripts\day6.bat` (yangi kod bilan toʻliq test). 22:00 ni yangi hakam bilan qayta baholash
+(API’siz, ≈ 10 daqiqa): `.venv\Scripts\python scripts\rag_api_test.py --rescore data\reports\rag100\eval-2026-11-08-2201`.

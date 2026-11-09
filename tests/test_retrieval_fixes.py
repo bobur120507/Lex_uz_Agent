@@ -86,17 +86,84 @@ def test_attach_source():
     assert s["chunk_ids"] == ["b"] and "attached" not in s     # cited sentences are left alone
 
 
-def test_judge_checklist_and_min():
+def _runner():
     spec = importlib.util.spec_from_file_location("rag_api_test", ROOT / "scripts" / "rag_api_test.py")
     t = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(t)
-    j = t.Judge("http://x", "m")
+    return t
+
+
+def test_judge_checks_the_references_facts_only():
+    t = _runner()
+    assert t.ref_facts("kamida 35 yosh, davlat tilini bilishi; yetti yil muddatga; oktabr oyi") == \
+        ["kamida 35 yosh, davlat tilini bilishi", "yetti yil muddatga", "oktabr oyi"]
+    assert len(t.ref_facts("yigirma bir kalendar kun (amaldagi Mehnat kodeksi; eski kodeksdagi «15 ish kuni» emas)")) == 1
+    j, seen = t.Judge("http://x", "m"), []
     answers = iter([
-        {"facts": [{"fact": "21 kalendar kun", "present": False}], "same_topic": False, "contradicts": False, "faithful": True},
-        {"facts": [{"fact": "36 soat", "present": True}, {"fact": "24 soat", "present": False}], "same_topic": True,
-         "contradicts": False, "faithful": True},
-        {"facts": [{"fact": "18 yosh", "present": True}], "same_topic": True, "contradicts": False, "faithful": True},
+        {"present": [True, False], "same_topic": True, "conflict": None, "faithful": True},
+        {"present": [True, True], "same_topic": True, "conflict": None, "faithful": True},
+        {"present": [True, True], "same_topic": False, "conflict": None, "faithful": True},
+        {"present": [True], "same_topic": True, "faithful": True,                       # «qirq sakkiz» = 48: no conflict
+         "conflict": {"answer_says": "qirq sakkiz soatdan ortiq ushlab turilishi mumkin emas", "fact": 1}},
+        {"present": [True, True], "same_topic": True, "faithful": True,
+         "conflict": {"answer_says": "boshqa manbada Prezident besh yil muddatga saylanadi", "fact": 2}},
     ])
-    j.ask = lambda prompt: next(answers)
-    q, r = {"question": "q", "expected_answer": "e"}, {"answer": "a", "contexts": [], "citations": []}
-    assert [j.grade(q, r)["correctness"] for _ in range(3)] == [0, 1, 2]
+
+    def ask(prompt):
+        seen.append(prompt)
+        return next(answers)
+    j.ask = ask
+    q2 = {"question": "q", "expected_answer": "kamida 35 yosh; yetti yil muddatga"}
+    r = {"answer": "35 yosh. Prezident yetti yil muddatga saylanadi, ammo boshqa manbada Prezident besh yil muddatga saylanadi.",
+         "contexts": [], "citations": []}
+    assert [j.grade(q2, r)["correctness"] for _ in range(3)] == [1, 2, 0]
+    q1 = {"question": "q", "expected_answer": "sud qarorisiz 48 soatdan ortiq ushlab turish mumkin emas"}
+    assert j.grade(q1, {"answer": "Shaxs qirq sakkiz soatdan ortiq ushlab turilishi mumkin emas.", "contexts": [],
+                        "citations": []})["correctness"] == 2
+    g = j.grade(q2, r)
+    assert g["correctness"] == 0 and "besh yil" in g["conflict"]
+    assert "1. kamida 35 yosh" in seen[0] and "2. yetti yil muddatga" in seen[0]
+
+
+class _Ctx:
+    def __init__(self, cid, doc_id, doc_type, text, title="t"):
+        self.chunk_id, self.text, self.n = cid, text, 0
+        self.meta = {"doc_id": doc_id, "doc_type": doc_type, "doc_title": title}
+
+
+def test_quantities():
+    from modda.versions import quantities
+    assert quantities("taʼtilining muddati 15 ish kunidan kam boʻlmasligi kerak") == {("kun", "15")}
+    assert quantities("davomiyligi yigirma bir kalendar kunni tashkil etadi") == {("kun", "21")}
+    assert quantities("Prezident yetti yil muddatga saylanadi") == {("yil", "7")}
+    assert quantities("oktabr oyining birinchi yakshanbasi") == set()
+
+
+def test_drop_outdated():
+    from modda.versions import drop_outdated
+    con = _con([("-142859", "OʻZBEKISTON RESPUBLIKASINING MEHNAT KODEKSI", "code", str(i)) for i in range(1, 120)] +
+               [("-6257288", "Oʻzbekiston Respublikasining Mehnat kodeksi", "code", str(i)) for i in range(1, 120)])
+    con.label = "t-outdated"
+    ctx = [
+        _Ctx("code", "-6257288", "code", "Har yilgi asosiy eng kam mehnat taʼtilining davomiyligi yigirma bir kalendar kunni tashkil etadi."),
+        _Ctx("res", "-3590278", "resolution", "Mehnat kodeksining 134-moddasiga muvofiq yillik mehnat taʼtilining muddati 15 ish kunidan kam boʻlmasligi kerak."),
+        _Ctx("new", "-7000001", "resolution", "Mehnat kodeksining 217-moddasiga muvofiq taʼtil beriladi."),
+        _Ctx("sk", "-4386848", "code", "Oʻzbekiston Respublikasi Prezidenti yetti yil muddatga saylanadi."),
+        _Ctx("old", "-111838", "law", "Oʻzbekiston Respublikasi Prezidenti besh yil muddatga saylanadi."),
+        _Ctx("other", "-5", "law", "Xodimga yillik qoʻshimcha taʼtil uch kalendar kun beriladi."),
+    ]
+    kept, dropped = drop_outdated(con, ctx)
+    assert {d["chunk_id"] for d in dropped} == {"res", "old"}
+    assert [c.chunk_id for c in kept] == ["code", "new", "sk", "other"]
+    assert drop_outdated(con, ctx, exact=("old",))[1][0]["chunk_id"] == "res"      # an explicit reference is kept
+
+
+def test_colloquial_words_get_the_legal_term():
+    from modda.textnorm import base_query, legal_terms, to_query_form
+    assert to_query_form("Otpuskaga necha kun berishadi oʻzi?") == "Otpuskaga necha kun berishadi oʻzi? (mehnat taʼtili)"
+    assert "ish beruvchining tashabbusi" in legal_terms("Ishdan haydashmoqchi, oldindan aytishlari kerakmi?")
+    assert legal_terms("Yillik asosiy mehnat taʼtilining eng kam muddati qancha?") == ""
+    assert base_query(to_query_form("Otpuskaga necha kun?")) == "Otpuskaga necha kun?"
+    parts = split_question(to_query_form("Xodim oʻz xohishi bilan ishdan ketmoqchi boʻlsa necha kun oldin ogohlantiradi, "
+                                         "ish beruvchi esa qanday asoslar bilan shartnomani bekor qila oladi?"))
+    assert "xodimning tashabbusi" in parts[0] and "(" not in parts[1]               # the term stays with its half

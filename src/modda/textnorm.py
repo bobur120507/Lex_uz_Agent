@@ -56,9 +56,49 @@ def cyr_to_lat(text: str) -> str:
     return "".join(out)
 
 
+# Everyday words → the term the law uses, appended in brackets to the query form (search, and the model's «SAVOL» line —
+# so it knows that «otpusk» is the «mehnat taʼtili» of its sources).
+# 8-noyabr, 100-question test: «Otpuskaga necha kun berishadi?» and «Ishdan haydashmoqchi…» found no labour-code article —
+# legal text never says «otpusk» or «haydash». A general lexicon of common loanwords and slang, not the test's answers.
+COLLOQUIAL = [
+    (r"\botpusk\w*", "mehnat taʼtili"),
+    (r"\bdekret\w*", "homiladorlik va tugish taʼtili, bola parvarishi taʼtili"),
+    (r"\bbolnichn\w*|\bbyulleten\w*", "vaqtincha mehnatga layoqatsizlik"),
+    (r"\bzarplat\w*|\boyligim\w*", "ish haqi"),
+    (r"\bishdan\s+(haydash\w*|haydal\w*|haydab\w*|bo[ʻ']?shat\w*)|\buvoln\w*|\bsokrashen\w*",
+     "mehnat shartnomasini ish beruvchining tashabbusi bilan bekor qilish, ogohlantirish"),
+    (r"\bishdan\s+ket\w*|\barizamni\b", "mehnat shartnomasini xodimning tashabbusi bilan bekor qilish"),
+    (r"\bshtraf\w*", "jarima"),
+    (r"\bnalog\w*", "soliq"),
+    (r"\bpropiska\w*", "doimiy roʻyxatga olish"),
+    (r"\bprava\b|\bpravasi\w*|\bpravam\w*", "haydovchilik guvohnomasi, transport vositasini boshqarish huquqi"),
+    (r"\bgai\b|\bgaishnik\w*", "yoʻl harakati xavfsizligi xizmati"),
+    (r"\bmilitsiya\w*|\bmilitsioner\w*", "ichki ishlar organlari"),
+    (r"\bkvartplat\w*|\bijara\s+puli\b", "turar joy ijarasi haqi"),
+    (r"\bnafaqa\s+yosh\w*|\bpensiya\s+yosh\w*", "yoshga doir pensiya"),
+    (r"\bbalogʻat\s+yosh\w*|\bkatta\s+boʻlgach\b", "voyaga yetish, muomala layoqati"),
+]
+_COLLOQ = [(re.compile(rx, re.I), term) for rx, term in COLLOQUIAL]
+
+
+def legal_terms(text: str) -> str:
+    """The legal terms for everyday words in `text`, «» if none: «Otpuskaga necha kun?» → «mehnat taʼtili»."""
+    t = (text or "").lower().replace("'", "ʻ").replace("ʼ", "ʻ")
+    found = [term for rx, term in _COLLOQ if rx.search(t)]
+    return "; ".join(dict.fromkeys(found))
+
+
+def base_query(q: str) -> str:
+    """`q` without the legal terms `to_query_form` appended."""
+    m = re.match(r"^(.*) \(([^()]*)\)$", q or "", re.S)
+    return m.group(1) if m and legal_terms(m.group(1)) == m.group(2) else (q or "")
+
+
 def to_query_form(text: str) -> str:
-    """Normalize a user's question: Cyrillic → Latin, then canonical apostrophes."""
-    return normalize_uz(cyr_to_lat(text) if has_cyrillic(text) else text)
+    """Normalize a user's question: Cyrillic → Latin, then canonical apostrophes; everyday words get the legal term."""
+    q = normalize_uz(cyr_to_lat(text) if has_cyrillic(text) else text)
+    extra = legal_terms(q)
+    return f"{q} ({extra})" if extra else q
 
 
 # --------------------------------------------------------------------------- tokens for BM25

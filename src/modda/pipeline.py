@@ -19,7 +19,7 @@ from .router import lookup, route
 from .scoring import score_answer
 from .store import Hit
 from .textnorm import number_words, normalize_uz, to_query_form, tokenize
-from .versions import arrange, excluded, resolve_numbers
+from .versions import arrange, drop_outdated, excluded, resolve_numbers
 
 NUM_RE = re.compile(r"\d+")
 
@@ -209,6 +209,8 @@ def ask(con, store, embedder, llm, *, question: str, embed_model: str, llm_model
     ctx = fetch_contexts(con, hits[:max(n_cand * 2, len(exact))])
     dropped_old = [c for c in ctx if str(c.meta.get("doc_id")) in old and c.chunk_id not in exact] + \
         fetch_contexts(con, list(old_seen.values()))      # what the search would have returned without the filter
+    ctx = [c for c in ctx if str(c.meta.get("doc_id")) not in old or c.chunk_id in exact]
+    ctx, outdated = drop_outdated(con, ctx, exact)        # old-numbering references, a lower act's other amount
     ctx = arrange(ctx, old, exact, n_cand, authority=authority)
     docs = {c.meta.get("doc_id") for c in ctx}
 
@@ -226,7 +228,7 @@ def ask(con, store, embedder, llm, *, question: str, embed_model: str, llm_model
     cands = [cand(c) for c in ctx]
     ev("retrieval.completed", {
         "documents_found": len(docs), "chunks_retrieved": len(ctx), "ms": round((time.perf_counter() - t) * 1000),
-        "fusion": "rrf", "candidates": cands, "dense_top": dense_top, "sub_queries": parts,
+        "fusion": "rrf", "candidates": cands, "dense_top": dense_top, "sub_queries": parts, "outdated": outdated,
         "superseded": [{"chunk_id": c.chunk_id, "doc_id": c.meta.get("doc_id"), "doc_title": c.meta.get("doc_title"),
                         "current_doc_id": old[str(c.meta.get("doc_id"))]} for c in dropped_old],
         "dense_list": [{"chunk_id": cid, "rank": rk, "score": sc} for cid, (rk, sc) in dense_rank.items()][:20],

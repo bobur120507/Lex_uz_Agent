@@ -197,6 +197,39 @@ def claims(answer: str) -> list[tuple[str, list[int]]]:
 
 # =========================================================================== judge (Ollama, optional)
 
+def ref_facts(expected: str) -> list[str]:
+    """The reference answer's facts: its «;»-separated clauses (a «;» inside brackets or quotes does not split)."""
+    parts, cur, depth = [], "", 0
+    for ch in expected or "":
+        depth += ch in "([«" and 1 or 0
+        depth -= ch in ")]»" and 1 or 0
+        if ch == ";" and depth <= 0:
+            parts.append(cur)
+            cur = ""
+        else:
+            cur += ch
+    parts.append(cur)
+    return [p.strip(" .") for p in parts if p.strip(" .")][:6]
+
+
+def real_conflict(c, answer: str, facts: list[str]) -> str | None:
+    """The judge's «conflict», kept only when it can be checked: the quoted part is in the answer, it has a number, and
+    that number is not in the reference fact (brackets — notes — left out). At 22:00 the judge called «qirq sakkiz
+    soat» a contradiction of «48 soat» (q013)."""
+    if not isinstance(c, dict) or not isinstance(c.get("answer_says"), str):
+        return None
+    says = c["answer_says"].strip(" .")
+    if not says or not (norm(says) in norm(answer) or len(words(says) & words(answer)) >= 0.8 * max(1, len(words(says)))):
+        return None
+    try:
+        fact = facts[int(c.get("fact") or 1) - 1]
+    except (ValueError, IndexError):
+        fact = " ".join(facts)
+    plain = re.sub(r"\([^)]*\)|«[^»]*»", " ", fact)
+    n_says, n_fact = numbers(says), numbers(plain)
+    return says if n_says and n_fact and not n_says <= n_fact else None
+
+
 class Judge:
     PREFER = ["qwen3:8b", "qwen2.5:7b", "llama3.1:8b", "mistral:7b", "gemma3:12b", "gemma3:4b"]
 
@@ -247,32 +280,40 @@ class Judge:
         src = "\n\n".join(f"[{c['rank']}] {c.get('doc_title')} {c.get('article') or ''}\n{(c.get('text') or '')[:1800]}"
                           for c in res.get("contexts") or [] if c.get("chunk_id") in cited) or "(manba keltirilmagan)"
         uz = (res.get("debug") or {}).get("answer_uz")
-        # A checklist, not a holistic grade: on 8-noyabr a holistic 0–2 grade (qwen3:8b) gave 2 to an answer about
-        # maternity leave for «how many days of annual leave», and to an answer that never stated the asked 14 days.
-        # The judge now lists the reference's facts and checks each one; the grade is computed here from its answers.
+        facts = ref_facts(q.get("expected_answer") or "")
+        if not facts:
+            return None
+        # A checklist with the facts given, not found by the judge: on 8-noyabr 20:14 a holistic 0–2 grade gave 2 to wrong
+        # answers; at 22:00 a judge that listed «the reference's facts» itself took them from the cited law instead (q021,
+        # q034, q038, q098…) and marked correct answers as partial. The facts are now the reference answer's own clauses.
+        listed = "\n".join(f"{i}. {f}" for i, f in enumerate(facts, 1))
         prompt = (
-            "You check an Uzbek legal question-answering system against a reference answer taken from the law.\n"
-            f"QUESTION: {q['question']}\nREFERENCE ANSWER: {q['expected_answer']}\n"
+            "You check an Uzbek legal question-answering system against reference facts taken from the law.\n"
+            f"QUESTION: {q['question']}\nREFERENCE FACTS:\n{listed}\n"
             f"SYSTEM ANSWER: {res.get('answer')}\n" + (f"SYSTEM ANSWER (Uzbek original): {uz}\n" if uz else "") +
             f"SOURCE TEXTS THE SYSTEM CITED:\n{src}\n\n"
-            "Step 1: list the key facts of the REFERENCE ANSWER (numbers, durations, ages, percentages, who decides, "
-            "conditions) — at most 4. Step 2: for each fact, is the same fact stated in the SYSTEM ANSWER? Wording and "
-            "language may differ, the fact itself may not (a different number, period or subject is NOT the same fact).\n"
-            "Step 3: same_topic — does the system answer talk about what the QUESTION asks (e.g. annual leave, not "
-            "maternity leave)? contradicts — does it state something that contradicts the reference? faithful — is every "
-            "claim of the system answer stated in the cited source texts?\n"
-            "Return JSON only: {\"facts\": [{\"fact\": \"…\", \"present\": true|false}], \"same_topic\": true|false, "
-            "\"contradicts\": true|false, \"faithful\": true|false, \"reason\": \"one short sentence\"}")
+            "1. For EACH numbered reference fact: is it stated in the SYSTEM ANSWER? Wording and language may differ; a "
+            "number written in words equals the digits; text in brackets is a note, not required. A different number, "
+            "period, age or subject is NOT the same fact. Check only these facts — do not add others.\n"
+            "2. same_topic — does the system answer talk about what the QUESTION asks?\n"
+            "3. conflict — if the SYSTEM ANSWER states a DIFFERENT number, period or amount for the same thing as a "
+            "reference fact, copy that part of the system answer word for word into answer_says; otherwise null.\n"
+            "4. faithful — is every claim of the system answer stated in the cited source texts?\n"
+            "Return JSON only: {\"present\": [true|false for fact 1, fact 2, …], \"same_topic\": true|false, "
+            "\"conflict\": {\"answer_says\": \"…\", \"fact\": 1} or null, \"faithful\": true|false, \"reason\": \"one short sentence\"}")
         out = self.ask(prompt)
-        if not out or not isinstance(out.get("facts"), list):
+        if not out or not isinstance(out.get("present"), list):
             return None
-        facts = [f for f in out["facts"] if isinstance(f, dict)]
-        found = sum(1 for f in facts if f.get("present") is True)
-        if out.get("same_topic") is False or out.get("contradicts") is True or not facts:
+        present = [x is True for x in out["present"][:len(facts)]] + [False] * max(0, len(facts) - len(out["present"]))
+        found = sum(present)
+        conflict = real_conflict(out.get("conflict"), " ".join(filter(None, [res.get("answer"), uz])), facts)
+        if out.get("same_topic") is False or conflict:
             grade = 0
         else:
             grade = 2 if found == len(facts) else 1 if found else 0
-        return {**out, "correctness": grade, "facts_present": f"{found}/{len(facts)}"}
+        return {"facts": [{"fact": f, "present": p} for f, p in zip(facts, present)], "same_topic": out.get("same_topic"),
+                "conflict": conflict, "faithful": out.get("faithful"), "reason": out.get("reason"),
+                "correctness": grade, "facts_present": f"{found}/{len(facts)}"}
 
     def relevance(self, q: dict, res: dict) -> list[int] | None:
         ctx = res.get("contexts") or []
@@ -290,7 +331,7 @@ class Judge:
 
 class Corpus:
     def __init__(self):
-        self.docs, self.old, self.note = None, {}, "tekshirilmadi (loyiha bazasi topilmadi)"
+        self.docs, self.old, self.note, self.con, self.types = None, {}, "tekshirilmadi (loyiha bazasi topilmadi)", None, {}
 
     @classmethod
     def open(cls, db: str | None) -> "Corpus":
@@ -302,13 +343,30 @@ class Corpus:
             from modda.versions import superseded
             s = get_settings()
             con = connect(db or s.db_path, url=None if db else (s.database_url or None))
-            c.docs = {docnum(r[0]) for r in con.execute("SELECT DISTINCT doc_id FROM articles").fetchall()}
+            rows = con.execute("SELECT DISTINCT doc_id, doc_type FROM articles").fetchall()
+            c.docs = {docnum(r[0]) for r in rows}
+            c.types = {docnum(r[0]): r[1] for r in rows}
             c.old = {docnum(k): docnum(v) for k, v in superseded(con).items()}
-            con.close()
+            c.con = con
             c.note = f"loyiha bazasi: {len(c.docs)} hujjat, {len(c.old)} ta eski nusxa (versions.py)"
         except Exception as e:
             c.note = f"tekshirilmadi ({type(e).__name__}: {str(e)[:120]})"
         return c
+
+    def outdated_chunks(self, contexts: list[dict]) -> dict[str, str]:
+        """{chunk_id: why} — contexts of this answer that are outdated by the project's rules (versions.drop_outdated): a
+        by-law citing the old numbering of a re-enacted code, or a lower act stating another amount than a higher one."""
+        if self.con is None or not contexts:
+            return {}
+        try:
+            from modda.rag import Context
+            from modda.versions import drop_outdated
+            ctx = [Context(i, c.get("chunk_id"), 0.0, "", c.get("text") or "",
+                           {"doc_id": "-" + docnum(c.get("doc_id")), "doc_title": c.get("doc_title"),
+                            "doc_type": self.types.get(docnum(c.get("doc_id")))}) for i, c in enumerate(contexts, 1)]
+            return {d["chunk_id"]: d["reason"] for d in drop_outdated(self.con, ctx)[1]}
+        except Exception:
+            return {}
 
 
 # =========================================================================== API checklist (§7)
@@ -495,6 +553,7 @@ def score(rows: list[dict], got: dict, judge: Judge, corpus: Corpus, out: Path) 
         body = lambda c: f"{c.get('doc_title') or ''} {c.get('article') or ''} {c.get('header') or ''}\n{c.get('text') or ''}"
         cl = claims((r.get("debug") or {}).get("answer_uz") or r.get("answer") or "") if r.get("status") == "ok" else []
         cit_rows, fabricated, outdated = [], [], []
+        stale = corpus.outdated_chunks(r.get("contexts") or [])
         for c in cits:
             src = ctx_by.get(c.get("chunk_id"))
             in_ctx = src is not None
@@ -507,9 +566,10 @@ def score(rows: list[dict], got: dict, judge: Judge, corpus: Corpus, out: Path) 
                 fabricated.append({"ref": c.get("ref"), "doc_id": c.get("doc_id"), "why": "; ".join(w for w, bad in (
                     ("contexts’da yoʻq", not in_ctx), ("url lex.uz hujjatiga mos emas", not url_ok), ("korpusda yoʻq", not known)) if bad)})
             old = docnum(c.get("doc_id")) in corpus.old
-            if (c.get("doc_status") or "").lower() not in ("amalda", "in-force") or old:
+            if (c.get("doc_status") or "").lower() not in ("amalda", "in-force") or old or c.get("chunk_id") in stale:
                 outdated.append({"ref": c.get("ref"), "doc_id": c.get("doc_id"), "doc_status": c.get("doc_status"),
-                                 "why": f"yangi nusxasi: {corpus.old[docnum(c.get('doc_id'))]}" if old else f"doc_status={c.get('doc_status')}"})
+                                 "why": f"yangi nusxasi: {corpus.old[docnum(c.get('doc_id'))]}" if old else
+                                 stale.get(c.get("chunk_id")) or f"doc_status={c.get('doc_status')}"})
             cit_rows.append({"ref": c.get("ref"), "in_contexts": in_ctx, "quote_verbatim": bool(quote_ok), "supports": bool(sup),
                              "accurate": bool(in_ctx and quote_ok and sup), "expected": (docnum(c.get("doc_id")), artnum(c.get("article"))) in exp})
         p["citations"] = cit_rows

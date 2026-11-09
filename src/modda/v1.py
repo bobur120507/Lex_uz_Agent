@@ -340,7 +340,8 @@ def answer_item(item: dict, opts: dict) -> dict:
                   "gate": gate, "request_id": res.get("request_id"),
                   "verification": {"failed": (ev.get("verification.completed") or {}).get("failed", [])},
                   "superseded_dropped": len((ev.get("retrieval.completed") or {}).get("superseded") or []),
-                  "sub_queries": (ev.get("retrieval.completed") or {}).get("sub_queries") or None})
+                  "sub_queries": (ev.get("retrieval.completed") or {}).get("sub_queries") or None,
+                  "outdated_dropped": (ev.get("retrieval.completed") or {}).get("outdated") or []})
 
     if res.get("unknown"):
         result = {**base, "status": "no_answer", "answer": NO_ANSWER_TEXT[out_lang], "answer_language": out_lang,

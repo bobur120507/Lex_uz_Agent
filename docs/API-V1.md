@@ -41,7 +41,8 @@ Spetsifikatsiyadagi hamma maydonlar bor. Qoʻshimchalar (testchiga foydali, majb
 - `citations[]`: `stale` — Lex.uz RSS’ida hujjat snapshot’dan keyin oʻzgargan deb belgilangan; `part` — kodeksning boʻlim/bob/paragrafi.
 - `confidence` — javob soʻzlarining manbaga mosligi (0–1, saytdagi «tarozi» bahosi); «javob yoʻq» da `null`.
 - `debug`: `rewritten_query`, `retrieved_total`, `dense_top` va `gate` (τ = 0,58 darvozasi), `verification.failed` (tekshiruvchi
-  olib tashlagan gaplar), `superseded_dropped` (qidiruvdan chiqarilgan eski nusxalar), `question_uz` / `answer_uz` (rus savollari).
+  olib tashlagan gaplar), `superseded_dropped` (qidiruvdan chiqarilgan eski nusxalar), `outdated_dropped` (generatsiyadan oldin
+  chiqarilgan eskirgan boʻlaklar va sababi), `sub_queries` (ikki qismli savolning yarmlari), `question_uz` / `answer_uz` (rus savollari).
 - `timing.translate_ms` — rus savoli/javobi tarjimasi.
 
 ## Tillar
@@ -68,6 +69,10 @@ qilinmaydi. Buning oʻrniga bir aktning eski nusxalari (masalan, 1995 va 2022 yi
    nusxalari nom va moddalar mosligi boʻyicha aniqlanadi va qidiruvdan chiqariladi; `GET /v1/meta` → `corpus.superseded_documents`.
    **Oʻzgartish va bekor qilish aktlari** («…ga oʻzgartish va qoʻshimchalar kiritish toʻgʻrisida») ham qidiruvdan chiqariladi —
    ularning matni yo asosiy aktga kiritilgan, yo almashtirilgan aktga tegishli; savol oʻzgartishlar haqida boʻlsa — qoladi.
+   Generatsiyadan oldin yana ikki xil eskirgan boʻlak chiqariladi (`versions.drop_outdated`, `debug.outdated_dropped`): qayta qabul
+   qilingan kodeksning eski raqamlashiga havola qilgan, undan eski quyi hujjat (2018-yilgi qarordagi «Mehnat kodeksining
+   134-moddasi»), va yuqori hujjatdagi xuddi shu gapni boshqa miqdor bilan aytgan quyi hujjat (1991-yilgi qonundagi «Prezident besh
+   yil muddatga saylanadi» — Saylov kodeksi va Konstitutsiyada «yetti yil»).
 
 ## Ikki qismli savollar (`SPLIT_QUESTIONS`)
 

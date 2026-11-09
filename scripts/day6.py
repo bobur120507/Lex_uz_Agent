@@ -166,6 +166,10 @@ class Server:
     def start(cls) -> float | None:
         cls.stop_old()
         t0 = time.time()
+        try:                                           # a fresh log: an old run's traceback must not look like this run's
+            (REPORTS / "day6-serve.log").write_text("", encoding="utf-8")
+        except OSError:
+            pass
         env = srv.server_env()
         env["MODDA_API_KEY"] = STATE.get("key") or env_get("MODDA_API_KEY") or ""
         cls.proc = base.start_detached([VPY, "-m", "modda", "serve", "--host", "0.0.0.0", "--port", srv.API_PORT],
