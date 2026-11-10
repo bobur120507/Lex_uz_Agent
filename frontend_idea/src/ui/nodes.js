@@ -68,10 +68,12 @@ export class GraphNodes {
     }
   }
 
-  /** Ring layout without WebGL. */
+  /** Ring layout without WebGL. `--x/--y` are relative to `.graph`, so the ring uses the box's own coordinates (it used
+   *  page coordinates — the vertical offset counted twice, the lower nodes went under the question bar; 10-noyabr). The
+   *  centre sits a little high so the lower nodes clear the fallback book at the bottom. */
   ring(rect) {
-    const cx = rect.left + rect.width / 2, cy = rect.top + rect.height / 2;
-    const rx = Math.min(rect.width * 0.42, 420), ry = Math.min(rect.height * 0.4, 190);
+    const cx = rect.width / 2, cy = rect.height * (rect.width < 600 ? 0.33 : 0.42);
+    const rx = Math.min(rect.width * 0.42, 420), ry = Math.min(rect.height * 0.36, 170);
     const pos = { mind: { x: cx, y: cy } };
     [150, 110, 70, 30, -30, -70, -110, -150].forEach((d, i) => {
       const a = (d * Math.PI) / 180;

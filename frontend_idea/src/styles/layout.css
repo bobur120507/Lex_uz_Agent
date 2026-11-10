@@ -96,6 +96,11 @@ body.is-answer:not(.show-graph) .query-title { opacity: 0; }
 .demo-banner { position: fixed; top: calc(var(--topbar-h) - 4px); left: 50%; transform: translateX(-50%); padding: 6px 14px; border-radius: var(--r-pill);
   background: rgba(101, 216, 238, .12); border: 1px solid rgba(101, 216, 238, .45); color: var(--cyan); font-size: 12.5px; }
 body.is-demo .query-title { top: calc(var(--topbar-h) + 30px); }
+/* demo mode only (README screenshots, 10-noyabr): the banner wrapped to two lines over the headline — one line, full text
+   in its title; the headline moves down by that line and its subtitle steps aside, so the title still clears the graph */
+.demo-banner { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: min(1100px, 92vw); padding-block: 4px; }
+body.is-demo .hero { top: calc(var(--topbar-h) + 26px); }
+body.is-demo .hero p { display: none; }
 
 /* ------------------------------------------------------------------ Lady Justice in focus */
 .justice-hud { position: fixed; z-index: 6; right: clamp(16px, 6vw, 110px); top: 50%; transform: translateY(-50%); width: min(340px, calc(100vw - 32px));

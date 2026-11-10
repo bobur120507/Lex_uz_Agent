@@ -2,6 +2,7 @@
 out, two-part questions searched by halves, future acts, a forgotten [n], the judge's checklist."""
 
 import importlib.util
+import json
 import sqlite3
 from pathlib import Path
 
@@ -167,3 +168,36 @@ def test_colloquial_words_get_the_legal_term():
     parts = split_question(to_query_form("Xodim oʻz xohishi bilan ishdan ketmoqchi boʻlsa necha kun oldin ogohlantiradi, "
                                          "ish beruvchi esa qanday asoslar bilan shartnomani bekor qila oladi?"))
     assert "xodimning tashabbusi" in parts[0] and "(" not in parts[1]               # the term stays with its half
+
+
+def test_no_info_sentences_are_not_claims():
+    from modda.rag import drop_no_info, parse_answer
+    assert drop_no_info("Qoʻshilgan qiymat soligʻi stavkasi haqida berilgan maʼlumotlar mavjud emas . [1][2][3][4][5]") is None
+    kept = drop_no_info("Nikoh yoshi haqida maʼlumot berilmagan, ammo nikoh yoshiga yetmagan shaxs bilan nikoh haqiqiy emas deb topilishi mumkin. [1]")
+    assert kept.startswith("Nikoh yoshiga yetmagan")
+    law = "Shaxsga doir maʼlumotlarni yoʻq qilish amalga oshirilishi natijasida ularni tiklash imkoni boʻlmay qoladi. [1]"
+    assert drop_no_info(law) == law                                   # «yoʻq qilish» = to destroy, a real claim
+    assert drop_no_info("Agar shaxs haqida maʼlumotlar mavjud emas boʻlsa, soʻrov yuboriladi. [1]")    # a condition, kept
+    c = [ctx("a", "Daromadlarga 12 foizlik soliq stavkasi boʻyicha soliq solinadi.")]
+    ans = parse_answer("q", "QQS stavkasi haqida berilgan maʼlumotlar mavjud emas [1][2]. Daromadlarga 12 foizlik stavka boʻyicha soliq solinadi [1].", c)
+    assert [x["text"][:11] for x in ans.sentences] == ["Daromadlarg"]
+
+
+def test_conflict_checks_every_reference_fact():
+    t = _runner()
+    facts = ["jazo va aliment qarzi boʻyicha ushlab qolish ish haqining yetmish foizidan oshmaydi (umumiy holda — ellik foiz)"]
+    assert t.real_conflict({"answer_says": "koʻpi bilan ellik foizi"}, "… koʻpi bilan ellik foizi ushlab qolinadi", facts) is None
+    facts = ["oʻn olti yoshdan", "oʻn besh yoshdan ota-onadan birining yozma roziligi bilan"]
+    assert t.real_conflict({"answer_says": "oʻn besh yoshga toʻlishi bilan", "fact": 1}, "… oʻn besh yoshga toʻlishi bilan …", facts) is None
+    facts = ["yigirma bir kalendar kun (amaldagi Mehnat kodeksi; eski kodeksdagi «15 ish kuni» emas)"]
+    assert t.real_conflict({"answer_says": "15 ish kunidan kam boʻlmasligi"}, "muddati 15 ish kunidan kam boʻlmasligi kerak", facts)
+
+
+def test_cached_judge_regrades_saved_verdicts(tmp_path):
+    t = _runner()
+    (tmp_path / "judge.jsonl").write_text(json.dumps({"id": "q062", "relevant": [1], "grade": {
+        "facts": [{"fact": "yetmish foizidan oshmaydi (umumiy holda — ellik foiz)", "present": True}], "same_topic": True,
+        "conflict": "koʻpi bilan ellik foizi", "correctness": 0}}, ensure_ascii=False) + "\n", encoding="utf-8")
+    j = t.CachedJudge(tmp_path / "judge.jsonl")
+    g = j.grade({"id": "q062"}, {"answer": "Ish haqining koʻpi bilan ellik foizi ushlab qolinadi."})
+    assert g["correctness"] == 2 and g["conflict"] is None and j.relevance({"id": "q062"}, {}) == [1]

@@ -17,7 +17,7 @@ What it does (tester side, standard library only; python-docx optional for the .
 Usage:
   python scripts/rag_api_test.py --base-url http://127.0.0.1:8080 --api-key <KEY>
   python scripts/rag_api_test.py --rescore data/reports/rag100/<run_id>     # score saved batches again (no API calls)
-Options: --testset data/testset/test100.csv · --judge auto|none|<ollama model> · --ollama-url · --db (local corpus
+Options: --testset data/testset/test100.csv · --judge auto|none|cache|<ollama model> · --ollama-url · --db (local corpus
 check of document ids and old versions; default: the project's database when run inside the repo).
 """
 
@@ -213,21 +213,20 @@ def ref_facts(expected: str) -> list[str]:
 
 
 def real_conflict(c, answer: str, facts: list[str]) -> str | None:
-    """The judge's «conflict», kept only when it can be checked: the quoted part is in the answer, it has a number, and
-    that number is not in the reference fact (brackets — notes — left out). At 22:00 the judge called «qirq sakkiz
-    soat» a contradiction of «48 soat» (q013)."""
+    """The judge's «conflict», kept only when it can be checked: the quoted part is in the answer and states a number
+    that the reference does not state anywhere. The reference's «quoted» parts are left out — they name the outdated
+    figure («eski kodeksdagi «15 ish kuni» emas»); its brackets are kept — they can hold a second figure («umumiy holda
+    — ellik foiz», q062, 9-noyabr). A bare «bir» is the article «a» as often as the number one (q052 «bir bola uchun»).
+    At 22:00 the judge called «qirq sakkiz soat» a contradiction of «48 soat» (q013); at 18:11 it pointed at the wrong
+    fact (q099)."""
     if not isinstance(c, dict) or not isinstance(c.get("answer_says"), str):
         return None
     says = c["answer_says"].strip(" .")
     if not says or not (norm(says) in norm(answer) or len(words(says) & words(answer)) >= 0.8 * max(1, len(words(says)))):
         return None
-    try:
-        fact = facts[int(c.get("fact") or 1) - 1]
-    except (ValueError, IndexError):
-        fact = " ".join(facts)
-    plain = re.sub(r"\([^)]*\)|«[^»]*»", " ", fact)
-    n_says, n_fact = numbers(says), numbers(plain)
-    return says if n_says and n_fact and not n_says <= n_fact else None
+    n_says = numbers(says) - {"1"}
+    n_ref = numbers(re.sub(r"«[^»]*»", " ", " ".join(facts)))
+    return says if n_says and n_ref and not n_says <= n_ref else None
 
 
 class Judge:
@@ -328,6 +327,37 @@ class Judge:
 
 
 # =========================================================================== local corpus checks (optional)
+
+class CachedJudge(Judge):
+    """`--judge cache` with `--rescore`: the saved run's own judge verdicts (judge.jsonl) graded again by the current
+    rules, with no LLM call — the same verdict always gives the same grade. 9-noyabr: the 18:11 run's verdicts re-graded
+    after the «conflict» check was corrected (q052, q062, q099)."""
+
+    def __init__(self, path: Path):
+        super().__init__("", None)
+        self.saved = {}
+        for line in path.read_text(encoding="utf-8").splitlines():
+            if line.strip():
+                j = json.loads(line)
+                self.saved[j["id"]] = j
+        self.model = f"saqlangan hakam bahosi ({path.name}, {len(self.saved)} ta)" if self.saved else None
+
+    def grade(self, q: dict, res: dict) -> dict | None:
+        g = (self.saved.get(q["id"]) or {}).get("grade")
+        if not g or not isinstance(g.get("facts"), list):
+            return g
+        facts = [f.get("fact") or "" for f in g["facts"]]
+        present = [f.get("present") is True for f in g["facts"]]
+        uz = (res.get("debug") or {}).get("answer_uz")
+        conflict = real_conflict({"answer_says": g["conflict"]} if g.get("conflict") else None,
+                                 " ".join(filter(None, [res.get("answer"), uz])), facts)
+        found = sum(present)
+        grade = 0 if g.get("same_topic") is False or conflict else 2 if found == len(facts) else 1 if found else 0
+        return {**g, "conflict": conflict, "correctness": grade, "facts_present": f"{found}/{len(facts)}"}
+
+    def relevance(self, q: dict, res: dict):
+        return (self.saved.get(q["id"]) or {}).get("relevant")
+
 
 class Corpus:
     def __init__(self):
@@ -970,7 +1000,7 @@ def main() -> int:
     ap.add_argument("--testset", default=str(ROOT / "data" / "testset" / "test100.csv"))
     ap.add_argument("--run-id", default=None)
     ap.add_argument("--out", default=None)
-    ap.add_argument("--judge", default="auto", help="auto | none | <ollama model>")
+    ap.add_argument("--judge", default="auto", help="auto | none | cache (with --rescore: the saved verdicts) | <ollama model>")
     ap.add_argument("--ollama-url", default=os.environ.get("OLLAMA_URL", "http://127.0.0.1:11434"))
     ap.add_argument("--db", default=None, help="SQLite corpus for the local checks (default: the project's)")
     ap.add_argument("--skip-checks", action="store_true", help="only the 100 questions, no API checklist")
@@ -1017,7 +1047,13 @@ def main() -> int:
             checks_after(api, checks, rows, sent, got, run_id)
         (out / "checks.json").write_text(json.dumps(checks, ensure_ascii=False, indent=1), encoding="utf-8")
 
-    judge = Judge.pick(a.ollama_url, a.judge, ((meta or {}).get("system") or {}).get("llm_model"))
+    if a.judge == "cache":
+        if not a.rescore or not (out / "judge.jsonl").exists():
+            log("❌ --judge cache faqat --rescore bilan va papkada judge.jsonl boʻlsa ishlaydi")
+            return 2
+        judge = CachedJudge(out / "judge.jsonl")
+    else:
+        judge = Judge.pick(a.ollama_url, a.judge, ((meta or {}).get("system") or {}).get("llm_model"))
     corpus = Corpus.open(a.db)
     log(f"Baholash: hakam — {judge.model or 'yoʻq (kalit faktlar)'}; {corpus.note}")
     per, m = score(rows, got, judge, corpus, out)

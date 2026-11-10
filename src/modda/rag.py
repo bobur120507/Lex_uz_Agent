@@ -24,8 +24,25 @@ Qoidalar:
 UNKNOWN_RE = re.compile(r"\bBILMAYMAN\b", re.I)
 CITE_RE = re.compile(r"\[(\d+)\]")
 # «the sources do not say» written as an answer sentence (bakeoff g027: «Manbalarda … bevosita maʼlumot yoʻq [1][2]…»)
+# 9-noyabr 18:11 (q051): «Qoʻshilgan qiymat soligʻi stavkasi haqida berilgan maʼlumotlar mavjud emas [1][2][3][4][5]» had no
+# lead word («manbalarda», «bu haqda»), passed the word-overlap check by repeating the question and cost five citations
+# (one to a 2000 decree on the old 45 % rate) — now «…maʼlumot(lar) yoʻq / mavjud emas / berilmagan» alone is enough;
+# «maʼlumotlarni yoʻq qilish» (to destroy data, q088) and «…mavjud emas boʻlsa» stay claims.
 NO_INFO_RE = re.compile(r"\b(manba\w*|bu haqda|bu masala\w*|savol\w*)\b.{0,160}\b(maʼlumot(?:lar)?|javob(?:i)?)\s+"
-                        r"(yoʻq|mavjud emas|keltirilmagan|berilmagan)\b(?!\s+boʻlsa)|aytib bera olmayman", re.I)
+                        r"(yoʻq|mavjud emas|keltirilmagan|berilmagan)\b(?!\s+boʻlsa)|aytib bera olmayman|"
+                        r"\b(maʼlumot\w*|axborot\w*)\s+(mavjud\s+emas|yoʻq(?!\s*qil)|berilmagan|keltirilmagan|"
+                        r"koʻrsatilmagan|topilmadi)\b(?!\s+boʻlsa)", re.I)
+
+
+def drop_no_info(text: str) -> str | None:
+    """The sentence without its «…maʼlumot berilmagan, ammo …» clause; None if it only says the sources are silent."""
+    t = (text or "").replace("'", "ʼ")
+    if not NO_INFO_RE.search(CITE_RE.sub("", t)):
+        return text
+    parts = re.split(r",\s*(?:ammo|lekin|biroq)\s+", text, maxsplit=1)
+    if len(parts) == 2 and not NO_INFO_RE.search(CITE_RE.sub("", parts[1])) and len(parts[1].split()) >= 4:
+        return parts[1][:1].upper() + parts[1][1:]
+    return None
 
 
 @dataclass
@@ -181,7 +198,8 @@ def parse_answer(question: str, raw: str, contexts: list[Context]) -> Answer:
         return Answer(question, True, raw, contexts=contexts)
     sentences, used = [], {}
     for s in split_sentences(raw):
-        if NO_INFO_RE.search(CITE_RE.sub("", s)):
+        s = drop_no_info(s)
+        if s is None:
             continue                               # not an answer: the model says the sources lack it
         nums = [int(x) for x in CITE_RE.findall(s)]
         ids = [by_n[n].chunk_id for n in nums if n in by_n]

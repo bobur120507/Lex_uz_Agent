@@ -12,6 +12,10 @@
 }
 /* Mobile: up to 767 px */
 @media (max-width: 767px) {
+  /* the demo banner wrapped to five lines over the Mind and the stage labels at 390 px (10-noyabr README screenshots):
+     one line, clipped — the full text stays in the status element (screen readers) and its title */
+  .demo-banner { left: 12px; right: 12px; transform: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    font-size: 11px; padding: 4px 10px; border-radius: 10px; text-align: center; }
   :root { --topbar-h: 56px; --dock-h: 112px; --fs-hero: 27px; }
   .topbar { grid-template-columns: auto 1fr auto; gap: 8px; padding: 0 12px; }
   .brand__name { font-size: 21px; }
@@ -55,4 +59,4 @@
 .no-webgl #scene { display: none; }
 .no-webgl .graph { position: fixed; inset: calc(var(--topbar-h) + 120px) 0 calc(var(--dock-h) + 40px) 0; }
 .no-webgl .justice-hit { display: none; }
-.no-webgl .fallback-book { position: fixed; z-index: 2; left: 50%; bottom: calc(var(--dock-h) + 12px); transform: translateX(-50%); width: min(220px, 40vw); border-radius: 6px; box-shadow: var(--shadow); }
+.no-webgl .fallback-book { position: fixed; z-index: 2; left: 50%; bottom: calc(var(--dock-h) + 12px); transform: translateX(-50%); width: min(160px, 30vw); border-radius: 6px; box-shadow: var(--shadow); }

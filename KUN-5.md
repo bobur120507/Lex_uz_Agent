@@ -288,3 +288,30 @@ toʻplamida boʻlgani uchun ularning yaxshilanishi qisman «oʻrgatilgan» hisob
 
 **Keyingi qadam:** `git pull` → `scripts\day6.bat` (yangi kod bilan toʻliq test). 22:00 ni yangi hakam bilan qayta baholash
 (API’siz, ≈ 10 daqiqa): `.venv\Scripts\python scripts\rag_api_test.py --rescore data\reports\rag100\eval-2026-11-08-2201`.
+
+## 15. Yakuniy run (`day6.bat`, 9-noyabr 18:11, kod `7630873`) — spetsifikatsiya toʻliq bajarildi
+
+| Metrika | 22:01 (qayta baholangan) | **18:12** | Maqsad |
+|---|---|---|---|
+| Hit@5 hujjat / modda | 94,4 / 86,7 % | **95,6 / 88,9 %** | ≥ 90 / 80 % |
+| MRR | 0,743 | **0,775** | ≥ 0,70 |
+| Correctness: kichigi (hakam · kalit faktlar) | 1,63 (1,80 · 1,72) | **1,68 (1,86 · 1,73)** | ≥ 1,6 |
+| Faithfulness · citation accuracy | 100 · 100 % | 99,5 · 96,8 % | ≥ 95 · 90 % |
+| Eskirgan norma | 3 | **0** | 0 |
+| No-answer · notoʻgʻri «Bilmayman» | 10/10 · 4 | **10/10 · 3** | ≥ 9/10 |
+| p50 / p95 | 2,11 / 3,83 s | 2,62 / 4,57 s | ≤ 5 / 12 s |
+| Checklist | 20/20 | **20/20** | — |
+
+Retrieval A/B: yarmlab qidirish yana foydali (Hit@5 hujjat 94,1 → 95,3 %, koʻp moddali savollarda ikkala modda 12,5 → 18,8 %) → `SPLIT_QUESTIONS=on`.
+
+**Ishlagan tuzatishlar:** q005 — endi 217-moddadan «yigirma bir kalendar kun» (eski kodeksga havola qilgan qaror chiqarildi); q034/q043 — 1991-yilgi saylov qonuni kontekstga tushmaydi; q003, q072 — ogʻzaki soʻz lugʻati toʻgʻri moddani topdi; q091 — 165-modda 1-oʻrinda.
+
+**Yangi topilganlar va tuzatish:**
+1. **Hakamning yolgʻon «zidligi».** Skript 1,54 bergan: hakam 7 javobda (q014, q023, q052, q058, q062, q082, q099) yoʻq zidlik topgan — kutilgan javob qavsidagi ikkinchi raqam (q062 «umumiy holda — ellik foiz»), bob raqami (q014 «36-bob»), «bir bola» dagi «bir», yoki boshqa faktga qarab (q099). Endi raqam kutilgan javobning **hamma** faktlari bilan solishtiriladi, faqat «…» ichidagi eskirgan misol chiqariladi, yolgʻiz «bir» eʼtiborsiz (`rag_api_test.py: real_conflict`). 18:12 ning saqlangan hakam xulosalari LLM’siz qayta baholandi — **1,68** (`--rescore <run> --judge cache`, `CachedJudge`; noutbukda takrorlanadi).
+2. **«…maʼlumotlar mavjud emas [1][2][3][4][5]».** q051 da hech narsa daʼvo qilmaydigan gap beshta havola bilan — citation accuracy 96,8 % ning yagona sababi (biri 2000-yilgi 45 % stavka haqidagi farmonga). Eski filtr «manbalarda / bu haqda» bilan boshlangan gaplarnigina olib tashlardi; endi «…maʼlumot(lar) mavjud emas / berilmagan / yoʻq» oʻzi yetarli, «…berilmagan, ammo X» da X qoladi, «maʼlumotlarni yoʻq qilish» va «…mavjud emas boʻlsa» — daʼvo sifatida qoladi (`rag.py: NO_INFO_RE, drop_no_info`). 200 haqiqiy javobda faqat 3 gapga taʼsir qiladi (q003, q031, q051).
+
+Ochiq qolganlar: q012 («otpusk» → 218-modda, «30 kun» — voyaga yetmaganlar uchun), q019 (yarmlab qidirish yomonlashtirgan), q044 (τ 0,52 < 0,58 — ataylab), q046 (kirill, top-5 da yoʻq). 3 ta yangi test (jami 94).
+
+**Sayt (README skrinshotlari paytida topilgan):** WebGL’siz rejimda bosqichlar halqasi sahifa koordinatasida hisoblanardi — pastki tugunlar («LLM javob», «Oʻqish») savol maydoni ostida qolardi, «Mind» kitob muqovasi ustida turardi (`ui/nodes.js: ring` — endi graf qutisining oʻz koordinatasi; 360–1920 px da kesishma yoʻq). Namuna rejimi yozuvi 390 px da 5 qatorga oʻralib grafni, kompyuterda 2 qatorga oʻralib sarlavhani yopardi — endi bitta qator (toʻliq matn `title` da), sarlavha shu qator balandligiga pastga tushadi. Jonli rejim oʻzgarmadi. Unit testlar 8/8.
+
+**Yopish:** spetsifikatsiyaning 13 maqsadi va 20 checklist bandi bajarildi; testchi uchun javob hujjati (oʻzbekcha) tayyor; README — saytning har koʻrinishi skrinshoti va vazifasi bilan. Oxirgi ikki tuzatish kichik va testlangan — xohlansa ixtiyoriy yakuniy `day6.bat`.

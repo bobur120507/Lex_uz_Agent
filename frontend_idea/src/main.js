@@ -528,6 +528,7 @@ async function start() {
     body.classList.add('is-demo'); $('.demo-banner').hidden = false;
     const when = String(backend.recorded || '').slice(0, 16).replace('T', ' ');
     if (when) $('.demo-banner').textContent = `Namuna rejimi — jonli backend emas: ${when} da yozib olingan haqiqiy javob${backend.note ? ` (${backend.note.split(',')[0]})` : ''}. Savol: «${backend.question}».`;
+    $('.demo-banner').title = $('.demo-banner').textContent;
   }
   nodes = new GraphNodes($('.graph'), { onOpen: (id) => (id === 'mind' ? openMind(ctx, 'llm') : openStage(id, ctx)) });
   store.subscribe((st) => { nodes.update(st); setPhaseClass(st.phase); });
